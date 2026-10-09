@@ -1,0 +1,87 @@
+name: std-tool-calling
+version: "0.1"
+dimension: tool_calling
+source: standard
+description: Choose the right tool with the right arguments, call several when needed, and abstain when no tool applies.
+system_prompt: |
+  You are an assistant with tools. Call a tool only when it is needed to answer. Today's date is 2026-09-29.
+tools:
+  - name: get_weather
+    description: Current weather for a city.
+    parameters:
+      type: object
+      properties:
+        city: {type: string, description: "City name only, e.g. 'Paris'"}
+        unit: {type: string, enum: [celsius, fahrenheit], description: "Defaults to celsius"}
+      required: [city]
+  - name: convert_currency
+    description: Convert an amount between currencies.
+    parameters:
+      type: object
+      properties:
+        amount: {type: number}
+        from_currency: {type: string, description: ISO 4217 code}
+        to_currency: {type: string, description: ISO 4217 code}
+      required: [amount, from_currency, to_currency]
+  - name: create_event
+    description: Create a calendar event.
+    parameters:
+      type: object
+      properties:
+        title: {type: string}
+        date: {type: string, description: YYYY-MM-DD}
+        time: {type: string, description: "24h HH:MM"}
+      required: [title, date, time]
+  - name: search_orders
+    description: Look up a customer's orders.
+    parameters:
+      type: object
+      properties:
+        email: {type: string}
+        status: {type: string, enum: [pending, shipped, delivered, cancelled]}
+      required: [email]
+scorers:
+  - type: tool_call
+pass_threshold: 1.0
+cases:
+  - id: weather-simple
+    input: "What's the weather like in Lisbon right now?"
+    expected: {name: get_weather, arguments: {city: Lisbon}}
+  - id: weather-unit
+    input: "How hot is it in Phoenix? Give it to me in Fahrenheit."
+    expected: {name: get_weather, arguments: {city: Phoenix, unit: fahrenheit}}
+  - id: weather-parallel
+    input: "Compare the current weather in Tokyo and Oslo."
+    expected:
+      - {name: get_weather, arguments: {city: Tokyo}}
+      - {name: get_weather, arguments: {city: Oslo}}
+  - id: fx-basic
+    input: "How much is 250 US dollars in euros?"
+    expected: {name: convert_currency, arguments: {amount: 250, from_currency: USD, to_currency: EUR}}
+  - id: fx-implicit
+    input: "I have ¥12,000 left over from my Japan trip. What's that in British pounds?"
+    expected: {name: convert_currency, arguments: {amount: 12000, from_currency: JPY, to_currency: GBP}}
+  - id: event-relative-date
+    input: "Put \"Dentist\" on my calendar for tomorrow at 3pm."
+    expected: {name: create_event, arguments: {title: Dentist, date: "2026-09-30", time: "15:00"}}
+  - id: event-explicit
+    input: "Schedule a meeting called \"Q4 planning\" on October 14th 2026 at 09:30."
+    expected: {name: create_event, arguments: {title: Q4 planning, date: "2026-10-14", time: "09:30"}}
+  - id: orders-status
+    input: "Can you find the shipped orders for jane.doe@example.com?"
+    expected: {name: search_orders, arguments: {email: jane.doe@example.com, status: shipped}}
+  - id: orders-all
+    input: "Show me every order placed by sam@example.org."
+    expected: {name: search_orders, arguments: {email: sam@example.org}}
+  - id: abstain-math
+    input: "What is 17 times 23?"
+    expected: none
+  - id: abstain-knowledge
+    input: "Who wrote the novel \"Pride and Prejudice\"?"
+    expected: none
+  - id: abstain-missing-info
+    input: "Convert some money to euros for me."
+    expected: none
+  - id: abstain-chitchat
+    input: "Thanks, that's all for today!"
+    expected: none

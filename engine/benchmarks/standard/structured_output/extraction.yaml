@@ -1,0 +1,117 @@
+name: std-structured-extraction
+version: "0.1"
+dimension: structured_output
+source: standard
+description: Extract fields from messy business text into schema-valid JSON; scored per field.
+system_prompt: |
+  Extract the requested fields from the text. Respond with only a JSON object (no prose).
+  Dates must be ISO format YYYY-MM-DD. Currency must be an ISO 4217 code. Numbers must be JSON numbers.
+scorers:
+  - type: json_schema
+pass_threshold: 1.0
+cases:
+  # ---- invoices: vendor, invoice_number, total, currency, due_date ----
+  - id: inv-1
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      ACME Supplies Ltd. — Invoice #INV-20931
+      Subtotal £1,200.00, VAT £240.00, Total due £1,440.00. Payment due by 15 March 2026.
+    expected: {vendor: ACME Supplies Ltd., invoice_number: INV-20931, total: 1440, currency: GBP, due_date: "2026-03-15"}
+    vars: &inv_schema
+      schema:
+        type: object
+        required: [vendor, invoice_number, total, currency, due_date]
+        properties:
+          vendor: {type: string}
+          invoice_number: {type: string}
+          total: {type: number}
+          currency: {type: string, pattern: "^[A-Z]{3}$"}
+          due_date: {type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$"}
+  - id: inv-2
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      hi team, attaching bill no. 7781 from Northwind Traders. amount is 3.450,75 EUR (european format), net 30 from the invoice date of 2026-01-10.
+    expected: {vendor: Northwind Traders, invoice_number: "7781", total: 3450.75, currency: EUR, due_date: "2026-02-09"}
+    vars: *inv_schema
+  - id: inv-3
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      From: billing@globex.example — Globex Corporation
+      Ref: GX/2026/0042. Services rendered: $980 consulting + $120 expenses. Please remit by 04/30/2026 (US date format).
+    expected: {vendor: Globex Corporation, invoice_number: GX/2026/0042, total: 1100, currency: USD, due_date: "2026-04-30"}
+    vars: *inv_schema
+  - id: inv-4
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      Initech invoice 55-A. Original total ¥250,000; a credit note of ¥30,000 has been applied, so the amount now payable is ¥220,000. Due 2026-07-01.
+    expected: {vendor: Initech, invoice_number: 55-A, total: 220000, currency: JPY, due_date: "2026-07-01"}
+    vars: *inv_schema
+  - id: inv-5
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      Stark Components (Canada) — Invoice SC-1009 — CAD 12,500.00 — payment due on receipt; invoice dated 1 June 2026, receipt assumed same day.
+    expected: {vendor: Stark Components (Canada), invoice_number: SC-1009, total: 12500, currency: CAD, due_date: "2026-06-01"}
+    vars: *inv_schema
+  - id: inv-6
+    input: |
+      Fields: vendor, invoice_number, total, currency, due_date.
+      ---
+      Umbrella Logistics S.A. de C.V. | Factura No. F-3321 | Total: MXN 48,760.50 | Fecha de vencimiento: 20 de agosto de 2026
+    expected: {vendor: Umbrella Logistics S.A. de C.V., invoice_number: F-3321, total: 48760.5, currency: MXN, due_date: "2026-08-20"}
+    vars: *inv_schema
+  # ---- support tickets: customer_name, order_id, category, refund_requested ----
+  - id: tkt-1
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      Hi, this is Dana Whitfield. I was charged twice for order 88213 and I'd like the duplicate charge refunded please.
+    expected: {customer_name: Dana Whitfield, order_id: "88213", category: billing, refund_requested: true}
+    vars: &tkt_schema
+      schema:
+        type: object
+        required: [customer_name, order_id, category, refund_requested]
+        properties:
+          customer_name: {type: string}
+          order_id: {type: [string, "null"]}
+          category: {enum: [billing, bug, feature_request, account]}
+          refund_requested: {type: boolean}
+  - id: tkt-2
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      the export button crashes the app every time on android 14. not asking for money back, just fix it. — raj patel
+    expected: {customer_name: Raj Patel, order_id: null, category: bug, refund_requested: false}
+    vars: *tkt_schema
+  - id: tkt-3
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      Would love a dark mode for the dashboard! Keep up the great work. Best, Sofía Ramírez
+    expected: {customer_name: Sofía Ramírez, order_id: null, category: feature_request, refund_requested: false}
+    vars: *tkt_schema
+  - id: tkt-4
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      I can't log in since I changed my email address. My name is Tom Okafor. I don't need a refund, I just need access back.
+    expected: {customer_name: Tom Okafor, order_id: null, category: account, refund_requested: false}
+    vars: *tkt_schema
+  - id: tkt-5
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      Order #A-5520 arrived but the license key doesn't activate — error 0x80. If this can't be fixed this week I want my money back. Lena Fischer
+    expected: {customer_name: Lena Fischer, order_id: A-5520, category: bug, refund_requested: true}
+    vars: *tkt_schema
+  - id: tkt-6
+    input: |
+      Fields: customer_name, order_id (string or null), category (one of billing, bug, feature_request, account), refund_requested (boolean).
+      ---
+      Hello, Marcus Lee here. My annual plan renewed yesterday (order 30017) even though I cancelled last month. Please reverse the charge.
+    expected: {customer_name: Marcus Lee, order_id: "30017", category: billing, refund_requested: true}
+    vars: *tkt_schema

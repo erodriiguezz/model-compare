@@ -1,0 +1,57 @@
+name: std-reasoning-math
+version: "0.1"
+dimension: reasoning
+source: standard
+description: Original multi-step arithmetic/logic word problems (not from public sets, to limit contamination).
+system_prompt: |
+  Solve the problem step by step. End with a final line of the form `ANSWER: <number>` (number only, no units).
+scorers:
+  - type: numeric
+    params: {tolerance: 0.0001}
+repeats: 1
+cases:
+  - id: pens-bulk
+    input: "Pens cost $3 each, or $12 for a pack of 5. What is the minimum cost, in dollars, to buy exactly 17 pens?"
+    expected: 42
+  - id: train-minutes
+    input: "A train departs at 9:40 and arrives at 13:15 the same day. How many minutes long is the trip?"
+    expected: 215
+  - id: age-ratio
+    input: "Maria is three times as old as her son. In 12 years she will be twice as old as he will be. How old is Maria now?"
+    expected: 36
+  - id: sum-3-or-5
+    input: "What is the sum of all integers from 1 to 200 inclusive that are divisible by 3 or by 5?"
+    expected: 9368
+  - id: pipes
+    input: "Pipe A fills a tank in 6 hours, pipe B fills it in 4 hours, and drain C empties a full tank in 12 hours. Starting empty with all three open, how many hours to fill the tank?"
+    expected: 3
+  - id: price-changes
+    input: "An item priced at $80 is increased by 20%, and the new price is then reduced by 25%. What is the final price in dollars?"
+    expected: 72
+  - id: level-arrangements
+    input: "How many distinct arrangements are there of the letters in the word LEVEL?"
+    expected: 30
+  - id: rectangle-diagonal
+    input: "A rectangle has a perimeter of 46 and an area of 120. What is the length of its diagonal?"
+    expected: 17
+  - id: dice-sum-8
+    input: "Two standard six-sided dice are rolled. In how many of the 36 ordered outcomes is the sum exactly 8?"
+    expected: 5
+  - id: workers-days
+    input: "Six workers build a wall in 10 days. Working at the same rate, how many days would four workers need?"
+    expected: 15
+  - id: fuel-cost
+    input: "A car uses 7.5 liters of fuel per 100 km. Fuel costs $1.60 per liter. How many dollars does fuel cost for a 340 km trip?"
+    expected: 40.8
+  - id: mod-power
+    input: "What is the remainder when 2^100 is divided by 7?"
+    expected: 2
+  - id: inventory
+    input: "A warehouse holds 1,250 units. On Monday it ships 18% of them, on Tuesday it ships another 150 units, and on Wednesday it receives 400 units. How many units does it hold now?"
+    expected: 1275
+  - id: clock-angle
+    input: "What is the smaller angle, in degrees, between the hour and minute hands of a clock at 3:40?"
+    expected: 130
+  - id: sequence
+    input: "The sequence 2, 6, 12, 20, 30, ... continues with the same pattern. What is its 10th term?"
+    expected: 110

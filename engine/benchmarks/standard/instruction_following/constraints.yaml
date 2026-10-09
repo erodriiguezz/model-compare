@@ -1,0 +1,48 @@
+name: std-instruction-following
+version: "0.1"
+dimension: instruction_following
+source: standard
+description: IFEval-style prompts with programmatically verifiable constraints (all must hold to pass).
+scorers:
+  - type: instructions
+pass_threshold: 1.0
+cases:
+  - id: bullets-no-commas
+    input: "Describe the ocean in exactly 3 bullet points starting with \"- \". Do not use any commas. Output nothing else."
+    vars: {checks: [{type: bullet_count, value: 3}, {type: no_commas}]}
+  - id: lowercase-haiku
+    input: "Write a haiku about coffee using only lowercase letters."
+    vars: {checks: [{type: lowercase}, {type: max_words, value: 25}]}
+  - id: api-short
+    input: "Explain what an API is in under 40 words. Do not use the word \"interface\"."
+    vars: {checks: [{type: max_words, value: 39}, {type: not_contains, value: interface}]}
+  - id: two-paragraphs
+    input: "Write exactly two paragraphs about remote work, separated by one blank line. The response must end with the exact phrase \"That is all.\""
+    vars: {checks: [{type: paragraphs, value: 2}, {type: ends_with, value: "That is all."}]}
+  - id: raw-json
+    input: "Output a JSON object with keys \"name\" and \"age\" for a fictional person. Output only the raw JSON, without code fences or any other text."
+    vars: {checks: [{type: is_json}, {type: no_markdown}, {type: starts_with, value: "{"}]}
+  - id: five-fruits
+    input: "List exactly 5 fruits, one per line, each line starting with \"- \". Include no other text."
+    vars: {checks: [{type: bullet_count, value: 5}, {type: max_words, value: 10}]}
+  - id: caps-tagline
+    input: "Write a tagline for a running shoe in ALL CAPITAL LETTERS, fewer than 12 words."
+    vars: {checks: [{type: uppercase}, {type: max_words, value: 11}]}
+  - id: starts-yes
+    input: "Is Python dynamically typed? Begin your answer with \"Yes\" and answer in a single sentence."
+    vars: {checks: [{type: starts_with, value: "Yes"}, {type: sentences_max, value: 1}]}
+  - id: keyword-count
+    input: "Write a short paragraph about bicycles that uses the exact word \"wheel\" exactly three times (never \"wheels\")."
+    vars: {checks: [{type: keyword_count, keyword: wheel, value: 3}]}
+  - id: word-range-no-md
+    input: "Summarize the benefits of regular exercise in between 80 and 120 words. Do not use any markdown formatting (no headings, bold, or lists)."
+    vars: {checks: [{type: min_words, value: 80}, {type: max_words, value: 120}, {type: no_markdown}]}
+  - id: one-word
+    input: "Respond with a single word in uppercase: the capital city of France."
+    vars: {checks: [{type: uppercase}, {type: max_words, value: 1}, {type: contains, value: PARIS}]}
+  - id: no-letter-z
+    input: "Write at most 3 sentences about the moon. Do not use the letter \"z\" anywhere."
+    vars: {checks: [{type: not_contains, value: z}, {type: sentences_max, value: 3}]}
+  - id: quoted
+    input: "Tell me one fun fact about octopuses. Wrap your entire response in double quotation marks."
+    vars: {checks: [{type: starts_with, value: "\""}, {type: ends_with, value: "\""}]}

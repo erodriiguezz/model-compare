@@ -1,0 +1,24 @@
+# Decision profiles: weights over dimensions. Dimensions not yet measured are skipped and
+# reported as missing coverage, so profiles stay meaningful as the deck grows.
+profiles:
+  coding_assistant:
+    description: IDE / code-review assistant.
+    weights: {coding: 5, software_delivery: 5, reasoning: 3, instruction_following: 2, tool_calling: 2, long_context: 2, factuality: 1}
+  customer_support:
+    description: Customer-facing chat with tools and policy constraints.
+    weights: {instruction_following: 4, tool_calling: 4, factuality: 3, safety_over_refusal: 2, safety_harmful: 2, multilingual: 2, summarization: 1}
+  data_extraction:
+    description: High-volume document-to-JSON pipelines.
+    weights: {structured_output: 5, instruction_following: 3, robustness: 2, long_context: 1}
+  research_rag:
+    description: Question answering over long documents.
+    weights: {long_context: 4, factuality: 4, reasoning: 3, summarization: 2, calibration: 2}
+  agent_backbone:
+    description: Model driving an autonomous tool-using agent.
+    weights: {tool_calling: 5, reasoning: 4, instruction_following: 3, coding: 2, software_delivery: 3, agentic: 5}
+  engineering_team:
+    description: Day-to-day software delivery across the SDLC (specs, code, tests, reviews).
+    weights: {software_delivery: 5, coding: 4, reasoning: 2, instruction_following: 2, structured_output: 1, long_context: 1}
+  general_assistant:
+    description: Balanced everyday use.
+    weights: {reasoning: 2, coding: 1, instruction_following: 2, structured_output: 1, tool_calling: 1, factuality: 2, summarization: 1, safety_over_refusal: 1}

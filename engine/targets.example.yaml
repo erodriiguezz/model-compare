@@ -1,0 +1,70 @@
+# Copy to targets.yaml. `model` is any LiteLLM model string: https://docs.litellm.ai/docs/providers
+# Model ids change fast — confirm the current ids in each provider's docs before running.
+targets:
+  # Claude 4.7+ (Sonnet 5+, Haiku 5+, Opus 5+) rejects any temperature other than 1, hence temperature: null.
+  - name: claude-sonnet-4-6
+    model: anthropic/claude-sonnet-4-6
+  - name: claude-sonnet-5
+    model: anthropic/claude-sonnet-5
+    temperature: null
+  - name: claude-sonnet-5-5
+    model: anthropic/claude-sonnet-5-5
+    temperature: null
+  - name: claude-haiku-4-5
+    model: anthropic/claude-haiku-4-5
+  - name: claude-haiku-5-5
+    model: anthropic/claude-haiku-5-5
+    temperature: null
+  # GPT-5 and GPT-6 family models are reasoning models and reject a temperature parameter, hence temperature: null.
+  - name: gpt-6.1-sol
+    model: openai/gpt-6.1-sol
+    temperature: null
+  - name: gpt-6-sol
+    model: openai/gpt-6-sol
+    temperature: null
+  - name: gpt-6-astra
+    model: openai/gpt-6-astra
+    temperature: null
+  - name: gpt-6-luna
+    model: openai/gpt-6-luna
+    temperature: null
+  - name: gpt-5.6
+    model: openai/gpt-5.6
+    temperature: null
+  - name: gpt-5.5
+    model: openai/gpt-5.5
+    temperature: null
+  - name: gpt-5.4
+    model: openai/gpt-5.4
+    temperature: null
+  - name: gpt-5.4-mini
+    model: openai/gpt-5.4-mini
+    temperature: null
+  - name: gpt-5.4-nano
+    model: openai/gpt-5.4-nano
+    temperature: null
+  - name: gpt-5
+    model: openai/gpt-5
+    temperature: null
+  - name: gpt-4.1
+    model: openai/gpt-4.1
+  - name: gemini-pro
+    model: gemini/gemini-2.5-pro
+  - name: llama
+    model: together_ai/meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+    # Optional explicit pricing (USD per 1M tokens) when LiteLLM's registry lacks the model:
+    # pricing: {input: 0.27, output: 0.85}
+
+  - name: claude-opus-5
+    model: anthropic/claude-opus-5
+    temperature: null
+  - name: claude-opus-5-5
+    model: anthropic/claude-opus-5-5
+    temperature: null
+  # Any target can grade llm_judge tasks; the dashboard picks one from a vendor you're not comparing.
+
+  # Offline target for trying the pipeline without API keys.
+  - name: mock
+    kind: mock
+    model: mock/echo
+    extra: {default: "ANSWER: 0"}

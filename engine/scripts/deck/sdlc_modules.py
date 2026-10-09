@@ -1,0 +1,459 @@
+"""The four small codebases the SDLC pack is built on, each with a full test suite.
+
+Every SDLC case derives from these: features are added to them, bugs are planted in them, mutants are
+made from them and review diffs are taken against them. The suites are the hidden tests.
+"""
+
+CART = '''"""Shopping cart pricing: line items, coupons and tax, in exact decimal money."""
+
+from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
+
+CENT = Decimal("0.01")
+COUPONS = {"SAVE10": ("percent", Decimal("10")), "FIVEOFF": ("fixed", Decimal("5.00"))}
+
+
+def to_cents(x: Decimal) -> Decimal:
+    return x.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+@dataclass
+class LineItem:
+    sku: str
+    unit_price: Decimal
+    quantity: int
+
+    @property
+    def amount(self) -> Decimal:
+        return self.unit_price * self.quantity
+
+
+class Cart:
+    def __init__(self, tax_rate: Decimal = Decimal("0")):
+        if tax_rate < 0:
+            raise ValueError("tax rate cannot be negative")
+        self.tax_rate = tax_rate
+        self.items: dict[str, LineItem] = {}
+        self.coupon: str | None = None
+
+    def add(self, sku: str, unit_price: Decimal, quantity: int = 1) -> None:
+        if quantity <= 0:
+            raise ValueError("quantity must be positive")
+        if unit_price < 0:
+            raise ValueError("price cannot be negative")
+        if sku in self.items:
+            if self.items[sku].unit_price != unit_price:
+                raise ValueError(f"price mismatch for {sku}")
+            self.items[sku].quantity += quantity
+        else:
+            self.items[sku] = LineItem(sku, unit_price, quantity)
+
+    def remove(self, sku: str, quantity: int | None = None) -> None:
+        if sku not in self.items:
+            raise KeyError(sku)
+        item = self.items[sku]
+        if quantity is None or quantity == item.quantity:
+            del self.items[sku]
+        elif quantity > item.quantity:
+            raise ValueError("cannot remove more than is in the cart")
+        else:
+            item.quantity -= quantity
+
+    def apply_coupon(self, code: str) -> None:
+        if code not in COUPONS:
+            raise ValueError(f"unknown coupon {code}")
+        self.coupon = code
+
+    def subtotal(self) -> Decimal:
+        return sum((i.amount for i in self.items.values()), Decimal("0"))
+
+    def discount(self) -> Decimal:
+        if not self.coupon:
+            return Decimal("0")
+        kind, value = COUPONS[self.coupon]
+        sub = self.subtotal()
+        if kind == "percent":
+            return to_cents(sub * value / 100)
+        return min(value, sub)
+
+    def tax(self) -> Decimal:
+        return to_cents((self.subtotal() - self.discount()) * self.tax_rate / 100)
+
+    def total(self) -> Decimal:
+        return to_cents(self.subtotal() - self.discount() + self.tax())
+'''
+
+CART_TESTS = '''
+from decimal import Decimal as D
+
+def _cart(rate="0"):
+    return Cart(D(rate))
+
+def test_cart_subtotal_and_merge():
+    c = _cart()
+    c.add("A", D("2.50"), 2)
+    c.add("A", D("2.50"))
+    c.add("B", D("10"))
+    assert c.subtotal() == D("17.50")
+    assert c.items["A"].quantity == 3
+
+def test_cart_validation():
+    c = _cart()
+    for bad in (lambda: c.add("A", D("1"), 0), lambda: c.add("A", D("-1")), lambda: Cart(D("-1"))):
+        try:
+            bad()
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected ValueError")
+    c.add("A", D("1"))
+    try:
+        c.add("A", D("2"))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("price mismatch accepted")
+
+def test_cart_remove():
+    c = _cart()
+    c.add("A", D("1"), 5)
+    c.remove("A", 2)
+    assert c.items["A"].quantity == 3
+    c.remove("A", 3)
+    assert "A" not in c.items
+    c.add("B", D("1"), 1)
+    c.remove("B")
+    assert c.items == {}
+    try:
+        c.remove("Z")
+    except KeyError:
+        pass
+    else:
+        raise AssertionError("missing sku")
+    c.add("C", D("1"), 1)
+    try:
+        c.remove("C", 2)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("over-remove")
+
+def test_cart_percent_coupon_and_tax():
+    c = _cart("8.25")
+    c.add("A", D("19.99"), 3)
+    c.apply_coupon("SAVE10")
+    assert c.discount() == D("6.00")
+    assert c.tax() == D("4.45")
+    assert c.total() == D("58.42")
+
+def test_cart_fixed_coupon_capped():
+    c = _cart("10")
+    c.add("A", D("3.00"))
+    c.apply_coupon("FIVEOFF")
+    assert c.discount() == D("3.00")
+    assert c.total() == D("0.00")
+
+def test_cart_unknown_coupon():
+    c = _cart()
+    try:
+        c.apply_coupon("FREE")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unknown coupon accepted")
+    assert c.coupon is None
+
+def test_cart_empty():
+    c = _cart("20")
+    assert c.subtotal() == D("0") and c.total() == D("0.00")
+'''
+
+RATELIMIT = '''"""Token-bucket rate limiting, per client key, with an injectable clock for testing."""
+
+import time
+from collections import OrderedDict
+from typing import Callable
+
+
+class TokenBucket:
+    def __init__(self, capacity: int, refill_per_sec: float, clock: Callable[[], float] = time.monotonic):
+        if capacity <= 0 or refill_per_sec <= 0:
+            raise ValueError("capacity and refill rate must be positive")
+        self.capacity = capacity
+        self.refill_per_sec = refill_per_sec
+        self.clock = clock
+        self._tokens = float(capacity)
+        self._last = clock()
+
+    def _refill(self) -> None:
+        now = self.clock()
+        elapsed = max(0.0, now - self._last)
+        self._tokens = min(self.capacity, self._tokens + elapsed * self.refill_per_sec)
+        self._last = now
+
+    def allow(self, cost: int = 1) -> bool:
+        self._refill()
+        if self._tokens >= cost:
+            self._tokens -= cost
+            return True
+        return False
+
+    def wait_time(self, cost: int = 1) -> float:
+        """Seconds until `cost` tokens will be available (0 if they already are)."""
+        self._refill()
+        missing = cost - self._tokens
+        return max(0.0, missing / self.refill_per_sec)
+
+
+class KeyedLimiter:
+    """One bucket per key; the least recently used key is evicted beyond max_keys."""
+
+    def __init__(self, capacity: int, refill_per_sec: float, max_keys: int = 1000, clock: Callable[[], float] = time.monotonic):
+        self.capacity = capacity
+        self.refill_per_sec = refill_per_sec
+        self.max_keys = max_keys
+        self.clock = clock
+        self.buckets: OrderedDict[str, TokenBucket] = OrderedDict()
+
+    def allow(self, key: str, cost: int = 1) -> bool:
+        bucket = self.buckets.get(key)
+        if bucket is None:
+            bucket = TokenBucket(self.capacity, self.refill_per_sec, self.clock)
+            self.buckets[key] = bucket
+            if len(self.buckets) > self.max_keys:
+                self.buckets.popitem(last=False)
+        else:
+            self.buckets.move_to_end(key)
+        return bucket.allow(cost)
+'''
+
+RATELIMIT_TESTS = '''
+class FakeClock:
+    def __init__(self):
+        self.t = 100.0
+    def __call__(self):
+        return self.t
+
+def test_bucket_drains_and_refills():
+    clk = FakeClock()
+    b = TokenBucket(3, 1.0, clk)
+    assert [b.allow() for _ in range(4)] == [True, True, True, False]
+    clk.t += 1.5
+    assert b.allow() is True
+    assert b.allow() is False
+
+def test_bucket_caps_at_capacity():
+    clk = FakeClock()
+    b = TokenBucket(2, 10.0, clk)
+    clk.t += 100
+    assert [b.allow() for _ in range(3)] == [True, True, False]
+
+def test_bucket_cost_and_wait_time():
+    clk = FakeClock()
+    b = TokenBucket(5, 2.0, clk)
+    assert b.wait_time(3) == 0.0
+    assert b.allow(5) is True
+    assert abs(b.wait_time(3) - 1.5) < 1e-9
+    clk.t += 1.5
+    assert b.allow(3) is True
+
+def test_bucket_clock_going_backwards_is_ignored():
+    clk = FakeClock()
+    b = TokenBucket(1, 1.0, clk)
+    assert b.allow()
+    clk.t -= 50
+    assert not b.allow()
+
+def test_bucket_validation():
+    for args in ((0, 1.0), (1, 0.0), (-1, 1.0)):
+        try:
+            TokenBucket(*args)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(args)
+
+def test_keyed_limiter_isolates_keys():
+    clk = FakeClock()
+    lim = KeyedLimiter(1, 1.0, clock=clk)
+    assert lim.allow("a") and not lim.allow("a")
+    assert lim.allow("b")
+
+def test_keyed_limiter_evicts_least_recent():
+    clk = FakeClock()
+    lim = KeyedLimiter(1, 0.001, max_keys=2, clock=clk)
+    lim.allow("a")
+    lim.allow("b")
+    lim.allow("a")
+    lim.allow("c")
+    assert list(lim.buckets) == ["a", "c"]
+'''
+
+BILLING = '''"""Monthly billing periods and proration."""
+
+import calendar
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+
+CENT = Decimal("0.01")
+
+
+def add_months(d: date, n: int) -> date:
+    """Same day n months later, clamped to the month's last day (Jan 31 + 1 month = Feb 28/29)."""
+    month_index = d.month - 1 + n
+    year, month = d.year + month_index // 12, month_index % 12 + 1
+    last = calendar.monthrange(year, month)[1]
+    return date(year, month, min(d.day, last))
+
+
+def billing_periods(start: date, count: int) -> list[tuple[date, date]]:
+    """`count` consecutive periods; each ends the day before the next one starts (inclusive ranges)."""
+    if count < 0:
+        raise ValueError("count cannot be negative")
+    periods = []
+    for k in range(count):
+        begin = add_months(start, k)
+        end = add_months(start, k + 1) - timedelta(days=1)
+        periods.append((begin, end))
+    return periods
+
+
+def days_in(period: tuple[date, date]) -> int:
+    return (period[1] - period[0]).days + 1
+
+
+def prorate(amount: Decimal, period: tuple[date, date], active_from: date) -> Decimal:
+    """Charge for the part of the period from active_from to the period end, inclusive."""
+    begin, end = period
+    if active_from > end:
+        return Decimal("0.00")
+    active_from = max(active_from, begin)
+    used = (end - active_from).days + 1
+    return (amount * used / days_in(period)).quantize(CENT, rounding=ROUND_HALF_UP)
+'''
+
+BILLING_TESTS = '''
+from datetime import date as Dt
+from decimal import Decimal as D
+
+def test_add_months_clamps():
+    assert add_months(Dt(2026, 1, 31), 1) == Dt(2026, 2, 28)
+    assert add_months(Dt(2028, 1, 31), 1) == Dt(2028, 2, 29)
+    assert add_months(Dt(2026, 11, 15), 3) == Dt(2027, 2, 15)
+    assert add_months(Dt(2026, 3, 31), -1) == Dt(2026, 2, 28)
+
+def test_periods_are_contiguous():
+    ps = billing_periods(Dt(2026, 1, 31), 3)
+    assert ps == [(Dt(2026, 1, 31), Dt(2026, 2, 27)), (Dt(2026, 2, 28), Dt(2026, 3, 30)), (Dt(2026, 3, 31), Dt(2026, 4, 29))]
+    assert billing_periods(Dt(2026, 5, 1), 0) == []
+
+def test_periods_validation():
+    try:
+        billing_periods(Dt(2026, 1, 1), -1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative count")
+
+def test_days_in_is_inclusive():
+    assert days_in((Dt(2026, 2, 1), Dt(2026, 2, 28))) == 28
+
+def test_prorate():
+    p = (Dt(2026, 4, 1), Dt(2026, 4, 30))
+    assert prorate(D("30"), p, Dt(2026, 4, 1)) == D("30.00")
+    assert prorate(D("30"), p, Dt(2026, 4, 30)) == D("1.00")
+    assert prorate(D("30"), p, Dt(2026, 4, 16)) == D("15.00")
+    assert prorate(D("30"), p, Dt(2026, 3, 1)) == D("30.00")
+    assert prorate(D("30"), p, Dt(2026, 5, 1)) == D("0.00")
+    assert prorate(D("10"), (Dt(2026, 2, 1), Dt(2026, 2, 28)), Dt(2026, 2, 15)) == D("5.00")
+'''
+
+CSV_IMPORT = '''"""Import user records from CSV with validation and readable per-line errors."""
+
+import csv
+import io
+import re
+from dataclasses import dataclass, field
+
+REQUIRED = ("email", "name", "plan")
+PLANS = {"free", "team", "enterprise"}
+EMAIL = re.compile(r"^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$", re.I)
+
+
+@dataclass
+class ImportResult:
+    rows: list[dict] = field(default_factory=list)
+    errors: list[tuple[int, str]] = field(default_factory=list)
+
+
+def parse_users(text: str) -> ImportResult:
+    """Line numbers count the header as line 1. The first row for an email wins; later ones are errors."""
+    result = ImportResult()
+    reader = csv.DictReader(io.StringIO(text))
+    if reader.fieldnames is None:
+        result.errors.append((1, "empty file"))
+        return result
+    reader.fieldnames = [h.strip().lower() for h in reader.fieldnames]
+    missing = [c for c in REQUIRED if c not in reader.fieldnames]
+    if missing:
+        result.errors.append((1, f"missing columns: {', '.join(missing)}"))
+        return result
+    seen: set[str] = set()
+    for line_no, raw in enumerate(reader, start=2):
+        row = {k: (v or "").strip() for k, v in raw.items() if k}
+        email = row["email"].lower()
+        if not EMAIL.match(email):
+            result.errors.append((line_no, "invalid email"))
+            continue
+        if email in seen:
+            result.errors.append((line_no, "duplicate email"))
+            continue
+        plan = row["plan"].lower()
+        if plan not in PLANS:
+            result.errors.append((line_no, "unknown plan"))
+            continue
+        if not row["name"]:
+            result.errors.append((line_no, "missing name"))
+            continue
+        seen.add(email)
+        result.rows.append({"email": email, "name": row["name"], "plan": plan})
+    return result
+'''
+
+CSV_TESTS = '''
+def test_csv_happy_path_normalises():
+    r = parse_users(" Email ,Name,PLAN\\nAna@Example.com, Ana Lima ,Team\\n")
+    assert r.errors == []
+    assert r.rows == [{"email": "ana@example.com", "name": "Ana Lima", "plan": "team"}]
+
+def test_csv_errors_have_line_numbers():
+    text = "email,name,plan\\nbad-email,X,free\\nb@ex.com,,free\\nc@ex.com,C,gold\\nd@ex.com,D,free\\n"
+    r = parse_users(text)
+    assert r.errors == [(2, "invalid email"), (3, "missing name"), (4, "unknown plan")]
+    assert [x["email"] for x in r.rows] == ["d@ex.com"]
+
+def test_csv_duplicates_case_insensitive_first_wins():
+    r = parse_users("email,name,plan\\na@ex.com,First,free\\nA@EX.com,Second,team\\n")
+    assert r.rows == [{"email": "a@ex.com", "name": "First", "plan": "free"}]
+    assert r.errors == [(3, "duplicate email")]
+
+def test_csv_invalid_row_does_not_reserve_email():
+    r = parse_users("email,name,plan\\na@ex.com,,free\\na@ex.com,Real,free\\n")
+    assert r.errors == [(2, "missing name")]
+    assert [x["name"] for x in r.rows] == ["Real"]
+
+def test_csv_missing_columns_and_empty():
+    assert parse_users("email,name\\na@ex.com,A\\n").errors == [(1, "missing columns: plan")]
+    assert parse_users("").errors == [(1, "empty file")]
+
+def test_csv_quoted_fields():
+    r = parse_users('email,name,plan\\n"z@ex.com","Doe, Jane",enterprise\\n')
+    assert r.rows == [{"email": "z@ex.com", "name": "Doe, Jane", "plan": "enterprise"}]
+'''
+
+MODULES = {
+    "cart": {"source": CART, "tests": CART_TESTS, "file": "cart.py", "what": "a shopping-cart pricing module"},
+    "ratelimit": {"source": RATELIMIT, "tests": RATELIMIT_TESTS, "file": "ratelimit.py", "what": "a token-bucket rate limiter"},
+    "billing": {"source": BILLING, "tests": BILLING_TESTS, "file": "billing.py", "what": "a billing-period and proration module"},
+    "csv_import": {"source": CSV_IMPORT, "tests": CSV_TESTS, "file": "csv_import.py", "what": "a CSV user-import module"},
+}

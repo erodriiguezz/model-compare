@@ -1,0 +1,116 @@
+name: std-coding-python
+version: "0.1"
+dimension: coding
+source: standard
+description: Implement small Python functions; graded by hidden unit tests run in a subprocess.
+system_prompt: |
+  Implement the requested Python function or class. Use only the standard library.
+  Reply with a single ```python code block and nothing else.
+scorers:
+  - type: code_exec
+    params: {timeout_s: 10}
+cases:
+  - id: palindrome
+    input: "Write `is_palindrome(s: str) -> bool` that ignores case and any non-alphanumeric characters."
+    vars:
+      tests: |
+        assert is_palindrome("A man, a plan, a canal: Panama")
+        assert not is_palindrome("race a car")
+        assert is_palindrome("")
+        assert is_palindrome("No 'x' in Nixon")
+  - id: merge-intervals
+    input: "Write `merge_intervals(intervals: list[list[int]]) -> list[list[int]]` that merges overlapping (or touching) closed intervals and returns them sorted by start."
+    vars:
+      tests: |
+        assert merge_intervals([[1,3],[2,6],[8,10],[15,18]]) == [[1,6],[8,10],[15,18]]
+        assert merge_intervals([[1,4],[4,5]]) == [[1,5]]
+        assert merge_intervals([[5,7],[1,2]]) == [[1,2],[5,7]]
+        assert merge_intervals([]) == []
+  - id: roman
+    input: "Write `roman_to_int(s: str) -> int` converting a valid Roman numeral (1..3999) to an integer."
+    vars:
+      tests: |
+        assert roman_to_int("III") == 3
+        assert roman_to_int("LVIII") == 58
+        assert roman_to_int("MCMXCIV") == 1994
+        assert roman_to_int("MMMCMXCIX") == 3999
+  - id: flatten
+    input: "Write `flatten(nested: list) -> list` that flattens arbitrarily nested lists, preserving order. Only lists are flattened (not tuples or strings)."
+    vars:
+      tests: |
+        assert flatten([1,[2,[3,[4]],5]]) == [1,2,3,4,5]
+        assert flatten([]) == []
+        assert flatten([[[]]]) == []
+        assert flatten(["ab",(1,2),[3]]) == ["ab",(1,2),3]
+  - id: top-k
+    input: "Write `top_k_frequent(words: list[str], k: int) -> list[str]` returning the k most frequent words, ordered by frequency descending, ties broken alphabetically."
+    vars:
+      tests: |
+        assert top_k_frequent(["i","love","code","i","love","coding"], 2) == ["i","love"]
+        assert top_k_frequent(["b","a","c","a","b","c"], 2) == ["a","b"]
+        assert top_k_frequent(["x"], 1) == ["x"]
+  - id: parse-duration
+    input: "Write `parse_duration(s: str) -> int` returning total seconds for strings like \"1h30m15s\", \"45m\", \"2h\", \"10s\". Each unit appears at most once, in h-m-s order."
+    vars:
+      tests: |
+        assert parse_duration("1h30m15s") == 5415
+        assert parse_duration("45m") == 2700
+        assert parse_duration("2h") == 7200
+        assert parse_duration("10s") == 10
+        assert parse_duration("1h5s") == 3605
+  - id: lru-cache
+    input: "Implement class `LRUCache(capacity: int)` with `get(key) -> int` (returns -1 if missing) and `put(key, value) -> None`, evicting the least recently used key when over capacity. Both operations should be O(1)."
+    vars:
+      tests: |
+        c = LRUCache(2)
+        c.put(1, 1); c.put(2, 2)
+        assert c.get(1) == 1
+        c.put(3, 3)
+        assert c.get(2) == -1
+        c.put(4, 4)
+        assert c.get(1) == -1
+        assert c.get(3) == 3 and c.get(4) == 4
+        c.put(3, 30)
+        assert c.get(3) == 30
+  - id: balanced
+    input: "Write `balanced(s: str) -> bool` that checks whether the brackets (), [], {} in s are balanced. Other characters are ignored."
+    vars:
+      tests: |
+        assert balanced("a(b[c]{d}e)f")
+        assert not balanced("(]")
+        assert not balanced("(((")
+        assert balanced("")
+        assert not balanced("}{")
+  - id: levenshtein
+    input: "Write `levenshtein(a: str, b: str) -> int` returning the edit distance (insert, delete, substitute each cost 1)."
+    vars:
+      tests: |
+        assert levenshtein("kitten", "sitting") == 3
+        assert levenshtein("", "abc") == 3
+        assert levenshtein("flaw", "lawn") == 2
+        assert levenshtein("same", "same") == 0
+  - id: camel-to-snake
+    input: "Write `camel_to_snake(s: str) -> str` converting camelCase or PascalCase to snake_case, treating runs of capitals as acronyms (e.g. \"getHTTPResponse\" -> \"get_http_response\")."
+    vars:
+      tests: |
+        assert camel_to_snake("camelCase") == "camel_case"
+        assert camel_to_snake("getHTTPResponse") == "get_http_response"
+        assert camel_to_snake("simple") == "simple"
+        assert camel_to_snake("UserID") == "user_id"
+        assert camel_to_snake("PascalCaseString") == "pascal_case_string"
+  - id: word-wrap
+    input: "Write `word_wrap(text: str, width: int) -> list[str]` that greedily wraps words (split on whitespace) into lines of at most `width` characters, joining words with single spaces. Assume no word exceeds width."
+    vars:
+      tests: |
+        assert word_wrap("the quick brown fox jumps", 10) == ["the quick", "brown fox", "jumps"]
+        assert word_wrap("a b c", 1) == ["a", "b", "c"]
+        assert word_wrap("", 5) == []
+        assert word_wrap("hello   world", 11) == ["hello world"]
+  - id: spiral
+    input: "Write `spiral(matrix: list[list[int]]) -> list[int]` returning elements in clockwise spiral order starting top-left."
+    vars:
+      tests: |
+        assert spiral([[1,2,3],[4,5,6],[7,8,9]]) == [1,2,3,6,9,8,7,4,5]
+        assert spiral([[1,2,3,4],[5,6,7,8],[9,10,11,12]]) == [1,2,3,4,8,12,11,10,9,5,6,7]
+        assert spiral([]) == []
+        assert spiral([[1],[2],[3]]) == [1,2,3]

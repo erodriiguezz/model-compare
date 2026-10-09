@@ -1,0 +1,1615 @@
+"""Coding: 51 self-contained tasks with edge-case-heavy hidden tests and a reference solution each."""
+
+from __future__ import annotations
+
+from .common import benchmark
+
+T = []  # (id, prompt, tests, reference)
+
+
+def task(id: str, prompt: str, tests: str, reference: str) -> None:
+    T.append((id, prompt, tests.strip("\n"), reference.strip("\n")))
+
+
+task("parse-duration",
+     "Write `parse_duration(s: str) -> int` returning seconds for strings like '1h30m', '2d', '45s', '1d2h3m4s'. Units are d, h, m, s, "
+     "must appear in that order, each at most once, with a positive or zero integer before each. Raise ValueError for anything else "
+     "(empty string, unknown unit, wrong order, repeated unit, missing number, spaces).",
+     '''
+assert parse_duration("1h30m") == 5400
+assert parse_duration("2d") == 172800
+assert parse_duration("1d2h3m4s") == 93784
+assert parse_duration("0s") == 0
+assert parse_duration("90m") == 5400
+for bad in ["", "1x", "30m1h", "1h1h", "h", "1 h", "-1s", "1.5h"]:
+    try:
+        parse_duration(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+import re
+def parse_duration(s):
+    m = re.fullmatch(r"(?:(\\d+)d)?(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?", s)
+    if not s or not m:
+        raise ValueError(s)
+    d, h, mi, se = (int(x) if x else 0 for x in m.groups())
+    return d * 86400 + h * 3600 + mi * 60 + se
+''')
+
+task("semver-compare",
+     "Write `semver_compare(a: str, b: str) -> int` returning -1, 0 or 1 following Semantic Versioning 2.0.0 precedence, including "
+     "pre-release identifiers (e.g. 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-alpha.beta < 1.0.0-beta.2 < 1.0.0-beta.11 < 1.0.0-rc.1 < 1.0.0). "
+     "Build metadata after '+' is ignored.",
+     '''
+order = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta", "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0", "1.0.1", "1.10.0", "2.0.0"]
+for i in range(len(order) - 1):
+    assert semver_compare(order[i], order[i + 1]) == -1, order[i]
+    assert semver_compare(order[i + 1], order[i]) == 1
+assert semver_compare("1.0.0+build.1", "1.0.0+build.2") == 0
+assert semver_compare("1.2.3", "1.2.3") == 0
+''',
+     '''
+def semver_compare(a, b):
+    def key(v):
+        v = v.split("+")[0]
+        core, _, pre = v.partition("-")
+        nums = tuple(int(x) for x in core.split("."))
+        if not pre:
+            return nums, (1,)
+        ids = tuple((0, int(p), "") if p.isdigit() else (1, 0, p) for p in pre.split("."))
+        return nums, (0, ids)
+    ka, kb = key(a), key(b)
+    if ka[0] != kb[0]:
+        return -1 if ka[0] < kb[0] else 1
+    pa, pb = ka[1], kb[1]
+    if pa == pb:
+        return 0
+    if pa[0] != pb[0]:
+        return -1 if pa[0] < pb[0] else 1
+    return -1 if pa[1] < pb[1] else 1
+''')
+
+task("lru-cache",
+     "Write a class `LRUCache(capacity: int)` with `get(key) -> value or -1` and `put(key, value)`. Both operations count as a use. "
+     "When full, `put` of a new key evicts the least recently used key. Updating an existing key's value does not evict anything.",
+     '''
+c = LRUCache(2)
+c.put(1, 1); c.put(2, 2)
+assert c.get(1) == 1
+c.put(3, 3)
+assert c.get(2) == -1
+c.put(1, 10)
+c.put(4, 4)
+assert c.get(3) == -1 and c.get(1) == 10 and c.get(4) == 4
+c1 = LRUCache(1)
+c1.put("a", 1); c1.put("a", 2)
+assert c1.get("a") == 2
+''',
+     '''
+from collections import OrderedDict
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity, self.d = capacity, OrderedDict()
+    def get(self, key):
+        if key not in self.d:
+            return -1
+        self.d.move_to_end(key)
+        return self.d[key]
+    def put(self, key, value):
+        if key in self.d:
+            self.d.move_to_end(key)
+        self.d[key] = value
+        if len(self.d) > self.capacity:
+            self.d.popitem(last=False)
+''')
+
+task("topo-sort",
+     "Write `topo_sort(deps: dict[str, list[str]]) -> list[str]` where deps[x] lists the nodes x depends on (which must come before x). "
+     "Nodes that only appear as dependencies are included too. When several nodes are ready, take them in alphabetical order. "
+     "Raise ValueError if there is a cycle.",
+     '''
+assert topo_sort({"b": ["a"], "c": ["a", "b"], "a": []}) == ["a", "b", "c"]
+assert topo_sort({"z": [], "y": [], "x": ["z"]}) == ["y", "z", "x"]
+assert topo_sort({"app": ["lib", "log"], "lib": ["log"]}) == ["log", "lib", "app"]
+assert topo_sort({}) == []
+for cyc in ({"a": ["b"], "b": ["a"]}, {"a": ["a"]}, {"a": ["b"], "b": ["c"], "c": ["a"]}):
+    try:
+        topo_sort(cyc)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(cyc)
+''',
+     '''
+import heapq
+def topo_sort(deps):
+    nodes = set(deps) | {d for ds in deps.values() for d in ds}
+    indeg = {n: 0 for n in nodes}
+    users = {n: [] for n in nodes}
+    for n, ds in deps.items():
+        for d in set(ds):
+            indeg[n] += 1
+            users[d].append(n)
+    ready = [n for n in nodes if indeg[n] == 0]
+    heapq.heapify(ready)
+    out = []
+    while ready:
+        n = heapq.heappop(ready)
+        out.append(n)
+        for u in users[n]:
+            indeg[u] -= 1
+            if indeg[u] == 0:
+                heapq.heappush(ready, u)
+    if len(out) != len(nodes):
+        raise ValueError("cycle")
+    return out
+''')
+
+task("json-pointer",
+     "Write `resolve_pointer(doc, pointer: str)` implementing RFC 6901 JSON Pointer lookup: '' is the whole document, tokens are "
+     "separated by '/', '~1' means '/', '~0' means '~', list indices are decimal without leading zeros. Raise KeyError if the path "
+     "does not exist (including out-of-range or malformed indices).",
+     '''
+doc = {"foo": ["bar", "baz"], "": 0, "a/b": 1, "m~n": 8, "k": {"0": "zero", "list": [{"x": 1}]}}
+assert resolve_pointer(doc, "") == doc
+assert resolve_pointer(doc, "/foo/1") == "baz"
+assert resolve_pointer(doc, "/") == 0
+assert resolve_pointer(doc, "/a~1b") == 1
+assert resolve_pointer(doc, "/m~0n") == 8
+assert resolve_pointer(doc, "/k/0") == "zero"
+assert resolve_pointer(doc, "/k/list/0/x") == 1
+for bad in ["/foo/2", "/foo/01", "/foo/-1", "/nope", "/foo/x", "/k/list/0/x/y"]:
+    try:
+        resolve_pointer(doc, bad)
+    except KeyError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def resolve_pointer(doc, pointer):
+    if pointer == "":
+        return doc
+    if not pointer.startswith("/"):
+        raise KeyError(pointer)
+    cur = doc
+    for tok in pointer[1:].split("/"):
+        tok = tok.replace("~1", "/").replace("~0", "~")
+        if isinstance(cur, list):
+            if not tok.isdigit() or (len(tok) > 1 and tok[0] == "0") or int(tok) >= len(cur):
+                raise KeyError(tok)
+            cur = cur[int(tok)]
+        elif isinstance(cur, dict):
+            if tok not in cur:
+                raise KeyError(tok)
+            cur = cur[tok]
+        else:
+            raise KeyError(tok)
+    return cur
+''')
+
+task("rle",
+     "Write `rle_encode(s: str) -> str` and `rle_decode(s: str) -> str`. Encoding writes each run as count then character "
+     "('aaabcc' -> '3a1b2c'); input strings contain only letters. Decoding must handle multi-digit counts ('12a' -> 12 a's).",
+     '''
+assert rle_encode("aaabcc") == "3a1b2c"
+assert rle_encode("") == ""
+assert rle_encode("a" * 12 + "B") == "12a1B"
+assert rle_decode("12a1B") == "a" * 12 + "B"
+assert rle_decode(rle_encode("abAAbb")) == "abAAbb"
+assert rle_decode("") == ""
+''',
+     '''
+import re
+from itertools import groupby
+def rle_encode(s):
+    return "".join(f"{len(list(g))}{c}" for c, g in groupby(s))
+def rle_decode(s):
+    return "".join(c * int(n) for n, c in re.findall(r"(\\d+)(\\D)", s))
+''')
+
+task("int-to-roman",
+     "Write `int_to_roman(n: int) -> str` for 1 <= n <= 3999 using standard subtractive notation; raise ValueError outside that range.",
+     '''
+assert int_to_roman(1) == "I"
+assert int_to_roman(4) == "IV"
+assert int_to_roman(9) == "IX"
+assert int_to_roman(58) == "LVIII"
+assert int_to_roman(1994) == "MCMXCIV"
+assert int_to_roman(3999) == "MMMCMXCIX"
+for bad in (0, 4000, -5):
+    try:
+        int_to_roman(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def int_to_roman(n):
+    if not 1 <= n <= 3999:
+        raise ValueError(n)
+    vals = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"), (100, "C"), (90, "XC"), (50, "L"), (40, "XL"), (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")]
+    out = ""
+    for v, s in vals:
+        while n >= v:
+            out += s
+            n -= v
+    return out
+''')
+
+task("luhn",
+     "Write `luhn_valid(number: str) -> bool` implementing the Luhn checksum. Spaces are ignored; any other non-digit character, or "
+     "fewer than 2 digits after removing spaces, makes it invalid.",
+     '''
+assert luhn_valid("4539 3195 0343 6467")
+assert not luhn_valid("8273 1232 7352 0569")
+assert luhn_valid("059")
+assert not luhn_valid("0")
+assert not luhn_valid(" 0 ")
+assert not luhn_valid("055-444-285")
+assert luhn_valid("0000 0")
+''',
+     '''
+def luhn_valid(number):
+    s = number.replace(" ", "")
+    if len(s) < 2 or not s.isdigit():
+        return False
+    total = 0
+    for i, ch in enumerate(reversed(s)):
+        d = int(ch)
+        if i % 2:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+    return total % 10 == 0
+''')
+
+task("matmul",
+     "Write `matmul(a: list[list[float]], b: list[list[float]]) -> list[list[float]]` multiplying two matrices. Raise ValueError if the "
+     "shapes are incompatible, if a matrix is empty, or if rows have different lengths.",
+     '''
+assert matmul([[1, 2], [3, 4]], [[5, 6], [7, 8]]) == [[19, 22], [43, 50]]
+assert matmul([[1, 2, 3]], [[1], [2], [3]]) == [[14]]
+assert matmul([[2]], [[3]]) == [[6]]
+for a, b in (([[1, 2]], [[1, 2]]), ([], [[1]]), ([[1, 2], [3]], [[1], [2]]), ([[1]], [])):
+    try:
+        matmul(a, b)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError((a, b))
+''',
+     '''
+def matmul(a, b):
+    if not a or not b or not a[0] or not b[0]:
+        raise ValueError("empty")
+    if any(len(r) != len(a[0]) for r in a) or any(len(r) != len(b[0]) for r in b):
+        raise ValueError("ragged")
+    if len(a[0]) != len(b):
+        raise ValueError("shape")
+    return [[sum(a[i][k] * b[k][j] for k in range(len(b))) for j in range(len(b[0]))] for i in range(len(a))]
+''')
+
+task("running-median",
+     "Write a class `RunningMedian` with `add(x: float)` and `median() -> float`. median() of an even count is the mean of the two "
+     "middle values; calling median() with no values raises ValueError. Both operations must be O(log n).",
+     '''
+rm = RunningMedian()
+try:
+    rm.median()
+except ValueError:
+    pass
+else:
+    raise AssertionError("empty")
+for x, m in [(5, 5), (15, 10), (1, 5), (3, 4), (8, 5), (7, 6), (9, 7)]:
+    rm.add(x)
+    assert rm.median() == m, (x, rm.median())
+big = RunningMedian()
+for i in range(100000):
+    big.add(i % 1000)
+assert big.median() == 499.5
+''',
+     '''
+import heapq
+class RunningMedian:
+    def __init__(self):
+        self.lo, self.hi = [], []
+    def add(self, x):
+        heapq.heappush(self.lo, -x)
+        heapq.heappush(self.hi, -heapq.heappop(self.lo))
+        if len(self.hi) > len(self.lo):
+            heapq.heappush(self.lo, -heapq.heappop(self.hi))
+    def median(self):
+        if not self.lo:
+            raise ValueError("empty")
+        if len(self.lo) > len(self.hi):
+            return float(-self.lo[0])
+        return (-self.lo[0] + self.hi[0]) / 2
+''')
+
+task("base-convert",
+     "Write `convert_base(s: str, from_base: int, to_base: int) -> str` for bases 2..36 using digits 0-9 then lowercase a-z. Input "
+     "may be uppercase and may start with '-'. Output is lowercase with no leading zeros ('0' for zero). Raise ValueError for an "
+     "invalid base or a digit not valid in from_base.",
+     '''
+assert convert_base("ff", 16, 10) == "255"
+assert convert_base("FF", 16, 2) == "11111111"
+assert convert_base("-101", 2, 10) == "-5"
+assert convert_base("0", 10, 36) == "0"
+assert convert_base("zz", 36, 10) == "1295"
+assert convert_base("000123", 10, 10) == "123"
+for args in (("12", 2, 10), ("1", 1, 10), ("1", 10, 37), ("", 10, 2), ("-", 10, 2)):
+    try:
+        convert_base(*args)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(args)
+''',
+     '''
+DIG = "0123456789abcdefghijklmnopqrstuvwxyz"
+def convert_base(s, from_base, to_base):
+    if not (2 <= from_base <= 36 and 2 <= to_base <= 36):
+        raise ValueError("base")
+    neg = s.startswith("-")
+    body = s[1:] if neg else s
+    if not body:
+        raise ValueError("empty")
+    n = 0
+    for ch in body.lower():
+        v = DIG.find(ch)
+        if v < 0 or v >= from_base:
+            raise ValueError(ch)
+        n = n * from_base + v
+    if n == 0:
+        return "0"
+    out = ""
+    while n:
+        n, r = divmod(n, to_base)
+        out = DIG[r] + out
+    return ("-" if neg else "") + out
+''')
+
+task("csv-line",
+     "Write `parse_csv_line(line: str) -> list[str]` without using the csv module. Fields are comma-separated; a field may be wrapped "
+     "in double quotes, inside which commas are literal and a doubled quote '\"\"' means one quote. Unquoted fields are returned as-is "
+     "(no stripping). An empty line is one empty field. Raise ValueError for an unterminated quoted field.",
+     '''
+assert parse_csv_line('a,b,c') == ["a", "b", "c"]
+assert parse_csv_line('"a,b",c') == ["a,b", "c"]
+assert parse_csv_line('"say ""hi""",x') == ['say "hi"', "x"]
+assert parse_csv_line('a,,') == ["a", "", ""]
+assert parse_csv_line('') == [""]
+assert parse_csv_line(' a , b') == [" a ", " b"]
+assert parse_csv_line('"",x') == ["", "x"]
+try:
+    parse_csv_line('"abc,d')
+except ValueError:
+    pass
+else:
+    raise AssertionError("unterminated")
+''',
+     '''
+def parse_csv_line(line):
+    out, i, n = [], 0, len(line)
+    while True:
+        if i < n and line[i] == '"':
+            i += 1
+            buf = ""
+            while True:
+                if i >= n:
+                    raise ValueError("unterminated")
+                if line[i] == '"':
+                    if i + 1 < n and line[i + 1] == '"':
+                        buf += '"'
+                        i += 2
+                        continue
+                    i += 1
+                    break
+                buf += line[i]
+                i += 1
+            out.append(buf)
+        else:
+            j = line.find(",", i)
+            j = n if j < 0 else j
+            out.append(line[i:j])
+            i = j
+        if i >= n:
+            return out
+        i += 1
+        if i == n:
+            out.append("")
+            return out
+''')
+
+task("dijkstra",
+     "Write `shortest_paths(graph: dict[str, list[tuple[str, float]]], source: str) -> dict[str, float]` returning the shortest "
+     "distance from source to every reachable node (source itself is 0). Edges are directed with non-negative weights. Nodes may "
+     "appear only as edge targets.",
+     '''
+g = {"a": [("b", 7), ("c", 9), ("f", 14)], "b": [("c", 10), ("d", 15)], "c": [("d", 11), ("f", 2)], "d": [("e", 6)], "f": [("e", 9)], "x": [("a", 1)]}
+assert shortest_paths(g, "a") == {"a": 0, "b": 7, "c": 9, "d": 20, "e": 20, "f": 11}
+assert shortest_paths(g, "e") == {"e": 0}
+assert shortest_paths({"s": [("t", 0)]}, "s") == {"s": 0, "t": 0}
+''',
+     '''
+import heapq
+def shortest_paths(graph, source):
+    dist = {source: 0}
+    pq = [(0, source)]
+    while pq:
+        d, u = heapq.heappop(pq)
+        if d > dist.get(u, float("inf")):
+            continue
+        for v, w in graph.get(u, []):
+            nd = d + w
+            if nd < dist.get(v, float("inf")):
+                dist[v] = nd
+                heapq.heappush(pq, (nd, v))
+    return dist
+''')
+
+task("group-anagrams",
+     "Write `group_anagrams(words: list[str]) -> list[list[str]]`. Words are anagrams if they use the same letters ignoring case. "
+     "Within a group keep the original words sorted alphabetically (case-sensitive sort); order groups by their first word. "
+     "Duplicate words are kept.",
+     '''
+assert group_anagrams(["eat", "tea", "tan", "ate", "nat", "bat"]) == [["ate", "eat", "tea"], ["bat"], ["nat", "tan"]]
+assert group_anagrams([]) == []
+assert group_anagrams(["Listen", "silent", "enlist", "x", "x"]) == [["Listen", "enlist", "silent"], ["x", "x"]]
+''',
+     '''
+def group_anagrams(words):
+    groups = {}
+    for w in words:
+        groups.setdefault("".join(sorted(w.lower())), []).append(w)
+    return sorted((sorted(g) for g in groups.values()), key=lambda g: g[0])
+''')
+
+task("window-max",
+     "Write `window_max(nums: list[int], k: int) -> list[int]` returning the maximum of every contiguous window of size k, in O(n). "
+     "Raise ValueError if k < 1 or k > len(nums).",
+     '''
+assert window_max([1, 3, -1, -3, 5, 3, 6, 7], 3) == [3, 3, 5, 5, 6, 7]
+assert window_max([4], 1) == [4]
+assert window_max([9, 8, 7, 6], 2) == [9, 8, 7]
+assert window_max([2, 2, 2], 3) == [2]
+for k in (0, 5):
+    try:
+        window_max([1, 2, 3, 4], k)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(k)
+import time
+t = time.time()
+window_max(list(range(200000)), 1000)
+assert time.time() - t < 2
+''',
+     '''
+from collections import deque
+def window_max(nums, k):
+    if k < 1 or k > len(nums):
+        raise ValueError(k)
+    dq, out = deque(), []
+    for i, x in enumerate(nums):
+        while dq and nums[dq[-1]] <= x:
+            dq.pop()
+        dq.append(i)
+        if dq[0] <= i - k:
+            dq.popleft()
+        if i >= k - 1:
+            out.append(nums[dq[0]])
+    return out
+''')
+
+task("lcs",
+     "Write `lcs_length(a: str, b: str) -> int`: the length of the longest common subsequence. Must handle strings of length 2000 "
+     "in under a few seconds.",
+     '''
+assert lcs_length("ABCBDAB", "BDCABA") == 4
+assert lcs_length("", "abc") == 0
+assert lcs_length("abc", "abc") == 3
+assert lcs_length("abc", "def") == 0
+assert lcs_length("a" * 2000, "a" * 2000) == 2000
+''',
+     '''
+def lcs_length(a, b):
+    prev = [0] * (len(b) + 1)
+    for ca in a:
+        cur = [0]
+        for j, cb in enumerate(b, 1):
+            cur.append(prev[j - 1] + 1 if ca == cb else max(prev[j], cur[j - 1]))
+        prev = cur
+    return prev[-1]
+''')
+
+task("normalize-path",
+     "Write `normalize_path(p: str) -> str` that resolves '.' and '..' segments and repeated slashes, like a shell would, without "
+     "touching the filesystem. Absolute paths stay absolute ('..' at the root stays at the root). Relative paths keep leading '..' "
+     "segments that cannot be resolved; an empty relative result is '.'. No trailing slash except for the root '/'.",
+     '''
+assert normalize_path("/a/./b/../../c/") == "/c"
+assert normalize_path("/../") == "/"
+assert normalize_path("//a//b") == "/a/b"
+assert normalize_path("a/../../b") == "../b"
+assert normalize_path("a/..") == "."
+assert normalize_path("") == "."
+assert normalize_path("./x/./") == "x"
+assert normalize_path("../../a") == "../../a"
+''',
+     '''
+def normalize_path(p):
+    absolute = p.startswith("/")
+    out = []
+    for seg in p.split("/"):
+        if seg in ("", "."):
+            continue
+        if seg == "..":
+            if out and out[-1] != "..":
+                out.pop()
+            elif not absolute:
+                out.append("..")
+        else:
+            out.append(seg)
+    s = "/".join(out)
+    return "/" + s if absolute else (s or ".")
+''')
+
+task("expand-ranges",
+     "Write `expand_ranges(spec: str) -> list[int]` for strings like '1-3,5,7-9' -> [1,2,3,5,7,8,9]. Spaces around items are allowed. "
+     "The result is sorted and has no duplicates. Raise ValueError for a descending range ('5-3'), an empty item, or non-numbers.",
+     '''
+assert expand_ranges("1-3,5,7-9") == [1, 2, 3, 5, 7, 8, 9]
+assert expand_ranges(" 4 , 2-3 ,3") == [2, 3, 4]
+assert expand_ranges("7") == [7]
+assert expand_ranges("10-10") == [10]
+for bad in ("5-3", "1,,2", "", "a-b", "1-", "1-2-3"):
+    try:
+        expand_ranges(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def expand_ranges(spec):
+    out = set()
+    for item in spec.split(","):
+        item = item.strip()
+        if not item:
+            raise ValueError("empty")
+        parts = item.split("-")
+        if len(parts) == 1:
+            out.add(int(parts[0]))
+        elif len(parts) == 2:
+            a, b = int(parts[0]), int(parts[1])
+            if a > b:
+                raise ValueError(item)
+            out.update(range(a, b + 1))
+        else:
+            raise ValueError(item)
+    return sorted(out)
+''')
+
+task("compress-ranges",
+     "Write `compress_ranges(nums: list[int]) -> str`, the inverse of range expansion: sort and dedupe, then join runs of consecutive "
+     "integers as 'a-b' (runs of exactly two are written 'a,b'), separated by commas. Negative numbers are allowed; an empty list gives ''.",
+     '''
+assert compress_ranges([1, 2, 3, 5, 7, 8, 9]) == "1-3,5,7-9"
+assert compress_ranges([3, 1, 2, 2]) == "1-3"
+assert compress_ranges([4, 5]) == "4,5"
+assert compress_ranges([]) == ""
+assert compress_ranges([-3, -2, -1, 1]) == "-3--1,1"
+''',
+     '''
+def compress_ranges(nums):
+    s = sorted(set(nums))
+    out, i = [], 0
+    while i < len(s):
+        j = i
+        while j + 1 < len(s) and s[j + 1] == s[j] + 1:
+            j += 1
+        if j - i >= 2:
+            out.append(f"{s[i]}-{s[j]}")
+        else:
+            out.extend(str(x) for x in s[i:j + 1])
+        i = j + 1
+    return ",".join(out)
+''')
+
+task("ipv4",
+     "Write `is_ipv4(s: str) -> bool`: exactly four decimal octets 0-255 separated by dots, no leading zeros (except '0' itself), "
+     "no signs, spaces or empty parts.",
+     '''
+for ok in ("0.0.0.0", "255.255.255.255", "192.168.1.1", "10.0.0.10"):
+    assert is_ipv4(ok), ok
+for bad in ("256.1.1.1", "01.2.3.4", "1.2.3", "1.2.3.4.5", "1..2.3", "+1.2.3.4", " 1.2.3.4", "1.2.3.4 ", "a.b.c.d", "", "1.2.3.٤"):
+    assert not is_ipv4(bad), bad
+''',
+     '''
+def is_ipv4(s):
+    parts = s.split(".")
+    if len(parts) != 4:
+        return False
+    for p in parts:
+        if not p or not all(c in "0123456789" for c in p) or (len(p) > 1 and p[0] == "0") or int(p) > 255:
+            return False
+    return True
+''')
+
+task("next-permutation",
+     "Write `next_permutation(xs: list) -> list` returning the next lexicographically greater permutation of xs as a new list, or "
+     "the lowest (sorted ascending) permutation if xs is already the highest. Duplicates are allowed. Do not modify the input.",
+     '''
+assert next_permutation([1, 2, 3]) == [1, 3, 2]
+assert next_permutation([3, 2, 1]) == [1, 2, 3]
+assert next_permutation([1, 1, 5]) == [1, 5, 1]
+assert next_permutation([1, 5, 1]) == [5, 1, 1]
+assert next_permutation([]) == []
+x = [2, 3, 1]
+assert next_permutation(x) == [3, 1, 2] and x == [2, 3, 1]
+''',
+     '''
+def next_permutation(xs):
+    a = list(xs)
+    i = len(a) - 2
+    while i >= 0 and a[i] >= a[i + 1]:
+        i -= 1
+    if i >= 0:
+        j = len(a) - 1
+        while a[j] <= a[i]:
+            j -= 1
+        a[i], a[j] = a[j], a[i]
+    a[i + 1:] = reversed(a[i + 1:])
+    return a
+''')
+
+task("islands",
+     "Write `count_islands(grid: list[str]) -> int` where each string is a row of '1' (land) and '0' (water). Land cells connect "
+     "horizontally and vertically only. Must handle a 300x300 all-land grid without hitting the recursion limit.",
+     '''
+assert count_islands(["11000", "11000", "00100", "00011"]) == 3
+assert count_islands([]) == 0
+assert count_islands(["0"]) == 0
+assert count_islands(["101", "010", "101"]) == 5
+assert count_islands(["1" * 300] * 300) == 1
+''',
+     '''
+def count_islands(grid):
+    if not grid:
+        return 0
+    h, w = len(grid), len(grid[0])
+    seen = set()
+    count = 0
+    for r in range(h):
+        for c in range(w):
+            if grid[r][c] == "1" and (r, c) not in seen:
+                count += 1
+                stack = [(r, c)]
+                seen.add((r, c))
+                while stack:
+                    y, x = stack.pop()
+                    for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                        if 0 <= ny < h and 0 <= nx < w and grid[ny][nx] == "1" and (ny, nx) not in seen:
+                            seen.add((ny, nx))
+                            stack.append((ny, nx))
+    return count
+''')
+
+task("rpn",
+     "Write `eval_rpn(tokens: list[str]) -> int` evaluating integer Reverse Polish Notation with + - * /. Division truncates toward "
+     "zero (so '-7 2 /' is -3). Raise ValueError for malformed expressions (too few operands, leftover operands, unknown tokens) and "
+     "ZeroDivisionError for division by zero.",
+     '''
+assert eval_rpn(["2", "1", "+", "3", "*"]) == 9
+assert eval_rpn(["4", "13", "5", "/", "+"]) == 6
+assert eval_rpn(["-7", "2", "/"]) == -3
+assert eval_rpn(["7", "-2", "/"]) == -3
+assert eval_rpn(["42"]) == 42
+for bad in (["+"], ["1", "2"], ["1", "x", "+"], []):
+    try:
+        eval_rpn(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+try:
+    eval_rpn(["1", "0", "/"])
+except ZeroDivisionError:
+    pass
+else:
+    raise AssertionError("div0")
+''',
+     '''
+def eval_rpn(tokens):
+    st = []
+    for t in tokens:
+        if t in ("+", "-", "*", "/"):
+            if len(st) < 2:
+                raise ValueError("operands")
+            b, a = st.pop(), st.pop()
+            if t == "+":
+                st.append(a + b)
+            elif t == "-":
+                st.append(a - b)
+            elif t == "*":
+                st.append(a * b)
+            else:
+                if b == 0:
+                    raise ZeroDivisionError
+                q = abs(a) // abs(b)
+                st.append(q if (a >= 0) == (b >= 0) else -q)
+        else:
+            try:
+                st.append(int(t))
+            except ValueError:
+                raise ValueError(t)
+    if len(st) != 1:
+        raise ValueError("leftover")
+    return st[0]
+''')
+
+task("calc",
+     "Write `calculate(expr: str) -> float` evaluating arithmetic with + - * /, parentheses, unary minus and decimal numbers, with "
+     "normal precedence and left associativity. Do not use eval/exec. Raise ValueError for malformed input.",
+     '''
+assert calculate("1 + 2 * 3") == 7
+assert calculate("(1 + 2) * 3") == 9
+assert calculate("10 / 4") == 2.5
+assert calculate("-3 + 5") == 2
+assert calculate("2 * -(1 + 1)") == -4
+assert calculate("8 - 3 - 2") == 3
+assert calculate("16 / 4 / 2") == 2
+assert calculate(" 1.5*2 ") == 3
+assert calculate("--2") == 2
+for bad in ("", "1 +", "(1 + 2", "1 2", "2 * * 3", "abc", "1 + 2)"):
+    try:
+        calculate(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+import re
+def calculate(expr):
+    toks = re.findall(r"\\d+\\.?\\d*|\\.\\d+|[-+*/()]|\\S", expr)
+    pos = 0
+    def peek():
+        return toks[pos] if pos < len(toks) else None
+    def take():
+        nonlocal pos
+        pos += 1
+        return toks[pos - 1]
+    def expr_():
+        v = term()
+        while peek() in ("+", "-"):
+            v = v + term() if take() == "+" else v - term()
+        return v
+    def term():
+        v = factor()
+        while peek() in ("*", "/"):
+            v = v * factor() if take() == "*" else v / factor()
+        return v
+    def factor():
+        t = peek()
+        if t is None:
+            raise ValueError("end")
+        if t == "-":
+            take()
+            return -factor()
+        if t == "+":
+            take()
+            return factor()
+        if t == "(":
+            take()
+            v = expr_()
+            if peek() != ")":
+                raise ValueError(")")
+            take()
+            return v
+        if re.fullmatch(r"\\d+\\.?\\d*|\\.\\d+", t):
+            take()
+            return float(t)
+        raise ValueError(t)
+    v = expr_()
+    if pos != len(toks):
+        raise ValueError("trailing")
+    return v
+''')
+
+task("merge-k",
+     "Write `merge_sorted(lists: list[list[int]]) -> list[int]` merging k sorted lists into one sorted list in O(N log k). Do not "
+     "simply concatenate and sort.",
+     '''
+assert merge_sorted([[1, 4, 5], [1, 3, 4], [2, 6]]) == [1, 1, 2, 3, 4, 4, 5, 6]
+assert merge_sorted([]) == []
+assert merge_sorted([[], [1], []]) == [1]
+assert merge_sorted([[-5, 0], [-10, 10]]) == [-10, -5, 0, 10]
+''',
+     '''
+import heapq
+def merge_sorted(lists):
+    return list(heapq.merge(*lists))
+''')
+
+task("bank-account",
+     "Write a class `Account(owner: str, balance: int = 0)` (amounts in cents) with `deposit(amount)`, `withdraw(amount)` and "
+     "`transfer(to: Account, amount)`. Amounts must be positive ints (ValueError otherwise). Withdrawing or transferring more than "
+     "the balance raises ValueError and changes nothing. `history` is a list of (kind, amount) tuples: 'deposit', 'withdraw', "
+     "'transfer_out', 'transfer_in'.",
+     '''
+a, b = Account("a", 100), Account("b")
+a.deposit(50)
+a.withdraw(30)
+a.transfer(b, 70)
+assert (a.balance, b.balance) == (50, 70)
+assert a.history == [("deposit", 50), ("withdraw", 30), ("transfer_out", 70)]
+assert b.history == [("transfer_in", 70)]
+for fn in (lambda: a.withdraw(51), lambda: a.transfer(b, 51), lambda: a.deposit(0), lambda: a.deposit(-5), lambda: a.deposit(1.5)):
+    try:
+        fn()
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("accepted")
+assert (a.balance, b.balance) == (50, 70) and len(a.history) == 3
+''',
+     '''
+class Account:
+    def __init__(self, owner, balance=0):
+        self.owner, self.balance, self.history = owner, balance, []
+    @staticmethod
+    def _check(amount):
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
+            raise ValueError(amount)
+    def deposit(self, amount):
+        self._check(amount)
+        self.balance += amount
+        self.history.append(("deposit", amount))
+    def withdraw(self, amount):
+        self._check(amount)
+        if amount > self.balance:
+            raise ValueError("insufficient")
+        self.balance -= amount
+        self.history.append(("withdraw", amount))
+    def transfer(self, to, amount):
+        self._check(amount)
+        if amount > self.balance:
+            raise ValueError("insufficient")
+        self.balance -= amount
+        to.balance += amount
+        self.history.append(("transfer_out", amount))
+        to.history.append(("transfer_in", amount))
+''')
+
+task("chunk",
+     "Write a generator `chunked(iterable, n: int)` yielding lists of up to n items from any iterable (including infinite ones and "
+     "generators), the last chunk possibly shorter. Raise ValueError immediately (on call, not on first iteration) if n < 1.",
+     '''
+assert list(chunked([1, 2, 3, 4, 5], 2)) == [[1, 2], [3, 4], [5]]
+assert list(chunked([], 3)) == []
+assert list(chunked(iter("abc"), 3)) == [["a", "b", "c"]]
+import itertools
+assert next(iter(chunked(itertools.count(), 4))) == [0, 1, 2, 3]
+try:
+    chunked([1], 0)
+except ValueError:
+    pass
+else:
+    raise AssertionError("n=0")
+''',
+     '''
+from itertools import islice
+def chunked(iterable, n):
+    if n < 1:
+        raise ValueError(n)
+    def gen():
+        it = iter(iterable)
+        while True:
+            block = list(islice(it, n))
+            if not block:
+                return
+            yield block
+    return gen()
+''')
+
+task("deep-merge",
+     "Write `deep_merge(a: dict, b: dict) -> dict` returning a new dict where keys from b override a, except that when both values "
+     "are dicts they are merged recursively. Lists and other values from b replace a's. Neither input may be modified.",
+     '''
+a = {"x": 1, "n": {"p": 1, "q": {"r": 1}}, "l": [1]}
+b = {"y": 2, "n": {"q": {"s": 2}, "t": 3}, "l": [2]}
+out = deep_merge(a, b)
+assert out == {"x": 1, "y": 2, "n": {"p": 1, "q": {"r": 1, "s": 2}, "t": 3}, "l": [2]}
+assert a == {"x": 1, "n": {"p": 1, "q": {"r": 1}}, "l": [1]}
+assert b == {"y": 2, "n": {"q": {"s": 2}, "t": 3}, "l": [2]}
+out["n"]["q"]["r"] = 99
+assert a["n"]["q"]["r"] == 1
+assert deep_merge({"k": {"a": 1}}, {"k": 5}) == {"k": 5}
+''',
+     '''
+import copy
+def deep_merge(a, b):
+    out = copy.deepcopy(a)
+    for k, v in b.items():
+        if isinstance(out.get(k), dict) and isinstance(v, dict):
+            out[k] = deep_merge(out[k], v)
+        else:
+            out[k] = copy.deepcopy(v)
+    return out
+''')
+
+task("flatten-dict",
+     "Write `flatten_dict(d: dict, sep: str = '.') -> dict` turning nested dicts into a single level with joined keys "
+     "({'a': {'b': 1}} -> {'a.b': 1}). An empty nested dict is kept as a value ({'a': {}} -> {'a': {}}). Lists are values, not nested.",
+     '''
+assert flatten_dict({"a": {"b": 1, "c": {"d": 2}}, "e": 3}) == {"a.b": 1, "a.c.d": 2, "e": 3}
+assert flatten_dict({"a": {}}) == {"a": {}}
+assert flatten_dict({"a": [1, {"b": 2}]}) == {"a": [1, {"b": 2}]}
+assert flatten_dict({"a": {"b": 1}}, sep="/") == {"a/b": 1}
+assert flatten_dict({}) == {}
+''',
+     '''
+def flatten_dict(d, sep="."):
+    out = {}
+    def walk(prefix, v):
+        if isinstance(v, dict) and v:
+            for k, x in v.items():
+                walk(f"{prefix}{sep}{k}" if prefix else str(k), x)
+        else:
+            out[prefix] = v
+    for k, v in d.items():
+        walk(str(k), v)
+    return out
+''')
+
+task("unflatten-dict",
+     "Write `unflatten_dict(d: dict, sep: str = '.') -> dict`, the inverse of flattening ({'a.b': 1, 'a.c': 2} -> {'a': {'b': 1, 'c': 2}}). "
+     "Raise ValueError when keys conflict (e.g. both 'a' and 'a.b' with 'a' not a dict).",
+     '''
+assert unflatten_dict({"a.b": 1, "a.c.d": 2, "e": 3}) == {"a": {"b": 1, "c": {"d": 2}}, "e": 3}
+assert unflatten_dict({"a/b": 1}, sep="/") == {"a": {"b": 1}}
+assert unflatten_dict({}) == {}
+for bad in ({"a": 1, "a.b": 2}, {"a.b": 2, "a": 1}):
+    try:
+        unflatten_dict(bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def unflatten_dict(d, sep="."):
+    out = {}
+    for key, v in d.items():
+        parts = key.split(sep)
+        cur = out
+        for p in parts[:-1]:
+            nxt = cur.setdefault(p, {})
+            if not isinstance(nxt, dict):
+                raise ValueError(key)
+            cur = nxt
+        if parts[-1] in cur:  # keys are unique, so an existing leaf was created by a longer key
+            raise ValueError(key)
+        cur[parts[-1]] = v
+    return out
+''')
+
+task("meeting-rooms",
+     "Write `min_rooms(meetings: list[tuple[int, int]]) -> int`: the minimum number of rooms so that no two overlapping meetings "
+     "share a room. Meetings are [start, end) half-open, so one ending at 10 and another starting at 10 can share a room.",
+     '''
+assert min_rooms([(0, 30), (5, 10), (15, 20)]) == 2
+assert min_rooms([(7, 10), (2, 4)]) == 1
+assert min_rooms([(1, 10), (10, 20), (20, 30)]) == 1
+assert min_rooms([(1, 5), (1, 5), (1, 5)]) == 3
+assert min_rooms([]) == 0
+''',
+     '''
+def min_rooms(meetings):
+    events = sorted([(s, 1) for s, _ in meetings] + [(e, -1) for _, e in meetings])
+    cur = best = 0
+    for _, d in events:
+        cur += d
+        best = max(best, cur)
+    return best
+''')
+
+task("format-bytes",
+     "Write `format_bytes(n: int) -> str` using binary units B, KiB, MiB, GiB, TiB. Below 1024 print the integer with ' B'. Otherwise "
+     "use the largest unit where the value is at least 1 and print one decimal ('1.5 KiB'). Values beyond TiB stay in TiB. Raise "
+     "ValueError for negative n.",
+     '''
+assert format_bytes(0) == "0 B"
+assert format_bytes(1023) == "1023 B"
+assert format_bytes(1024) == "1.0 KiB"
+assert format_bytes(1536) == "1.5 KiB"
+assert format_bytes(10 * 1024 ** 2) == "10.0 MiB"
+assert format_bytes(5 * 1024 ** 5) == "5120.0 TiB"
+try:
+    format_bytes(-1)
+except ValueError:
+    pass
+else:
+    raise AssertionError("negative")
+''',
+     '''
+def format_bytes(n):
+    if n < 0:
+        raise ValueError(n)
+    if n < 1024:
+        return f"{n} B"
+    units = ["KiB", "MiB", "GiB", "TiB"]
+    v, i = n / 1024, 0
+    while v >= 1024 and i < len(units) - 1:
+        v /= 1024
+        i += 1
+    return f"{v:.1f} {units[i]}"
+''')
+
+task("query-string",
+     "Write `parse_query(qs: str) -> dict[str, list[str]]` parsing a URL query string (without the leading '?'). Pairs are separated by "
+     "'&'; a key without '=' has value ''; '+' means space; %XX escapes are decoded as UTF-8 in both keys and values; repeated keys "
+     "collect values in order; empty pairs are skipped. Do not use urllib.parse.",
+     '''
+assert parse_query("a=1&b=2&a=3&c") == {"a": ["1", "3"], "b": ["2"], "c": [""]}
+assert parse_query("q=hello+world&x=%E2%9C%93") == {"q": ["hello world"], "x": ["✓"]}
+assert parse_query("") == {}
+assert parse_query("&&k=v&") == {"k": ["v"]}
+assert parse_query("a%20b=c%3Dd") == {"a b": ["c=d"]}
+assert parse_query("e=") == {"e": [""]}
+''',
+     '''
+import re
+def _dec(s):
+    s = s.replace("+", " ")
+    return re.sub(r"(?:%[0-9A-Fa-f]{2})+", lambda m: bytes.fromhex(m.group().replace("%", "")).decode("utf-8"), s)
+def parse_query(qs):
+    out = {}
+    for pair in qs.split("&"):
+        if not pair:
+            continue
+        k, _, v = pair.partition("=")
+        out.setdefault(_dec(k), []).append(_dec(v))
+    return out
+''')
+
+task("slugify",
+     "Write `slugify(text: str) -> str`: strip accents (é -> e), lowercase, replace every run of characters that are not a-z or 0-9 "
+     "with a single '-', and trim '-' from both ends.",
+     '''
+assert slugify("Hello, World!") == "hello-world"
+assert slugify("  Héllo   Wörld  ") == "hello-world"
+assert slugify("Crème brûlée -- 2026") == "creme-brulee-2026"
+assert slugify("___") == ""
+assert slugify("Ünïcödé_ok") == "unicode-ok"
+''',
+     '''
+import re
+import unicodedata
+def slugify(text):
+    t = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+''')
+
+task("vigenere",
+     "Write `vigenere(text: str, key: str, decrypt: bool = False) -> str`. Only ASCII letters are shifted (preserving case) by the key "
+     "letters in turn (A/a = 0); other characters are copied and do not consume a key letter. The key is letters only, any case; "
+     "raise ValueError for an empty or non-alphabetic key.",
+     '''
+assert vigenere("ATTACK AT DAWN", "lemon") == "LXFOPV EF RNHR"
+assert vigenere("LXFOPV EF RNHR", "LEMON", decrypt=True) == "ATTACK AT DAWN"
+assert vigenere("Hello, World!", "key") == "Rijvs, Uyvjn!"
+assert vigenere(vigenere("Mixed Case 123", "Zz"), "Zz", True) == "Mixed Case 123"
+for bad in ("", "k3y"):
+    try:
+        vigenere("x", bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def vigenere(text, key, decrypt=False):
+    if not key or not key.isascii() or not key.isalpha():
+        raise ValueError(key)
+    shifts = [ord(c) - 97 for c in key.lower()]
+    out, k = [], 0
+    for ch in text:
+        if ch.isascii() and ch.isalpha():
+            base = 65 if ch.isupper() else 97
+            s = shifts[k % len(shifts)] * (-1 if decrypt else 1)
+            out.append(chr((ord(ch) - base + s) % 26 + base))
+            k += 1
+        else:
+            out.append(ch)
+    return "".join(out)
+''')
+
+task("title-case",
+     "Write `title_case(s: str) -> str` for headlines: capitalise each word's first letter and lowercase the rest, except the minor "
+     "words a, an, the, and, but, or, of, in, on, at, to, for, which stay lowercase unless they are the first or last word. Words "
+     "are separated by single spaces; hyphenated parts are each capitalised ('state-of-the-art' -> 'State-of-the-Art' only if not "
+     "minor: minor parts inside hyphenated words stay lowercase).",
+     '''
+assert title_case("the lord of the rings") == "The Lord of the Rings"
+assert title_case("a tale of two cities") == "A Tale of Two Cities"
+assert title_case("what are you looking at") == "What Are You Looking At"
+assert title_case("STATE-OF-THE-ART design") == "State-of-the-Art Design"
+assert title_case("") == ""
+''',
+     '''
+MINOR = {"a", "an", "the", "and", "but", "or", "of", "in", "on", "at", "to", "for"}
+def title_case(s):
+    words = s.split(" ")
+    out = []
+    for i, w in enumerate(words):
+        edge = i == 0 or i == len(words) - 1
+        parts = w.lower().split("-")
+        cap = []
+        for j, p in enumerate(parts):
+            minor = p in MINOR and not (edge and len(parts) == 1) and not (j == 0 and i == 0)
+            cap.append(p if minor else p[:1].upper() + p[1:])
+        out.append("-".join(cap))
+    return " ".join(out)
+''')
+
+task("insert-position",
+     "Write `insert_position(nums: list[int], target: int) -> int`: the leftmost index where target could be inserted into the sorted "
+     "list nums keeping it sorted, in O(log n), without using the bisect module.",
+     '''
+assert insert_position([1, 3, 5, 6], 5) == 2
+assert insert_position([1, 3, 5, 6], 2) == 1
+assert insert_position([1, 3, 5, 6], 7) == 4
+assert insert_position([1, 3, 5, 6], 0) == 0
+assert insert_position([], 3) == 0
+assert insert_position([2, 2, 2, 3], 2) == 0
+''',
+     '''
+def insert_position(nums, target):
+    lo, hi = 0, len(nums)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if nums[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
+''')
+
+task("two-trades",
+     "Write `max_profit_two(prices: list[int]) -> int`: the maximum profit from at most two buy-then-sell trades that do not overlap "
+     "(you must sell before buying again). Return 0 if no profit is possible. O(n).",
+     '''
+assert max_profit_two([3, 3, 5, 0, 0, 3, 1, 4]) == 6
+assert max_profit_two([1, 2, 3, 4, 5]) == 4
+assert max_profit_two([7, 6, 4, 3, 1]) == 0
+assert max_profit_two([1, 2, 4, 2, 5, 7, 2, 4, 9, 0]) == 13
+assert max_profit_two([]) == 0
+''',
+     '''
+def max_profit_two(prices):
+    b1 = b2 = float("-inf")
+    s1 = s2 = 0
+    for p in prices:
+        b1 = max(b1, -p)
+        s1 = max(s1, b1 + p)
+        b2 = max(b2, s1 - p)
+        s2 = max(s2, b2 + p)
+    return s2
+''')
+
+task("coin-ways",
+     "Write `coin_ways(amount: int, coins: list[int]) -> int`: the number of distinct combinations (order does not matter) of coins "
+     "summing to amount, with unlimited coins of each value. coin_ways(0, ...) is 1. Duplicate coin values count once.",
+     '''
+assert coin_ways(5, [1, 2, 5]) == 4
+assert coin_ways(3, [2]) == 0
+assert coin_ways(0, [7]) == 1
+assert coin_ways(10, [10]) == 1
+assert coin_ways(5, [1, 1, 2, 5]) == 4
+assert coin_ways(500, [1, 2, 5, 10, 20, 50, 100, 200]) == 6295434
+''',
+     '''
+def coin_ways(amount, coins):
+    ways = [1] + [0] * amount
+    for c in sorted(set(coins)):
+        for a in range(c, amount + 1):
+            ways[a] += ways[a - c]
+    return ways[amount]
+''')
+
+task("min-coins",
+     "Write `min_coins(amount: int, coins: list[int]) -> int`: the fewest coins summing to amount with unlimited coins of each value, "
+     "or -1 if impossible. min_coins(0, ...) is 0. Greedy is not always correct (e.g. coins [1, 3, 4] for 6 needs 2).",
+     '''
+assert min_coins(11, [1, 2, 5]) == 3
+assert min_coins(3, [2]) == -1
+assert min_coins(0, [1]) == 0
+assert min_coins(6, [1, 3, 4]) == 2
+assert min_coins(7, [2, 4]) == -1
+assert min_coins(10000, [7, 13, 29]) == 348
+''',
+     '''
+def min_coins(amount, coins):
+    INF = float("inf")
+    best = [0] + [INF] * amount
+    for a in range(1, amount + 1):
+        for c in coins:
+            if c <= a and best[a - c] + 1 < best[a]:
+                best[a] = best[a - c] + 1
+    return -1 if best[amount] == INF else best[amount]
+''')
+
+task("lis",
+     "Write `lis_length(nums: list[int]) -> int`: the length of the longest strictly increasing subsequence, in O(n log n) "
+     "(it must handle 100,000 numbers quickly).",
+     '''
+assert lis_length([10, 9, 2, 5, 3, 7, 101, 18]) == 4
+assert lis_length([0, 1, 0, 3, 2, 3]) == 4
+assert lis_length([7, 7, 7]) == 1
+assert lis_length([]) == 0
+import time
+t = time.time()
+assert lis_length(list(range(100000))) == 100000
+assert time.time() - t < 3
+''',
+     '''
+import bisect
+def lis_length(nums):
+    tails = []
+    for x in nums:
+        i = bisect.bisect_left(tails, x)
+        if i == len(tails):
+            tails.append(x)
+        else:
+            tails[i] = x
+    return len(tails)
+''')
+
+task("trie",
+     "Write a class `Trie` with `insert(word)`, `contains(word) -> bool` (exact word previously inserted), `starts_with(prefix) -> bool` "
+     "and `count_prefix(prefix) -> int` (number of distinct inserted words with that prefix; inserting the same word twice counts once). "
+     "The empty prefix matches every word.",
+     '''
+t = Trie()
+for w in ["apple", "app", "apply", "ape", "app"]:
+    t.insert(w)
+assert t.contains("app") and not t.contains("ap")
+assert t.starts_with("ap") and not t.starts_with("b")
+assert t.count_prefix("app") == 3
+assert t.count_prefix("") == 4
+assert t.count_prefix("apples") == 0
+''',
+     '''
+class Trie:
+    def __init__(self):
+        self.root = {}
+        self.words = set()
+    def insert(self, word):
+        if word in self.words:
+            return
+        self.words.add(word)
+        node = self.root
+        for ch in word:
+            node = node.setdefault(ch, {"#n": 0})
+            node["#n"] += 1
+    def _node(self, prefix):
+        node = self.root
+        for ch in prefix:
+            if ch not in node:
+                return None
+            node = node[ch]
+        return node
+    def contains(self, word):
+        return word in self.words
+    def starts_with(self, prefix):
+        return self._node(prefix) is not None
+    def count_prefix(self, prefix):
+        if prefix == "":
+            return len(self.words)
+        node = self._node(prefix)
+        return node["#n"] if node else 0
+''')
+
+task("interval-intersection",
+     "Write `intersect(a: list[list[int]], b: list[list[int]]) -> list[list[int]]` where a and b are each sorted, disjoint lists of "
+     "closed intervals; return their intersection as a sorted list of closed intervals (single points like [5, 5] included).",
+     '''
+assert intersect([[0, 2], [5, 10], [13, 23], [24, 25]], [[1, 5], [8, 12], [15, 24], [25, 26]]) == [[1, 2], [5, 5], [8, 10], [15, 23], [24, 24], [25, 25]]
+assert intersect([], [[1, 2]]) == []
+assert intersect([[1, 7]], [[3, 10]]) == [[3, 7]]
+assert intersect([[1, 2]], [[3, 4]]) == []
+''',
+     '''
+def intersect(a, b):
+    i = j = 0
+    out = []
+    while i < len(a) and j < len(b):
+        lo, hi = max(a[i][0], b[j][0]), min(a[i][1], b[j][1])
+        if lo <= hi:
+            out.append([lo, hi])
+        if a[i][1] < b[j][1]:
+            i += 1
+        else:
+            j += 1
+    return out
+''')
+
+task("sudoku-valid",
+     "Write `valid_sudoku(board: list[str]) -> bool` for a partially filled 9x9 board given as 9 strings of digits and '.'. Return "
+     "True if no row, column or 3x3 box repeats a digit (the board need not be solvable). Return False for wrong dimensions or "
+     "invalid characters.",
+     '''
+ok = ["53..7....", "6..195...", ".98....6.", "8...6...3", "4..8.3..1", "7...2...6", ".6....28.", "...419..5", "....8..79"]
+assert valid_sudoku(ok)
+bad_box = ok[:]
+bad_box[1] = "6.5195..."
+assert not valid_sudoku(bad_box)
+bad_col = ok[:]
+bad_col[8] = "5...8..79"
+assert not valid_sudoku(bad_col)
+assert not valid_sudoku(ok[:8])
+assert not valid_sudoku(ok[:8] + ["....8..7x"])
+assert not valid_sudoku(ok[:8] + ["....8..790"])
+assert valid_sudoku(["........."] * 9)
+''',
+     '''
+def valid_sudoku(board):
+    if len(board) != 9 or any(len(r) != 9 or any(c not in "123456789." for c in r) for r in board):
+        return False
+    seen = set()
+    for r in range(9):
+        for c in range(9):
+            v = board[r][c]
+            if v == ".":
+                continue
+            keys = (("r", r, v), ("c", c, v), ("b", r // 3, c // 3, v))
+            if any(k in seen for k in keys):
+                return False
+            seen.update(keys)
+    return True
+''')
+
+task("decode-ways",
+     "Write `decode_ways(s: str) -> int`: the number of ways to decode a digit string where 'A'..'Z' map to 1..26 (e.g. '226' -> 3: "
+     "'BZ', 'VF', 'BBF'). Leading zeros or invalid zeros make some or all decodings impossible ('06' -> 0, '10' -> 1). The empty "
+     "string has 1 way. Must be O(n).",
+     '''
+assert decode_ways("12") == 2
+assert decode_ways("226") == 3
+assert decode_ways("06") == 0
+assert decode_ways("10") == 1
+assert decode_ways("100") == 0
+assert decode_ways("2101") == 1
+assert decode_ways("") == 1
+assert decode_ways("1" * 40) == 165580141
+''',
+     '''
+def decode_ways(s):
+    prev2, prev1 = 1, 1
+    for i, ch in enumerate(s):
+        cur = prev1 if ch != "0" else 0
+        if i > 0 and (s[i - 1] == "1" or (s[i - 1] == "2" and ch <= "6")):
+            cur += prev2
+        prev2, prev1 = prev1, cur
+    return prev1
+''')
+
+task("render-table",
+     "Write `render_table(headers: list[str], rows: list[list]) -> str` producing a plain-text table: each column padded to its widest "
+     "cell (header included), cells separated by ' | ', a separator line of '-' under the header using '-+-' between columns, numbers "
+     "(int/float) right-aligned and everything else left-aligned, no trailing spaces on any line, lines joined with '\\n'. Raise "
+     "ValueError if a row has the wrong number of cells.",
+     '''
+out = render_table(["name", "qty", "note"], [["apple", 3, "fresh"], ["kiwi", 12, ""]])
+assert out == "name  | qty | note\\n------+-----+------\\napple |   3 | fresh\\nkiwi  |  12 |", repr(out)
+assert render_table(["a"], []) == "a\\n-"
+try:
+    render_table(["a", "b"], [[1]])
+except ValueError:
+    pass
+else:
+    raise AssertionError("ragged")
+''',
+     '''
+def render_table(headers, rows):
+    if any(len(r) != len(headers) for r in rows):
+        raise ValueError("row length")
+    cells = [[str(h) for h in headers]] + [[str(c) for c in r] for r in rows]
+    widths = [max(len(row[i]) for row in cells) for i in range(len(headers))]
+    def fmt(row, raw=None):
+        parts = []
+        for i, c in enumerate(row):
+            num = raw is not None and isinstance(raw[i], (int, float)) and not isinstance(raw[i], bool)
+            parts.append(c.rjust(widths[i]) if num else c.ljust(widths[i]))
+        return " | ".join(parts).rstrip()
+    lines = [fmt(cells[0]), "-+-".join("-" * w for w in widths)]
+    lines += [fmt(c, r) for c, r in zip(cells[1:], rows)]
+    return "\\n".join(lines)
+''')
+
+task("cron-match",
+     "Write `cron_matches(expr: str, dt: datetime) -> bool` for 5-field cron expressions 'minute hour day-of-month month day-of-week' "
+     "supporting '*', numbers, comma lists, ranges 'a-b' and steps ('*/15', '10-50/20'). Day of week is 0-6 with 0 = Sunday (7 is "
+     "also Sunday). Standard cron rule: if both day-of-month and day-of-week are restricted (not '*'), the day matches when EITHER "
+     "matches. Raise ValueError for malformed expressions or out-of-range values.",
+     '''
+from datetime import datetime as DT
+assert cron_matches("*/15 * * * *", DT(2026, 3, 4, 10, 45))
+assert not cron_matches("*/15 * * * *", DT(2026, 3, 4, 10, 46))
+assert cron_matches("0 9-17/4 * * 1-5", DT(2026, 3, 4, 13, 0))
+assert not cron_matches("0 9-17/4 * * 1-5", DT(2026, 3, 7, 13, 0))
+assert cron_matches("30 2 1,15 * *", DT(2026, 6, 15, 2, 30))
+assert cron_matches("0 0 13 * 5", DT(2026, 3, 6, 0, 0))
+assert cron_matches("0 0 13 * 5", DT(2026, 4, 13, 0, 0))
+assert not cron_matches("0 0 13 * 5", DT(2026, 4, 14, 0, 0))
+assert cron_matches("0 12 * * 7", DT(2026, 3, 8, 12, 0))
+for bad in ("* * * *", "60 * * * *", "* 24 * * *", "* * 0 * *", "*/0 * * * *", "a * * * *", "5-1 * * * *"):
+    try:
+        cron_matches(bad, DT(2026, 1, 1))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(bad)
+''',
+     '''
+def _field(spec, lo, hi):
+    vals = set()
+    for part in spec.split(","):
+        rng, _, step = part.partition("/")
+        step = int(step) if step else 1
+        if step < 1:
+            raise ValueError(part)
+        if rng == "*":
+            a, b = lo, hi
+        elif "-" in rng:
+            a, b = (int(x) for x in rng.split("-"))
+        else:
+            a = b = int(rng)
+        if a > b or a < lo or b > hi:
+            raise ValueError(part)
+        vals.update(range(a, b + 1, step))
+    return vals
+def cron_matches(expr, dt):
+    f = expr.split()
+    if len(f) != 5:
+        raise ValueError(expr)
+    try:
+        mins, hours = _field(f[0], 0, 59), _field(f[1], 0, 23)
+        doms, months = _field(f[2], 1, 31), _field(f[3], 1, 12)
+        dows = {d % 7 for d in _field(f[4], 0, 7)}
+    except ValueError:
+        raise ValueError(expr)
+    dow = (dt.weekday() + 1) % 7
+    dom_ok, dow_ok = dt.day in doms, dow in dows
+    if f[2] != "*" and f[4] != "*":
+        day_ok = dom_ok or dow_ok
+    else:
+        day_ok = dom_ok and dow_ok
+    return dt.minute in mins and dt.hour in hours and dt.month in months and day_ok
+''')
+
+task("business-days",
+     "Write `add_business_days(start: date, n: int, holidays: set[date]) -> date` returning the date n business days after start "
+     "(Mon–Fri, excluding holidays). n may be negative (count backwards) or 0 (return start unchanged even if it is a weekend).",
+     '''
+from datetime import date as Dt
+H = {Dt(2026, 12, 25), Dt(2026, 12, 28)}
+assert add_business_days(Dt(2026, 12, 24), 1, H) == Dt(2026, 12, 29)
+assert add_business_days(Dt(2026, 12, 29), -1, H) == Dt(2026, 12, 24)
+assert add_business_days(Dt(2026, 3, 6), 1, set()) == Dt(2026, 3, 9)
+assert add_business_days(Dt(2026, 3, 7), 0, set()) == Dt(2026, 3, 7)
+assert add_business_days(Dt(2026, 3, 7), 1, set()) == Dt(2026, 3, 9)
+assert add_business_days(Dt(2026, 3, 2), 10, set()) == Dt(2026, 3, 16)
+''',
+     '''
+from datetime import timedelta
+def add_business_days(start, n, holidays):
+    d, step, left = start, (1 if n >= 0 else -1), abs(n)
+    while left:
+        d += timedelta(days=step)
+        if d.weekday() < 5 and d not in holidays:
+            left -= 1
+    return d
+''')
+
+task("word-wrap-justify",
+     "Write `justify(words: list[str], width: int) -> list[str]` fully justifying text: pack as many words per line as fit with at "
+     "least one space between words; distribute extra spaces as evenly as possible, giving the leftmost gaps more; a line with one "
+     "word and the last line are left-justified and padded with spaces to width.",
+     '''
+assert justify(["This", "is", "an", "example", "of", "text", "justification."], 16) == ["This    is    an", "example  of text", "justification.  "]
+assert justify(["What", "must", "be", "acknowledgment", "shall", "be"], 16) == ["What   must   be", "acknowledgment  ", "shall be        "]
+assert justify(["a"], 3) == ["a  "]
+''',
+     '''
+def justify(words, width):
+    lines, cur = [], []
+    for w in words:
+        if cur and len(" ".join(cur + [w])) > width:
+            lines.append(cur)
+            cur = []
+        cur.append(w)
+    lines.append(cur)
+    out = []
+    for i, line in enumerate(lines):
+        if i == len(lines) - 1 or len(line) == 1:
+            out.append(" ".join(line).ljust(width))
+            continue
+        gaps = len(line) - 1
+        spaces = width - sum(len(w) for w in line)
+        q, r = divmod(spaces, gaps)
+        s = ""
+        for k, w in enumerate(line[:-1]):
+            s += w + " " * (q + (1 if k < r else 0))
+        out.append(s + line[-1])
+    return out
+''')
+
+task("roman-validate",
+     "Write `is_roman(s: str) -> bool` that accepts only canonical Roman numerals for 1..3999 in standard subtractive form "
+     "(e.g. 'XIV', 'MCMXCIV') and rejects non-canonical forms like 'IIII', 'VX', 'IC', 'XM', 'MMMM' or lowercase.",
+     '''
+for ok in ("I", "IV", "IX", "XIV", "XL", "XC", "CD", "CM", "MCMXCIV", "MMMCMXCIX"):
+    assert is_roman(ok), ok
+for bad in ("", "IIII", "VX", "IC", "XM", "MMMM", "iv", "VV", "XXL", "IIV", "LL", "DD"):
+    assert not is_roman(bad), bad
+''',
+     '''
+import re
+def is_roman(s):
+    return bool(s) and re.fullmatch(r"M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})", s) is not None
+''')
+
+task("histogram",
+     "Write `histogram(values: list[float], bins: int, lo: float, hi: float) -> list[int]` counting values into `bins` equal-width "
+     "bins covering [lo, hi]. Each bin is half-open [a, b) except the last, which also includes hi. Values outside [lo, hi] are "
+     "ignored. Raise ValueError if bins < 1 or hi <= lo.",
+     '''
+assert histogram([0, 1, 2, 3, 4, 5], 5, 0, 5) == [1, 1, 1, 1, 2]
+assert histogram([-1, 0.5, 9.99, 10, 10.01], 2, 0, 10) == [1, 2]
+assert histogram([], 3, 0, 1) == [0, 0, 0]
+assert histogram([0.1, 0.2, 0.3], 1, 0, 1) == [3]
+for args in ((0, 0, 1), (2, 1, 1), (2, 2, 1)):
+    try:
+        histogram([1], *args)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(args)
+''',
+     '''
+def histogram(values, bins, lo, hi):
+    if bins < 1 or hi <= lo:
+        raise ValueError("bad range")
+    counts = [0] * bins
+    width = (hi - lo) / bins
+    for v in values:
+        if v < lo or v > hi:
+            continue
+        i = bins - 1 if v == hi else min(int((v - lo) / width), bins - 1)
+        counts[i] += 1
+    return counts
+''')
+
+
+def build() -> dict[str, dict]:
+    cases = [{"id": tid, "input": prompt, "tags": ["coding"], "vars": {"tests": tests, "reference": f"```python\n{ref}\n```"}}
+             for tid, prompt, tests, ref in T]
+    assert len({c["id"] for c in cases}) == len(cases)
+    return {"coding/generated.yaml": benchmark(
+        "std-coding-edge-cases", "coding",
+        "Harder self-contained functions and classes (parsers, data structures, algorithms) graded by hidden tests heavy on edge cases.",
+        cases,
+        system_prompt=("Implement the requested Python function or class. Use only the standard library. "
+                       "Reply with a single ```python code block and nothing else."),
+        scorers=[{"type": "code_exec", "params": {"timeout_s": 20}}],
+    )}
