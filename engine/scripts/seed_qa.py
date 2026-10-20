@@ -5,10 +5,13 @@ through modelcompare.db with mock targets, so no network, keys or engine run is 
 
   qa-every-verdict  better, worse, equivalent (tie), inconclusive and incomplete cells, plus one
                     saturated benchmark, at different prices so the cost scatter has a Pareto front.
+                    A small "tool_calling" benchmark (6 cases, two models) gives an insufficient_data cell.
   qa-incomplete     one candidate whose errors make every comparison incomplete.
 """
 
 from __future__ import annotations
+
+import os
 
 from modelcompare import db
 from modelcompare.schema import TargetConfig
@@ -37,7 +40,7 @@ CORRECT = {
 ERRORS = {("coding", "qa-flaky"): 12}  # errored calls per run, out of N: 30%, over the 10% limit
 
 
-def _run(s, target: str, bench: str, dim: str, correct: set[int], n_errors: int = 0) -> db.Run:
+def _run(s, target: str, bench: str, dim: str, correct: set[int], n_errors: int = 0, n: int = N) -> db.Run:
     model, (p_in, p_out) = TARGETS[target]
     cfg = TargetConfig(name=target, kind="mock", model=model, pricing={"input": p_in, "output": p_out})
     run = db.Run(target_name=target, target_config=cfg.model_dump(mode="json"), benchmark_name=bench, benchmark_version="1",
@@ -45,7 +48,7 @@ def _run(s, target: str, bench: str, dim: str, correct: set[int], n_errors: int 
     s.add(run)
     s.flush()
     cost = (100 * p_in + 60 * p_out) / 1e6
-    for i in range(N):
+    for i in range(n):
         err = i >= N - n_errors
         ok = i in correct and not err
         s.add(db.Result(run_id=run.id, case_id=f"q{i}", repeat=0, score=float(ok), passed=ok, text="" if err else f"ANSWER: {i}",
@@ -56,10 +59,10 @@ def _run(s, target: str, bench: str, dim: str, correct: set[int], n_errors: int 
 
 def _job(s, job_id: str, targets: list[str], runs: list[db.Run]) -> None:
     totals = db.run_summaries(s)
-    s.add(db.Job(id=job_id, targets=targets, baseline=BASE, benchmarks=sorted({r.benchmark_name for r in runs}), total_calls=N * len(runs),
-                 done_calls=N * len(runs), run_ids=[r.id for r in runs], status="done",
+    s.add(db.Job(id=job_id, targets=targets, baseline=BASE, benchmarks=sorted({r.benchmark_name for r in runs}), total_calls=sum(totals[r.id]["n_results"] for r in runs),
+                 done_calls=sum(totals[r.id]["n_results"] for r in runs), run_ids=[r.id for r in runs], status="done",
                  runs=[{"run_id": r.id, "status": "done", "target": r.target_name, "benchmark": r.benchmark_name, "cost_usd": totals.get(r.id, {}).get("cost_usd", 0.0),
-                        "passed": totals.get(r.id, {}).get("passed", 0), "n_results": N, "n_errors": totals.get(r.id, {}).get("n_errors", 0),
+                        "passed": totals.get(r.id, {}).get("passed", 0), "n_results": totals[r.id]["n_results"], "n_errors": totals.get(r.id, {}).get("n_errors", 0),
                         "dimension": r.dimension,
                         "first_error": "provider unavailable" if totals.get(r.id, {}).get("n_errors") else None} for r in runs]))
 
@@ -71,6 +74,8 @@ def seed() -> None:
                 _delete(s, old)
         s.commit()
         runs = [_run(s, t, BENCHMARKS[d], d, CORRECT[d][t], ERRORS.get((d, t), 0)) for d in BENCHMARKS for t in TARGETS]
+        # Under 10 shared cases no verdict is possible, whatever the scores.
+        runs += [_run(s, BASE, "qa-tools-small", "tool_calling", {0, 1, 2}, n=6), _run(s, "qa-better", "qa-tools-small", "tool_calling", set(range(6)), n=6)]
         s.commit()
         _job(s, "qa-every-verdict", list(TARGETS), runs)
         s.commit()
@@ -89,6 +94,12 @@ def _delete(s, job: db.Job) -> None:
     s.delete(job)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    if not (os.getenv("MODELCOMPARE_HOME") or os.getenv("MODELCOMPARE_DB_URL")):
+        raise SystemExit("seed_qa.py writes to the database: set MODELCOMPARE_HOME (the QA data dir) or MODELCOMPARE_DB_URL first, so it never touches your real data.")
     seed()
     print("seeded qa-every-verdict and qa-incomplete")
+
+
+if __name__ == "__main__":
+    main()

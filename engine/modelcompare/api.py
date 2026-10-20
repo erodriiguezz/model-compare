@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -27,11 +28,20 @@ from modelcompare.runner import benchmarks_needing_judge, build_messages, cache_
 from modelcompare.schema import Benchmark, TargetConfig, load_targets, resolve_target
 from modelcompare.summary import capability
 
+def _warm_litellm() -> None:
+    """Importing litellm costs over a second; pay it at startup so the first /models call doesn't."""
+    try:
+        import litellm  # noqa: F401
+    except Exception:  # a broken optional dependency must not stop the server
+        pass
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     # Runs left `running` by a previous server process can never finish.
     with db.session() as s:
         db.mark_interrupted(s)
+    threading.Thread(target=_warm_litellm, daemon=True).start()
     yield
 
 
@@ -107,11 +117,13 @@ def profiles():
 
 
 @router.get("/runs")
-def runs():
+def runs(limit: int | None = Query(None, ge=1)):
+    """Newest first. `limit` keeps it cheap (the dashboard only asks whether any run exists)."""
     with db.session() as s:
-        summaries = db.run_summaries(s)
+        rows = db.list_runs(s, limit)
+        summaries = db.run_summaries(s, [r.id for r in rows] if limit else None)
         empty = {"n_results": 0, "passed": 0, "n_errors": 0, "cost_usd": 0.0}
-        return [{**r.model_dump(), **summaries.get(r.id, empty)} for r in db.list_runs(s)]
+        return [{**r.model_dump(), **summaries.get(r.id, empty)} for r in rows]
 
 
 @router.get("/runs/{run_id}")

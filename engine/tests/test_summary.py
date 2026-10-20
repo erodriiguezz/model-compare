@@ -181,9 +181,38 @@ async def test_suggestions_order_is_errors_decisions_then_data_advice(db_url):
     assert ranks == sorted(ranks)
 
 
-async def test_dimension_chart_data_has_ci_cost_and_vendor(db_url):
+async def test_dimension_chart_data_has_ci_and_vendor(db_url):
     rep = await _priced(db_url, set(range(8)), set(range(N)))
     assert rep["dimensions"]["reasoning"]["label"] == "Solves multi-step problems"
     t = rep["dimensions"]["reasoning"]["targets"]["cand"]
     lo, hi = t["quality_ci"]
-    assert lo <= t["quality"] <= hi and t["cost_per_1k_tasks"] > 0 and t["vendor"] == "mock"
+    assert lo <= t["quality"] <= hi and t["vendor"] == "mock"
+
+
+async def test_suggestions_no_tie_while_a_capability_is_still_open(db_url):
+    same = set(range(N)) - {3, 7}
+    for name, base, cand, dim in (("b0", same, same, "reasoning"), ("b1", set(range(0, 14)), set(range(6, 18)), "coding")):
+        b = bench(name, dim)
+        await run_benchmark(mock("base", base, price=(10.0, 30.0)), b, db_url=db_url)
+        await run_benchmark(mock("cand", cand, price=(0.1, 0.4)), b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "cand"]), baseline="base")
+    verdicts = {d: c["cand"]["verdict"] for d, c in rep["dimension_comparisons"].items()}
+    assert verdicts == {"reasoning": "equivalent", "coding": "inconclusive"}
+    assert "tie" not in _kinds(rep) and _kinds(rep).count("add_cases") == 1
+
+
+async def test_incomplete_flag_on_dimension_targets_and_markers(db_url):
+    errs = {f"q{i}": "provider unavailable" for i in range(5)}
+    rep = await _priced(db_url, set(range(10)), set(range(10)), cand_errors=errs)
+    dim = rep["dimensions"]["reasoning"]["targets"]
+    assert dim["cand"]["incomplete"] is True and dim["base"]["incomplete"] is False
+    marks = rep["summary"]["markers"]
+    assert marks["cand"]["incomplete"] is True and marks["base"]["incomplete"] is False
+    assert "cost_per_1k_tasks" not in dim["cand"]  # the scatter uses list-price markers, not spend
+
+
+def test_cases_needed_never_suggests_a_token_handful():
+    from modelcompare.summary import MIN_ADD_CASES, cases_needed
+
+    assert cases_needed(40, 0.031, 0.03) == MIN_ADD_CASES == 5

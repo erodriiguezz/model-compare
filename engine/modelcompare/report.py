@@ -281,11 +281,11 @@ def build_report(
                 "quality": mean(scores),
                 "quality_ci": mean_ci(scores),
                 "vendor": _vendor(next(iter(dim_ops[dim][t]))["model"] or t),
-                "cost_per_1k_tasks": 1000 * sum(o["cost_usd"] for o in ops) / calls,
                 "cost_per_case": sum(o["cost_usd"] for o in ops) / calls,
                 "latency_p50": mean(o["latency_p50"] for o in ops),
                 "latency_p95": max(o["latency_p95"] for o in ops),
                 "error_rate": _err_rate(ops),
+                "incomplete": _err_rate(ops) > MAX_ERROR_RATE,
             }
         dimensions[dim] = {"n_cases": len(keys), "label": capability(dim)["label"], "targets": stats}
         if baseline in aligned:

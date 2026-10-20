@@ -61,6 +61,7 @@ def _markers(rep: dict[str, Any], t: str) -> dict[str, Any]:
     consist = [s["consistency"] for s in sums if s["consistency"] is not None]
     lo, hi = wilson_ci(passed, n_cases)
     return {
+        "incomplete": any(e["rate"] > MAX_ERROR_RATE for e in rep.get("errors", {}).get(t, {}).values()),
         "task_success": passed / n_cases if n_cases else 0.0,
         "task_success_range": [lo, hi],
         "n_cases": n_cases,
@@ -150,15 +151,18 @@ def build_summary(rep: dict[str, Any]) -> dict[str, Any]:
 
 
 MAX_ADD_CASES = 500
+MIN_ADD_CASES = 5  # an inconclusive comparison is never fixed by one more case, so don't promise it
 
 
 def cases_needed(n: int, mde: float, delta: float) -> int:
     """Extra cases so the detectable difference shrinks to max(|delta|, EQUIV_MARGIN).
 
-    MDE scales with 1/sqrt(n), so n' = n * (mde / target)^2 and the answer is ceil(n' - n), at least 1.
+    MDE scales with 1/sqrt(n), so n' = n * (mde / target)^2 and the answer is ceil(n' - n), at least
+    MIN_ADD_CASES. This is an approximation: it assumes the spread of per-case differences and the
+    observed delta stay as they are, so treat the number as a planning estimate, not a guarantee.
     """
     target = max(abs(delta), EQUIV_MARGIN)
-    return max(1, math.ceil(n * (mde / target) ** 2 - n))
+    return max(MIN_ADD_CASES, math.ceil(n * (mde / target) ** 2 - n))
 
 
 def _money(x: float) -> str:
@@ -188,7 +192,7 @@ def _decision_suggestion(rep: dict[str, Any], d: dict[str, Any]) -> dict[str, An
         extra = f" It costs {cost:+.0%} per task." if cost is not None else ""
         return {"kind": "switch", "target": t, "data": {**data, "cost_change": cost},
                 "text": f"Switch to {t}: better at {_names(better)} and not worse anywhere else.{extra}"}
-    if tied and not better and not incomplete:
+    if tied and len(tied) == len(caps):  # any open capability means no tie yet: add-cases advice covers it
         m = rep["summary"]["markers"]
         cost_t, cost_b = m[t]["cost_per_1k_tasks"], m[base]["cost_per_1k_tasks"]
         cheaper, other = (t, base) if cost_t < cost_b else (base, t)

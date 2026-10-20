@@ -104,16 +104,17 @@ def cache_put(s: Session, key: str, completion: dict) -> None:
     s.merge(CacheEntry(key=key, completion=json.dumps(completion)))
 
 
-def list_runs(s: Session) -> list[Run]:
-    return list(s.exec(select(Run).order_by(Run.id.desc())))
+def list_runs(s: Session, limit: int | None = None) -> list[Run]:
+    q = select(Run).order_by(Run.id.desc())
+    return list(s.exec(q.limit(limit) if limit else q))
 
 
 def run_results(s: Session, run_id: int) -> list[Result]:
     return list(s.exec(select(Result).where(Result.run_id == run_id)))
 
 
-def run_summaries(s: Session) -> dict[int, dict]:
-    """Per-run counts: results, passed, errors and spend."""
+def run_summaries(s: Session, run_ids: list[int] | None = None) -> dict[int, dict]:
+    """Per-run counts: results, passed, errors and spend (for the given runs, or all)."""
     q = select(
         Result.run_id,
         func.count(Result.id),
@@ -121,6 +122,8 @@ def run_summaries(s: Session) -> dict[int, dict]:
         func.count(Result.error),
         func.sum(Result.cost_usd),
     ).group_by(Result.run_id)
+    if run_ids is not None:
+        q = q.where(Result.run_id.in_(run_ids))
     return {
         rid: {"n_results": n, "passed": passed or 0, "n_errors": errors, "cost_usd": cost or 0.0}
         for rid, n, passed, errors, cost in s.exec(q)
