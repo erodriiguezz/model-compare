@@ -5,7 +5,10 @@ import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
 import CostScatter from "./CostScatter";
 import RankedBars from "./RankedBars";
-import type { Dimension, Marker } from "@/lib/report";
+import Regressions from "./Regressions";
+import Suggestions from "./Suggestions";
+import VerdictMatrix from "./VerdictMatrix";
+import type { Decision, Dimension, FlaggedItem, Marker, Suggestion } from "@/lib/report";
 
 const TONES: Record<string, [string, string]> = {
   better: ["Better", "ok"], mixed: ["Mixed", "warn"], worse: ["Worse", "bad"], equivalent: ["Equivalent", "info"], inconclusive: ["Inconclusive", "muted"],
@@ -28,7 +31,9 @@ type Report = {
   errors: Record<string, Record<string, { reasons: { reason: string; count: number }[] }>>;
   headline: { candidate: string; baseline: string; overall: string }[];
   dimensions: Record<string, Dimension>;
-  summary?: { decisions: { candidate: string; line: string }[]; markers: Record<string, Marker> };
+  summary?: { decisions: Decision[]; markers: Record<string, Marker> };
+  suggestions?: Suggestion[];
+  flagged?: Record<string, { items: FlaggedItem[] }>;
 };
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
@@ -61,8 +66,14 @@ export function ReportTable({ jobId }: { jobId: string }) {
         {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
         {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       </section>
+      {r.suggestions && <Suggestions items={r.suggestions} />}
+      {r.summary && <VerdictMatrix baseline={r.baseline} decisions={r.summary.decisions} />}
       <RankedBars dimensions={r.dimensions} baseline={r.baseline} />
       {r.summary && <CostScatter markers={r.summary.markers} vendors={vendors} />}
+      {r.flagged && <Regressions flagged={r.flagged} baseline={r.baseline} />}
+      <details className="details">
+        <summary>Details</summary>
+        <div className="details-body">
       {r.benchmarks.map((b) => (
         <section key={b.name} className="card" aria-labelledby={`bench-${b.name}`}>
           <h2 id={`bench-${b.name}`}>{b.name} <span className="muted">{b.dimension}</span></h2>
@@ -86,6 +97,8 @@ export function ReportTable({ jobId }: { jobId: string }) {
           </table></div>
         </section>
       ))}
+        </div>
+      </details>
     </>
   );
 }

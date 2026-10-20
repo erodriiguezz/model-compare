@@ -21,7 +21,7 @@ ModelCompare benchmarks LLMs on the user's own tasks and answers "is model B act
 | CLI `modelcompare` (`list`, `run`, `compare`, `runs`, `serve`) | Working |
 | HTML + JSON report (`compare -o`) | Working |
 | HTTP API (`serve`, FastAPI) | Working; written to back the web dashboard |
-| Web dashboard | Not started — Phase 2, Next.js on the FastAPI API |
+| Web dashboard | The Compare page shows the verdict matrix + suggestions |
 
 ## Core promises
 - Any provider through LiteLLM; a `mock` target runs the pipeline with no API keys.

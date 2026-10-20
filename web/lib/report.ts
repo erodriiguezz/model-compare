@@ -34,3 +34,11 @@ export function paretoFront<T extends { quality: number; cost: number; incomplet
     .filter((p) => !ok.some((q) => q.quality >= p.quality && q.cost <= p.cost && (q.quality > p.quality || q.cost < p.cost)))
     .sort((a, b) => a.cost - b.cost);
 }
+
+export type Suggestion = { kind: string; text: string; target?: string; benchmark?: string; data: Record<string, unknown> };
+export type CapabilityVerdict = { dimension: string; label: string; verdict: string; delta_points: number };
+export type Decision = { candidate: string; line: string; capabilities: CapabilityVerdict[] };
+export type FlaggedItem = {
+  kind: string; tag: string; benchmark: string; dimension: string; case_id: string; delta: number;
+  baseline: { score: number }; candidate: { score: number };
+};

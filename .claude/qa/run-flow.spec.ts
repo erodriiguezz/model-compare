@@ -42,6 +42,7 @@ test('[AC-3.1] a model that errors shows an incomplete verdict and its error rea
   await page.goto('/compare/');
   await pick(page, ['mock-a', 'mock-errors']);
   await page.getByRole('button', { name: 'Run comparison' }).click();
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // the per-benchmark tables sit under Details since M7
   const report = page.getByRole('region', { name: 'std-reasoning-math' });
   await expect(report.locator('[data-verdict="incomplete"]')).toBeVisible({ timeout: 30_000 });
   await expect(report).toContainText('provider unavailable');
