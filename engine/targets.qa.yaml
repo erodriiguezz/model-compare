@@ -10,3 +10,20 @@ targets:
     model: mock/b
     extra:
       default: "ANSWER: 1"
+  # Slow target so a run can be cancelled mid-flight.
+  - name: mock-slow
+    kind: mock
+    model: mock/slow
+    extra:
+      default: "ANSWER: 0"
+      latency_s: 3
+  # Errors on 3 of the 15 math cases (20%), so comparisons against it are incomplete.
+  - name: mock-errors
+    kind: mock
+    model: mock/errors
+    extra:
+      default: "ANSWER: 0"
+      errors:
+        pens-bulk: "provider unavailable"
+        train-minutes: "provider unavailable"
+        age-ratio: "provider unavailable"

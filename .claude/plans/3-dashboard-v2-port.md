@@ -46,6 +46,14 @@ touches_api: false
 
 **Size** M · ~380 lines · ~300k tokens
 
+**PR split** (lead decision during delivery: the port came to ~880 counted lines, so the same scope ships as stacked PRs into the feature branch, each ≤400)
+| Part | Branch | Content | Criteria |
+| --- | --- | --- | --- |
+| 3a | `feat/dashboard-v2-redesign-p3a-compare` | run form, progress, cancel, report table | AC-3.1, AC-3.2, AC-3.5 |
+| 3b | `feat/dashboard-v2-redesign-p3b-history` | history page, sub-tabs, nav | AC-3.3, AC-3.5 |
+| 3c | `feat/dashboard-v2-redesign-p3c-parity` | remaining old-page features: budget + confirm, repeats/concurrency/cache, key status, judge pick, case explorer, report links | AC-3.1, AC-3.3 |
+| 3d | `feat/dashboard-v2-redesign-p3d-cleanup` | delete the old page, 503 without `web/out`, docs | AC-3.4 |
+
 **Out of scope:** charts, the verdict matrix, suggestions (M5).
 
 **Context:** `architecture.md` — `cli.py / api.py` row — the dashboard is the Next app.

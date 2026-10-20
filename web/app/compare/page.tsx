@@ -1,7 +1,8 @@
-import ApiPage from "@/components/ApiPage";
+import { Suspense } from "react";
+import CompareView from "@/components/CompareView";
 
 export const metadata = { title: "Compare · ModelCompare" };
 
 export default function Page() {
-  return <ApiPage title="Compare" blurb="Run benchmarks and compare models side by side." />;
+  return <Suspense><CompareView /></Suspense>;
 }
