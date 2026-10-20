@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON, usd, vendor, type Benchmark, type Estimate, type Target } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "./States";
@@ -9,7 +10,8 @@ type Data = { status: "loading" } | { status: "error"; message: string } | { sta
 export default function RunForm({ onStart }: { onStart: (jobId: string) => void }) {
   const [data, setData] = useState<Data>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const [targets, setTargets] = useState<string[]>([]);
+  const fromUrl = useSearchParams().get("targets");
+  const [targets, setTargets] = useState<string[]>(() => (fromUrl ?? "").split(",").filter(Boolean));
   const [benches, setBenches] = useState<string[]>([]);
   const [baseline, setBaseline] = useState("");
   const [judge, setJudge] = useState("");
@@ -60,9 +62,12 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
     catch (e) { setStartError((e as Error).message); setStarting(false); }
   }
 
+  // Ids picked on the Models page that targets.yaml does not list (catalog models); kept visible even when unchecked.
+  const [initial] = useState(targets);
+  const extra = data.status === "ready" ? initial.filter((n) => !data.targets.some((t) => t.name === n)) : [];
   if (data.status === "loading") return <Loading label="Loading targets and benchmarks" />;
   if (data.status === "error") return <ErrorState message={data.message} onRetry={retry}>Check that <code>modelcompare serve</code> is running.</ErrorState>;
-  if (!data.targets.length) return <Empty title="No targets configured">Copy targets.example.yaml to targets.yaml and add a model.</Empty>;
+  if (!data.targets.length && !extra.length) return <Empty title="No targets configured">Copy targets.example.yaml to targets.yaml and add a model.</Empty>;
   if (!data.benches.length) return <Empty title="No benchmarks found">Add a benchmark YAML under benchmarks/custom.</Empty>;
 
   return (
@@ -77,6 +82,17 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             </label>
           ))}
         </fieldset>
+        {extra.length > 0 && (
+          <fieldset>
+            <legend>From Models</legend>
+            {extra.map((name) => (
+              <label key={name} className="check">
+                <input type="checkbox" checked={targets.includes(name)} onChange={() => toggle(targets, setTargets, name)} />
+                <span>{name}</span><span className="muted">catalog</span>
+              </label>
+            ))}
+          </fieldset>
+        )}
         <fieldset>
           <legend>Benchmarks</legend>
           <div className="scroll-list">

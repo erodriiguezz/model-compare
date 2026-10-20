@@ -1,7 +1,8 @@
-import ApiPage from "@/components/ApiPage";
+import { Suspense } from "react";
+import ModelsView from "@/components/ModelsView";
 
 export const metadata = { title: "Models · ModelCompare" };
 
 export default function Page() {
-  return <ApiPage title="Models" blurb="Browse targets, pricing and per-dimension scores." />;
+  return <Suspense><ModelsView /></Suspense>;
 }

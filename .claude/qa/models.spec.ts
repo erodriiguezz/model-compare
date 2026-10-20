@@ -17,7 +17,7 @@ test.afterEach(async ({ request }) => {
 });
 
 test('[AC-6.1] providers are listed, expand to models with price and context, and a keyless one links to Settings', async ({ page }) => {
-  await page.goto('/models/?refresh=1');
+  await page.goto('/models/');
   const openai = group(page, 'openai');
   await expect(openai).toBeVisible();
   await expect(openai.locator('.chip')).toHaveText('key set');
@@ -58,7 +58,7 @@ test('[AC-6.2] two checked models open /compare preselected and a run starts wit
 });
 
 test('[AC-6.2] a catalog model arrives preselected on /compare (not run)', async ({ page }) => {
-  await page.goto('/models/?refresh=1');
+  await page.goto('/models/');
   await group(page, 'openai').getByRole('button', { name: /openai/i }).click();
   await model(page, 'openai/gpt-4o-mini').check();
   await page.getByRole('link', { name: 'Compare selected' }).click();
@@ -68,7 +68,7 @@ test('[AC-6.2] a catalog model arrives preselected on /compare (not run)', async
 });
 
 test('[AC-6.3] the search box filters models by id across providers', async ({ page }) => {
-  await page.goto('/models/?refresh=1');
+  await page.goto('/models/');
   const search = page.getByRole('searchbox', { name: 'Search models' });
   await search.fill('GPT-4O');
   await expect(model(page, 'openai/gpt-4o')).toBeVisible();
@@ -133,7 +133,7 @@ test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ p
   mkdirSync(dir, { recursive: true });
   for (const w of [1280, 390]) {
     await page.setViewportSize({ width: w, height: 900 });
-    await page.goto('/models/?refresh=1');
+    await page.goto('/models/');
     await expect(group(page, 'openai')).toBeVisible();
     await page.screenshot({ path: join(dir, `models-collapsed-${w}.png`), fullPage: true });
     await group(page, 'openai').getByRole('button', { name: /openai/i }).click();

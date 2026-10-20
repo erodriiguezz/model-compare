@@ -146,3 +146,25 @@ input[type="password"] { font: inherit; width: 100%; padding: var(--space-2); bo
 .btn.destructive { background: var(--danger); border-color: var(--danger); }
 .key-ok { color: var(--success); } .key-bad { color: var(--danger); }
 @media (max-width: 640px) { .key-head { grid-template-columns: 1fr auto; } .key-actions { grid-column: 2; grid-row: 2; } .key-mask { grid-column: 1; grid-row: 2; } }
+
+/* Models */
+.search input { font: inherit; width: 100%; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.model-head, .model-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, var(--field-w)) var(--field-w); gap: var(--space-3); align-items: center; padding: 0 var(--space-4); }
+.provider { padding: 0; }
+.provider > * + * { margin-top: 0; }
+.provider-head { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4); font: inherit; text-align: left; background: none; border: 0; color: inherit; min-height: var(--tap); }
+button.provider-head { cursor: pointer; }
+.provider-name { font-weight: 600; }
+.provider-dot { width: var(--space-2); height: var(--space-2); border-radius: 50%; flex: none; }
+.caret { width: var(--space-3); color: var(--text-muted); }
+.provider-note { padding: 0 var(--space-4) var(--space-3); }
+.model-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.model-row { border-bottom: 1px solid var(--border); }
+.model-row:last-child { border-bottom: 0; }
+.model-row .check { min-width: 0; align-items: center; }
+.model-id { overflow-wrap: anywhere; }
+.model-head { padding-top: var(--space-1); }
+.selection-bar { position: sticky; bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+@media (max-width: 640px) {
+  .model-head, .model-row { grid-template-columns: minmax(0, 1fr) auto; }
+}
