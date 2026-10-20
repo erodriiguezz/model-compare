@@ -53,7 +53,7 @@ test('[AC-3.2] cancel stops a running job and the status shows cancelled', async
   const { job_id } = await res.json();
   await page.goto(`/compare/?job=${job_id}`);
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.locator('[data-verdict="cancelled"]')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('region', { name: /Comparison/ }).locator('[data-verdict="cancelled"]').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
 
@@ -99,7 +99,7 @@ test('[AC-3.5] history shows an error with retry when the API fails', async ({ p
 });
 
 test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
-  await page.route('**/api/targets', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/targets/status', (route) => route.fulfill({ json: [] }));
   await page.goto('/compare/');
   await expect(page.getByRole('heading', { name: 'No targets configured' })).toBeVisible();
 });
@@ -113,4 +113,55 @@ test('[AC-3.3] history caps long lists and shows all on request', async ({ page 
   await expect(rows).toHaveCount(25);
   await section.getByRole('button', { name: 'Show all' }).click();
   await expect(rows).toHaveCount(30);
+});
+
+test('[AC-3.1] run options feed the estimate and the request, and a cost confirmation precedes a paid run', async ({ page }) => {
+  await page.route('**/api/runs/estimate', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: { ...(await res.json()), usd: 2.5 } });
+  });
+  let sent: Record<string, unknown> = {};
+  await page.route('**/api/runs', (route) => {
+    if (route.request().method() === 'POST') sent = route.request().postDataJSON();
+    return route.continue();
+  });
+  await page.goto('/compare/');
+  await pick(page, ['mock-a', 'mock-b']);
+  await page.getByLabel('Repeats').fill('2');
+  await page.getByLabel('Budget per run (USD)').fill('5');
+  await page.getByLabel('Parallel calls per model').fill('4');
+  await page.getByRole('checkbox', { name: 'Reuse cached answers' }).uncheck();
+  await expect(page.getByTestId('estimate')).toContainText('Estimate: 60 calls');
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  const confirm = page.getByRole('group', { name: 'Confirm cost' });
+  await expect(confirm).toContainText('may cost up to $2.50');
+  await confirm.getByRole('button', { name: 'Back' }).click();
+  await expect(confirm).toHaveCount(0);
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  await page.getByRole('button', { name: 'Confirm and run' }).click();
+  await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
+  expect(sent).toMatchObject({ repeats: 2, budget_usd: 5, concurrency: 4, use_cache: false });
+});
+
+test('[AC-3.1] a model without a key is shown disabled with "no key"', async ({ page }) => {
+  await page.route('**/api/targets/status', async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    await route.fulfill({ response: res, json: [...body, { name: 'paid-x', model: 'openai/gpt-x', kind: 'litellm', keys_ok: false, missing_keys: ['OPENAI_API_KEY'] }] });
+  });
+  await page.goto('/compare/');
+  await expect(page.getByRole('checkbox', { name: /^paid-x/ })).toBeDisabled();
+  await expect(page.getByText('no key (OPENAI_API_KEY)')).toBeVisible();
+});
+
+test('[AC-3.3] the case explorer shows each case and the report links open the HTML and JSON', async ({ page, request }) => {
+  const { job_id } = await (await request.post('/api/runs', { data: { targets: ['mock-a', 'mock-b'], benchmarks: ['std-reasoning-math'] } })).json();
+  await expect.poll(async () => (await (await request.get(`/api/jobs/${job_id}`)).json()).status, { timeout: 30_000 }).toBe('done');
+  await page.goto(`/history/?job=${job_id}`);
+  await expect(page.getByRole('link', { name: 'Open report' })).toHaveAttribute('href', `/api/jobs/${job_id}/report.html`);
+  await expect(page.getByRole('link', { name: 'JSON' })).toHaveAttribute('href', `/api/jobs/${job_id}/report`);
+  const explorer = page.getByRole('region', { name: 'Case explorer' });
+  await explorer.getByRole('button', { name: 'View cases' }).first().click();
+  await expect(explorer.getByRole('cell', { name: 'pens-bulk' })).toBeVisible();
+  await expect(explorer.getByText('score 0.00').first()).toBeVisible();
 });

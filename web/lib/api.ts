@@ -11,13 +11,13 @@ export const getJSON = <T,>(path: string) => request<T>(path);
 export const postJSON = <T,>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 
-export type Target = { name: string; model?: string; kind?: string };
+export type Target = { name: string; model?: string; kind?: string; keys_ok?: boolean; missing_keys?: string[] };
 export type Benchmark = { name: string; dimension: string; capability: string; cases: number; needs_judge: boolean };
 export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number };
 export type Live = { target: string; benchmark: string; done: number; total: number; passed: number; errors: number };
-export type JobRun = { target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
+export type JobRun = { run_id: number; status: string; cost_usd: number; target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
 export type Job = {
-  id: string; targets: string[]; baseline: string | null; status: string; error: string | null; started_at: string;
+  id: string; targets: string[]; baseline: string | null; status: string; error: string | null; started_at: string; benchmarks: string[];
   total_calls: number; done_calls: number; run_ids: number[]; runs: JobRun[]; live: Live[];
 };
 
