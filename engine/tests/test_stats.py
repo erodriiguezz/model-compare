@@ -38,6 +38,23 @@ def test_equivalence_tight_ci():
     assert r.verdict == "equivalent"
 
 
+def test_equivalent_when_only_the_90_percent_ci_fits():
+    """AC-1.3: TOST uses the 90% CI, so a 95% CI that pokes outside the margin can still be equivalent."""
+    a = [0.5] * 100
+    b = [0.67] * 50 + [0.33] * 50  # mean delta 0, se about 0.017
+    r = paired_bootstrap(a, b)
+    assert -EQUIV_MARGIN <= r.ci90_low and r.ci90_high <= EQUIV_MARGIN
+    assert r.ci_low < -EQUIV_MARGIN or r.ci_high > EQUIV_MARGIN
+    assert r.verdict == "equivalent"
+
+
+def test_small_real_difference_is_not_equivalent():
+    """AC-1.3: a 0.04 delta is outside the margin, so never equivalent."""
+    assert paired_bootstrap([0.5] * 60, [0.54] * 60).verdict != "equivalent"
+    noisy = paired_bootstrap([0.5] * 40, [0.9, 0.5, 0.31, 0.5] * 10)  # delta about 0.04, wide CI
+    assert abs(noisy.delta - 0.05) < 0.02 and noisy.verdict != "equivalent"
+
+
 def test_wide_ci_inconclusive():
     """AC-1.3: a wide CI that straddles 0 stays inconclusive, not equivalent."""
     a = [0.0, 1.0] * 6

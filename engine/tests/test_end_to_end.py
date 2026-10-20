@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from typer.testing import CliRunner
 
 from modelcompare import db
@@ -179,3 +181,55 @@ async def test_saturation_flag(db_url):
     assert any("Too easy to separate these models" in w for w in sat["warnings"])
     assert "Too easy to separate these models" in render_html(sat)
     assert mixed["benchmarks"][0]["saturated"] is False
+
+
+async def test_single_target_is_never_saturated(db_url):
+    """AC-1.4: saturation needs at least two compared targets."""
+    await run_benchmark(mock("solo", set(range(N))), bench(), db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["solo"]))
+    assert rep["benchmarks"][0]["saturated"] is False
+
+
+async def test_run_records_temperature_fallback_even_when_cached(db_url):
+    """AC-1.5: the run's target_config records the fallback, also on a cached replay."""
+    t = mock("m", set(range(N)))
+    t.extra["temperature_fallback"] = True
+    plain = mock("plain", set(range(N)))
+    b = bench()
+    for target, expected in ((t, True), (t, True), (plain, None)):  # second pass replays from cache
+        out = await run_benchmark(target, b, db_url=db_url)
+        with db.session(db_url) as s:
+            assert s.get(db.Run, out.run_id).target_config.get("temperature_fallback") is expected
+    assert out.results and not any(r.completion.temperature_fallback for r in out.results)
+
+
+async def test_headline_incomplete_caps_other_verdicts(db_url):
+    """AC-1.2: one incomplete benchmark makes the candidate's headline incomplete, even if another is better."""
+    base_ok = mock("base", set(range(10)))
+    cand = mock("cand", set(range(N)))
+    cand_flaky = with_errors(mock("cand", set(range(N))), set(range(5)))
+    for name, c in (("good", cand), ("broken", cand_flaky)):
+        b = bench(name)
+        await run_benchmark(base_ok, b, db_url=db_url)
+        await run_benchmark(c, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "cand"]), baseline="base")
+    verdicts = {b["name"]: b["comparisons"][0]["verdict"] for b in rep["benchmarks"]}
+    assert verdicts == {"good": "better", "broken": "incomplete"}
+    assert rep["headline"][0]["overall"] == "incomplete"
+
+
+async def test_failing_target_is_not_recommended_or_cheap(db_url):
+    """Errored calls cost nothing, so a failing model must not look cheap or get recommended."""
+    ok = mock("ok", set(range(N)), price=(10.0, 30.0))
+    dead = with_errors(mock("dead", set(range(N)), price=(0.1, 0.1)), set(range(15)))
+    b = bench()
+    await run_benchmark(ok, b, db_url=db_url)
+    await run_benchmark(dead, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["ok", "dead"]), baseline="ok")
+    rec = rep["recommendations"][0]
+    assert rec["recommended"] == "ok" and rec["not_recommendable"] == ["dead"]
+    sm = rep["benchmarks"][0]["summaries"]["dead"]
+    assert sm["cost_per_case"] == pytest.approx(sm["cost_usd"] / 5)  # per successful call

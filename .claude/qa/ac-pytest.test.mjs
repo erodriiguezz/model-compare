@@ -18,5 +18,5 @@ test('saturated benchmark is flagged too easy [AC-1.4]', () => {
   assert.ok(pytest('tests/test_end_to_end.py::test_saturation_flag'));
 });
 test('temperature is retried without and the fallback recorded [AC-1.5]', () => {
-  assert.ok(pytest('tests/test_litellm_target.py::test_temperature_fallback'));
+  assert.ok(pytest('tests/test_litellm_target.py::test_temperature_fallback', 'tests/test_end_to_end.py::test_run_records_temperature_fallback_even_when_cached'));
 });

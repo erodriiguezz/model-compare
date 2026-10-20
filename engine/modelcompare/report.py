@@ -109,8 +109,8 @@ def _target_summary(run: db.Run, results: list[db.Result]) -> dict[str, Any]:
         "pass_rate": passed_cases / n_cases if n_cases else 0.0,
         "pass_rate_ci": wilson_ci(passed_cases, n_cases),
         "cost_usd": cost,
-        "cost_per_case": cost / max(len(results), 1),
-        "cost_per_1k_tasks": 1000 * cost / max(len(results), 1),
+        "cost_per_case": cost / max(len(results) - err["n_errors"], 1),  # errored calls are free: don't average them in
+        "cost_per_1k_tasks": 1000 * cost / max(len(results) - err["n_errors"], 1),
         "latency_p50": percentile(lat, 0.5) if lat else 0.0,
         "latency_p95": percentile(lat, 0.95) if lat else 0.0,
         "input_tokens": sum(r.input_tokens for r in results),
@@ -243,7 +243,7 @@ def build_report(
                 dim_scores[any_run.dimension][t][(bname, cid)] = v["score"]
             dim_ops[any_run.dimension][t].append(summaries[t])
 
-        saturated = bool(summaries) and all(sm["n_cases"] and sm["mean_score"] >= SATURATION_SCORE for sm in summaries.values())
+        saturated = len(summaries) >= 2 and all(sm["n_cases"] and sm["mean_score"] >= SATURATION_SCORE for sm in summaries.values())
         if saturated:
             warnings.append(f"{bname}: {SATURATION_TEXT}.")
         for t, sm in summaries.items():
@@ -277,13 +277,13 @@ def build_report(
         stats = {}
         for t, scores in aligned.items():
             ops = dim_ops[dim][t]
-            calls = sum(o["n_calls"] for o in ops) or 1
+            calls = sum(o["n_calls"] - o["n_errors"] for o in ops) or 1
             stats[t] = {
                 "quality": mean(scores),
                 "cost_per_case": sum(o["cost_usd"] for o in ops) / calls,
                 "latency_p50": mean(o["latency_p50"] for o in ops),
                 "latency_p95": max(o["latency_p95"] for o in ops),
-                "error_rate": mean(o["error_rate"] for o in ops),
+                "error_rate": _err_rate(ops),
             }
         dimensions[dim] = {"n_cases": len(keys), "targets": stats}
         if baseline in aligned:
@@ -292,7 +292,7 @@ def build_report(
                             max(_err_rate(dim_ops[dim][baseline]), _err_rate(dim_ops[dim][t])) > MAX_ERROR_RATE)
                 for t in aligned if t != baseline
             }
-        recommendations.append(recommend_dimension(dim, stats, aligned, min_quality=min_quality))
+        recommendations.append(_recommend(dim, stats, aligned, min_quality))
         if len(keys) < 10:
             warnings.append(f"{dim}: only {len(keys)} shared cases; verdicts need at least 10.")
 
@@ -324,13 +324,13 @@ def build_report(
     rep = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "baseline": baseline,
-        "targets": {t: next(r.target_config for r in runs if r.target_name == t) for t in targets},
+        "errors": errors,
         "headline": _headline(baseline, benchmarks),
+        "targets": {t: next(r.target_config for r in runs if r.target_name == t) for t in targets},
         "benchmarks": benchmarks,
         "dimensions": dimensions,
         "dimension_comparisons": dimension_comparisons,
         "overall": overall,
-        "errors": errors,
         "flagged": flagged_out,
         "recommendations": recommendations,
         "profiles": profiles,
@@ -339,6 +339,18 @@ def build_report(
     }
     rep["summary"] = build_summary(rep)
     return rep
+
+
+def _recommend(dim: str, stats: dict, aligned: dict, min_quality: float) -> dict[str, Any]:
+    """Recommend only among targets with a trustworthy error rate: a failing model is not "cheap and good"."""
+    ok = [t for t in stats if stats[t]["error_rate"] <= MAX_ERROR_RATE]
+    out = {"not_recommendable": [t for t in stats if t not in ok]}
+    if not ok:
+        return {**out, "dimension": dim, "recommended": "—", "best_quality": "—", "best_value": "—",
+                "fastest_acceptable": None, "n_cases": len(next(iter(aligned.values()), [])),
+                "summary": "Every target has too many errors to recommend one. Fix errors and re-run."}
+    rec = recommend_dimension(dim, {t: stats[t] for t in ok}, {t: aligned[t] for t in ok}, min_quality=min_quality)
+    return {**rec, **out}
 
 
 def _headline(baseline: str, benchmarks: list[dict]) -> list[dict]:
@@ -350,14 +362,14 @@ def _headline(baseline: str, benchmarks: list[dict]) -> list[dict]:
     out = []
     for cand, v in tally.items():
         better, worse, incomplete = v.get("better", []), v.get("worse", []), v.get("incomplete", [])
-        if better and not worse:
+        if incomplete:
+            overall = "incomplete"  # errors make every other verdict untrustworthy
+        elif better and not worse:
             overall = "better"
         elif worse and not better:
             overall = "worse"
         elif better and worse:
             overall = "mixed"
-        elif incomplete:
-            overall = "incomplete"
         elif v.get("equivalent") and not (v.get("inconclusive") or v.get("insufficient_data")):
             overall = "equivalent"
         else:

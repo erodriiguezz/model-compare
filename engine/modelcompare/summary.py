@@ -52,10 +52,11 @@ def _markers(rep: dict[str, Any], t: str) -> dict[str, Any]:
     n_cases = sum(s["n_cases"] for s in sums)
     passed = round(sum(s["pass_rate"] * s["n_cases"] for s in sums))
     calls = sum(s["n_calls"] for s in sums) or 1
+    ok_calls = sum(s["n_calls"] - s["n_errors"] for s in sums) or 1
     tin, tout = sum(s["input_tokens"] for s in sums), sum(s["output_tokens"] for s in sums)
     p_in, p_out = price_per_million(TargetConfig.model_validate(rep["targets"][t]))
     # List-price cost from tokens, so cached (free) re-runs don't make a model look cheaper.
-    cost_per_1k = 1000 * (tin * p_in + tout * p_out) / 1e6 / calls
+    cost_per_1k = 1000 * (tin * p_in + tout * p_out) / 1e6 / ok_calls
     consist = [s["consistency"] for s in sums if s["consistency"] is not None]
     lo, hi = wilson_ci(passed, n_cases)
     return {

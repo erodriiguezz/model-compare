@@ -14,6 +14,7 @@ class MockTarget(Target):
       default: fallback text
       latency_s: simulated latency
       errors: {case_id: message} cases that fail with a provider error
+      temperature_fallback: simulate a provider that rejected temperature
     """
 
     async def complete(self, messages, tools=None, case_id=None) -> Completion:
@@ -37,4 +38,5 @@ class MockTarget(Target):
             output_tokens=out_tok,
             latency_s=latency,
             cost_usd=self.estimate_cost(in_tok, out_tok),
+            temperature_fallback=bool(extra.get("temperature_fallback", False)),
         )
