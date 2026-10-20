@@ -4,7 +4,8 @@ import { join } from 'node:path';
 
 const FAKE = 'sk-test-000000000000a1b2';
 const group = (page: Page, id: string) => page.locator(`[data-group="${id}"]`);
-const model = (page: Page, id: string) => page.getByRole('checkbox', { name: id, exact: true });
+// The accessible name is the id followed by muted detail (the yaml model, or price and context on narrow screens).
+const model = (page: Page, id: string) => page.getByRole('checkbox', { name: new RegExp(`^${id.replace(/[/.-]/g, '\\$&')}(\\s|$)`) });
 const bare = { var: 'X', key_ok: false, reason: 'no key', models: [] };
 const none = { providers: ['anthropic', 'openai'].map((provider) => ({ provider, ...bare })), cached_at: '2026-01-01T00:00:00+00:00' };
 
@@ -137,7 +138,7 @@ test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ p
     await expect(group(page, 'openai')).toBeVisible();
     await page.screenshot({ path: join(dir, `models-collapsed-${w}.png`), fullPage: true });
     await group(page, 'openai').getByRole('button', { name: /openai/i }).click();
-    await page.getByRole('checkbox', { name: /^openai\/gpt-4o(\s|$)/ }).check();
+    await model(page, 'openai/gpt-4o').check();
     await page.screenshot({ path: join(dir, `models-expanded-${w}.png`), fullPage: true });
     await group(page, 'anthropic').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(dir, `models-nokey-${w}.png`) });
