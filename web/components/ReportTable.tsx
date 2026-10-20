@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
+import CostScatter from "./CostScatter";
+import RankedBars from "./RankedBars";
+import type { Dimension, Marker } from "@/lib/report";
 
 const TONES: Record<string, [string, string]> = {
   better: ["Better", "ok"], mixed: ["Mixed", "warn"], worse: ["Worse", "bad"], equivalent: ["Equivalent", "info"], inconclusive: ["Inconclusive", "muted"],
@@ -24,7 +27,8 @@ type Report = {
   baseline: string; warnings: string[]; benchmarks: Bench[];
   errors: Record<string, Record<string, { reasons: { reason: string; count: number }[] }>>;
   headline: { candidate: string; baseline: string; overall: string }[];
-  summary?: { decisions: { candidate: string; line: string }[] };
+  dimensions: Record<string, Dimension>;
+  summary?: { decisions: { candidate: string; line: string }[]; markers: Record<string, Marker> };
 };
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
@@ -44,6 +48,7 @@ export function ReportTable({ jobId }: { jobId: string }) {
   if (state.status === "loading") return <Loading label="Loading report" />;
   if (state.status === "error") return <ErrorState message={state.message} onRetry={retry} />;
   const { report: r } = state;
+  const vendors = Object.fromEntries(Object.values(r.dimensions).flatMap((d) => Object.entries(d.targets).map(([t, v]) => [t, v.vendor])));
   return (
     <>
       <section className="card" aria-labelledby="report-h">
@@ -56,6 +61,8 @@ export function ReportTable({ jobId }: { jobId: string }) {
         {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
         {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       </section>
+      <RankedBars dimensions={r.dimensions} baseline={r.baseline} />
+      {r.summary && <CostScatter markers={r.summary.markers} vendors={vendors} />}
       {r.benchmarks.map((b) => (
         <section key={b.name} className="card" aria-labelledby={`bench-${b.name}`}>
           <h2 id={`bench-${b.name}`}>{b.name} <span className="muted">{b.dimension}</span></h2>
