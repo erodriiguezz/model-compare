@@ -25,17 +25,17 @@ export default function CostScatter({ markers, vendors }: { markers: Record<stri
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 12, right: 24, bottom: 28, left: 0 }}>
                 <CartesianGrid stroke={colors.border} />
-                <XAxis type="number" dataKey="cost" name="$ per 1k tasks" domain={[0, "auto"]} tickFormatter={usd} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
+                <XAxis type="number" dataKey="cost" name="$ per 1k tasks" domain={[0, (max: number) => max * 1.15]} tickFormatter={usd} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
                   label={{ value: "$ per 1k tasks", position: "insideBottom", offset: -16, fill: colors.muted, fontSize: 12 }} />
-                <YAxis type="number" dataKey="quality" name="Quality" domain={[0, 100]} unit="%" width={44} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
-                  label={{ value: "Quality", angle: -90, position: "insideLeft", offset: 12, fill: colors.muted, fontSize: 12 }} />
+                <YAxis type="number" dataKey="quality" name="Quality" domain={[0, 100]} unit="%" width={64} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
+                  label={{ value: "Quality", angle: -90, position: "insideLeft", offset: 4, fill: colors.muted, fontSize: 12 }} />
                 <Scatter data={rest} isAnimationActive={false} shape={(p: { cx?: number; cy?: number; payload?: { vendor: string } }) => (
                   <circle cx={p.cx} cy={p.cy} r={5} fill={colors.provider(p.payload?.vendor ?? "")} fillOpacity={0.35} />)}>
-                  <LabelList dataKey="name" position="bottom" fill={colors.muted} fontSize={11} />
+                  <LabelList dataKey="name" position="bottom" fill={colors.muted} fontSize={11} offset={10} />
                 </Scatter>
                 <Scatter data={front} isAnimationActive={false} line={{ stroke: colors.accent, strokeWidth: 2 }} lineType="joint" shape={(p: { cx?: number; cy?: number; payload?: { vendor: string } }) => (
                   <circle cx={p.cx} cy={p.cy} r={8} fill={colors.provider(p.payload?.vendor ?? "")} stroke={colors.text} strokeWidth={2} />)}>
-                  <LabelList dataKey="name" position="top" fill={colors.text} fontSize={12} fontWeight={600} />
+                  <LabelList dataKey="name" position="top" fill={colors.text} fontSize={12} fontWeight={600} offset={12} />
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>
@@ -44,11 +44,11 @@ export default function CostScatter({ markers, vendors }: { markers: Record<stri
         <ul className="legend" aria-label="Providers">
           {vendorList.map((v) => <li key={v}><span className="provider-dot" style={{ background: colors?.provider(v) }} />{v}</li>)}
         </ul>
-        <table className="sr-only">
+        <div className="sr-only"><table>
           <caption>Quality and cost per model</caption>
           <thead><tr><th>Model</th><th>Quality</th><th>$ per 1k tasks</th><th>Pareto front</th></tr></thead>
           <tbody>{points.map((p) => <tr key={p.name} data-target={p.name} data-pareto={onFront.has(p.name)}><td>{p.name}</td><td>{p.quality}%</td><td>{usd(p.cost)}</td><td>{onFront.has(p.name) ? "yes" : "no"}</td></tr>)}</tbody>
-        </table>
+        </table></div>
       </figure>
     </section>
   );

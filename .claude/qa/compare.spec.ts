@@ -15,7 +15,7 @@ test('[AC-7.1] one ranked bar chart per capability, sorted, with CI whiskers in 
 
   // The accessible table lists the same bars; scores must be in descending order in every chart.
   for (const chart of await charts.all()) {
-    const scores = await chart.locator('table.sr-only tbody tr td:nth-child(2)').allTextContents();
+    const scores = await chart.locator('.sr-only tbody tr td:nth-child(2)').allTextContents();
     const nums = scores.map((s) => parseFloat(s));
     expect(nums.length).toBeGreaterThan(1);
     expect(nums).toEqual([...nums].sort((a, b) => b - a));
@@ -43,8 +43,8 @@ test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights t
   await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /quality .* \$ per 1k tasks/i);
   await expect(scatter).toContainText('$ per 1k tasks');
   await expect(scatter).toContainText('Quality');
-  const front = await scatter.locator('table.sr-only tbody tr[data-pareto="true"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
-  const rest = await scatter.locator('table.sr-only tbody tr[data-pareto="false"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
+  const front = await scatter.locator('.sr-only tbody tr[data-pareto="true"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
+  const rest = await scatter.locator('.sr-only tbody tr[data-pareto="false"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
   expect(front).toEqual(['qa-better', 'qa-tie', 'qa-worse']);
   expect(rest).toEqual(['qa-base', 'qa-flaky']);
   await expect(scatter.locator('.recharts-scatter-line')).toBeAttached();

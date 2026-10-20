@@ -42,11 +42,11 @@ export default function RankedBars({ dimensions, baseline }: { dimensions: Recor
                   </ResponsiveContainer>
                 )}
               </div>
-              <table className="sr-only">
+              <div className="sr-only"><table>
                 <caption>{info.label}</caption>
                 <thead><tr><th>Model</th><th>Score</th><th>95% interval</th><th>Provider</th></tr></thead>
                 <tbody>{rows.map((r) => <tr key={r.name}><td>{r.label}</td><td>{r.score}%</td><td>{r.lo}% to {r.hi}%</td><td>{r.vendor}</td></tr>)}</tbody>
-              </table>
+              </table></div>
             </figure>
           );
         })}
