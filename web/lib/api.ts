@@ -27,3 +27,9 @@ export const usd = (v: number) => `$${v.toFixed(v >= 10 ? 0 : v >= 1 ? 2 : 3)}`;
 export const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : "—");
 export type RunRow = { id: number; target_name: string; benchmark_name: string; status: string; n_results: number; passed: number; n_errors: number; cost_usd: number };
 export const fmtTime = (s: string) => new Date(/Z|\+/.test(s) ? s : `${s}Z`).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+
+export type KeyStatus = { provider: string; var: string; set: boolean; masked: string | null; source: "file" | "environment" | null };
+const send = <T,>(method: string, path: string, body?: unknown) =>
+  request<T>(path, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+export const putJSON = <T,>(path: string, body: unknown) => send<T>("PUT", path, body);
+export const deleteJSON = <T,>(path: string) => send<T>("DELETE", path);

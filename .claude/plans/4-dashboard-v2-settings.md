@@ -2,7 +2,7 @@
 issue: 4
 title: Settings — provider keys
 branch: feat/dashboard-v2-redesign-p4-settings
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -78,5 +78,13 @@ See `mvp-dashboard-v2.md` §2.
 - AC-4.2, AC-4.5 `.claude/qa/settings.spec.ts`
 
 ## 5. Evidence
+- QA (top of the stack, 4b): passed on `37db984`. Verify: 824 pytest tests pass (network blocked), plus web lint and build. App up on :8765 with an isolated keys file. API smoke passes (foreign Origin, 404). Browser: 41 tests pass. UI audit: 0 serious, 0 minor. AC-4.1–4.5 covered. 4a alone: green except AC-4.5 (owned by 4b).
+- AC table and screens: `docs/reviews/4.md`.
+- Reviewer: round 1 Request changes (1 High), round 2 Approve with 2 Medium. Follow-up: Host/Origin protection for the rest of `/api`.
+- Lines: 286 + 157 counted across 2 PRs.
+
 ## 6. Retro
+- The plan's ~300-line estimate held for the feature, but the security review added ~50 lines of necessary hardening. Security-sensitive milestones should budget review fixes before cutting PRs.
+- The builder wrote tests after the code (the brief asked for tests first). There was no red run, so nothing shows the tests can fail.
+- litellm loads a cwd `.env` on import, which nearly put real keys into the QA app and pytest. A global QA rule could set `LITELLM_MODE=PRODUCTION` for Python LLM projects.
 ## 7. Hand-off

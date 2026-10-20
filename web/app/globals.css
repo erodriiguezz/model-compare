@@ -133,3 +133,16 @@ input[type="number"] { font: inherit; width: var(--field-w); padding: var(--spac
 pre { margin: var(--space-1) 0; padding: var(--space-2); background: var(--canvas); border-radius: var(--radius-sm); white-space: pre-wrap; word-break: break-word; max-height: var(--list-max-h); overflow: auto; font-size: var(--text-xs); }
 .links { display: flex; gap: var(--space-4); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Settings */
+.key-list { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.key-row { position: relative; display: flex; flex-direction: column; gap: var(--space-3); }
+.key-head { display: grid; grid-template-columns: minmax(var(--col-min), 1fr) auto minmax(var(--field-w), auto) auto; align-items: center; gap: var(--space-3); }
+.key-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
+.key-form { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.key-form label { flex: 1 1 var(--col-min); }
+input[type="password"] { font: inherit; width: 100%; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.key-row [role="status"]:empty { position: absolute; }
+.btn.destructive { background: var(--danger); border-color: var(--danger); }
+.key-ok { color: var(--success); } .key-bad { color: var(--danger); }
+@media (max-width: 640px) { .key-head { grid-template-columns: 1fr auto; } .key-actions { grid-column: 2; grid-row: 2; } .key-mask { grid-column: 1; grid-row: 2; } }
