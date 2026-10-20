@@ -37,7 +37,7 @@ a { color: inherit; text-decoration: none; }
 .topbar { background: var(--surface); border-bottom: 1px solid var(--border); }
 .topbar-inner {
   max-width: var(--content-max); margin: 0 auto; padding: 0 var(--gutter);
-  display: flex; align-items: center; gap: var(--space-6); min-height: 48px; flex-wrap: wrap;
+  display: flex; align-items: center; min-height: 48px; flex-wrap: wrap; column-gap: var(--space-6); row-gap: 0;
 }
 .brand { font-weight: 600; padding: var(--space-2) 0; }
 .topbar nav { min-width: 0; max-width: 100%; }
@@ -63,3 +63,5 @@ a { color: inherit; text-decoration: none; }
 .skeleton.short { width: 40%; }
 @keyframes pulse { 50% { opacity: 0.5; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
+@media (max-width: 480px) { .nav-link { padding: var(--space-2); } }
