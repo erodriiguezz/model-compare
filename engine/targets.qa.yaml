@@ -1,0 +1,12 @@
+# Mock-only targets for QA runs: no network, no API keys. Used via MODELCOMPARE_TARGETS=targets.qa.yaml.
+targets:
+  - name: mock-a
+    kind: mock
+    model: mock/a
+    extra:
+      default: "ANSWER: 0"
+  - name: mock-b
+    kind: mock
+    model: mock/b
+    extra:
+      default: "ANSWER: 1"

@@ -64,7 +64,8 @@ async def test_tie_recommends_cheaper(db_url):
     rec = rep["recommendations"][0]
     assert set(rec["statistical_ties"]) == {"pricey", "cheap"}
     assert rec["recommended"] == "cheap"
-    assert rep["headline"][0]["overall"] == "inconclusive"
+    assert rep["headline"][0]["overall"] == "equivalent"
+    assert rep["benchmarks"][0]["comparisons"][0]["verdict"] == "equivalent"
 
 
 async def test_cache_hits_cost_nothing(db_url):
@@ -118,3 +119,63 @@ def test_cli_run_and_compare(db_url, tmp_path):
     assert res.exit_code == 0, res.output
     assert "new vs old: BETTER" in res.output
     assert out.exists() and out.with_suffix(".json").exists()
+
+
+def with_errors(t: TargetConfig, cases: set[int], msg="BadRequestError: temperature unsupported") -> TargetConfig:
+    t.extra["errors"] = {f"q{i}": msg for i in cases}
+    return t
+
+
+async def test_errors_excluded_and_incomplete(db_url):
+    """AC-1.1 / AC-1.2: errored calls are not scored or paired; >10% errors on a side is incomplete."""
+    base = mock("base", set(range(N)))
+    flaky = with_errors(mock("flaky", set(range(N))), set(range(5)))  # 25% errors, all others correct
+    b = bench()
+    await run_benchmark(base, b, db_url=db_url)
+    await run_benchmark(flaky, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "flaky"]), baseline="base")
+
+    bm = rep["benchmarks"][0]
+    sm = bm["summaries"]["flaky"]
+    assert sm["n_errors"] == 5 and sm["n_cases"] == 15 and sm["mean_score"] == 1.0  # errors are not zeros
+    assert sm["error_reasons"][0] == {"reason": "BadRequestError: temperature unsupported", "count": 5}
+    assert rep["errors"]["flaky"]["arith"]["n_errors"] == 5 and "base" not in rep["errors"]
+    cmp = bm["comparisons"][0]
+    assert cmp["n"] == 15 and cmp["delta"] == 0
+    assert cmp["verdict"] == "incomplete" and rep["headline"][0]["overall"] == "incomplete"
+    assert rep["overall"]["flaky"]["verdict"] == "incomplete"
+    dec = rep["summary"]["decisions"][0]
+    assert "Fix errors and re-run" in dec["line"] and "Fix errors and re-run" in dec["overall_verdict_text"]
+    assert "Fix errors and re-run" in render_html(rep)
+
+
+async def test_few_errors_stay_comparable(db_url):
+    """AC-1.2: at or under 10% errors the comparison is still scored, on non-errored pairs only."""
+    base = mock("base", set(range(N)))
+    flaky = with_errors(mock("flaky", set(range(N))), {0, 1})  # exactly 10%
+    b = bench()
+    await run_benchmark(base, b, db_url=db_url)
+    await run_benchmark(flaky, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "flaky"]), baseline="base")
+    cmp = rep["benchmarks"][0]["comparisons"][0]
+    assert cmp["n"] == 18 and cmp["verdict"] != "incomplete"
+    assert rep["errors"]["flaky"]["arith"]["n_errors"] == 2
+
+
+async def test_saturation_flag(db_url):
+    """AC-1.4: every compared target at >=0.95 flags the benchmark as too easy."""
+    easy_a, easy_b = mock("a", set(range(N))), mock("b", set(range(N)))
+    hard = mock("c", set(range(10)))
+    b = bench()
+    for t in (easy_a, easy_b, hard):
+        await run_benchmark(t, b, db_url=db_url)
+    with db.session(db_url) as s:
+        sat = build_report(s, latest_runs(s, ["a", "b"]), baseline="a")
+        mixed = build_report(s, latest_runs(s, ["a", "c"]), baseline="a")
+    assert sat["benchmarks"][0]["saturated"] is True
+    assert sat["benchmarks"][0]["saturation_message"] == "Too easy to separate these models"
+    assert any("Too easy to separate these models" in w for w in sat["warnings"])
+    assert "Too easy to separate these models" in render_html(sat)
+    assert mixed["benchmarks"][0]["saturated"] is False

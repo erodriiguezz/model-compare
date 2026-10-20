@@ -13,6 +13,7 @@ class MockTarget(Target):
       responses: {case_id: text | {"text": ..., "tool_calls": [...]}}
       default: fallback text
       latency_s: simulated latency
+      errors: {case_id: message} cases that fail with a provider error
     """
 
     async def complete(self, messages, tools=None, case_id=None) -> Completion:
@@ -20,6 +21,8 @@ class MockTarget(Target):
         latency = float(extra.get("latency_s", 0.0))
         if latency:
             await asyncio.sleep(latency)
+        if (msg := extra.get("errors", {}).get(case_id)) is not None:
+            return Completion(error=msg, latency_s=latency)
         resp = extra.get("responses", {}).get(case_id, extra.get("default", ""))
         if isinstance(resp, dict):
             text, tool_calls = resp.get("text", ""), resp.get("tool_calls", [])

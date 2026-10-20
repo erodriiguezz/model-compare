@@ -1,0 +1,8 @@
+{
+  "checks": [
+    {"name": "QA targets are mock-only", "method": "GET", "url": "/targets", "expectStatus": 200, "expectBodyIncludes": "mock-a"},
+    {"name": "start a mock run", "method": "POST", "url": "/runs", "body": {"targets": ["mock-a", "mock-b"], "baseline": "mock-a", "benchmarks": ["benchmarks/standard/reasoning/math_word_problems.yaml"]}, "expectStatus": 202, "expectBodyIncludes": "job_id"},
+    {"name": "list jobs", "method": "GET", "url": "/jobs", "expectStatus": 200},
+    {"name": "compare returns a report with verdict data", "method": "POST", "url": "/compare", "body": {"targets": ["mock-a", "mock-b"], "baseline": "mock-a"}, "expectStatus": 200, "expectBodyIncludes": "\"baseline\":\"mock-a\"", "ac": "AC-1.1"}
+  ]
+}

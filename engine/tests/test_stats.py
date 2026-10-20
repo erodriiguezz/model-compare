@@ -1,6 +1,6 @@
 import pytest
 
-from modelcompare.stats import mcnemar_exact, paired_bootstrap, percentile, wilson_ci
+from modelcompare.stats import EQUIV_MARGIN, mcnemar_exact, paired_bootstrap, percentile, wilson_ci
 
 
 def test_mcnemar_exact_known_values():
@@ -23,10 +23,28 @@ def test_bootstrap_regression_is_worse():
     assert r.verdict == "worse"
 
 
-def test_bootstrap_identical_is_inconclusive():
+def test_bootstrap_identical_is_equivalent():
     xs = [0.2, 0.5, 1.0] * 5
     r = paired_bootstrap(xs, xs)
-    assert r.delta == 0 and r.verdict == "inconclusive" and r.p_value == 1.0
+    assert r.delta == 0 and r.verdict == "equivalent" and r.p_value == 1.0
+
+
+def test_equivalence_tight_ci():
+    """AC-1.3: 90% CI of the paired delta inside +/-EQUIV_MARGIN gives equivalent."""
+    a = [0.5] * 60
+    b = [0.5] * 59 + [0.51]
+    r = paired_bootstrap(a, b)
+    assert -EQUIV_MARGIN <= r.ci90_low and r.ci90_high <= EQUIV_MARGIN
+    assert r.verdict == "equivalent"
+
+
+def test_wide_ci_inconclusive():
+    """AC-1.3: a wide CI that straddles 0 stays inconclusive, not equivalent."""
+    a = [0.0, 1.0] * 6
+    b = [1.0, 0.0, 0.0, 1.0] * 3
+    r = paired_bootstrap(a, b)
+    assert r.ci90_high - r.ci90_low > 2 * EQUIV_MARGIN
+    assert r.verdict == "inconclusive"
 
 
 def test_bootstrap_small_sample_refuses_verdict():

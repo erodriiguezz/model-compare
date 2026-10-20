@@ -35,8 +35,10 @@ CAPABILITIES: dict[str, tuple[str, str]] = {
 VERDICT_WORDS = {
     "better": "Better",
     "worse": "Worse",
+    "equivalent": "Equivalent (within 3 points)",
     "inconclusive": "No measurable difference",
     "insufficient_data": "Not enough tests to tell",
+    "incomplete": "Incomplete: Fix errors and re-run",
 }
 
 
@@ -72,7 +74,7 @@ def _markers(rep: dict[str, Any], t: str) -> dict[str, Any]:
 def _confidence(overall: dict[str, Any] | None, caps: list[dict]) -> str:
     if not overall:
         return "Low"
-    unclear = sum(1 for c in caps if c["verdict"] == "insufficient_data")
+    unclear = sum(1 for c in caps if c["verdict"] in ("insufficient_data", "incomplete"))
     if overall["n"] >= 300 and unclear == 0:
         return "High"
     if overall["n"] >= 100 and unclear <= len(caps) // 3:
@@ -97,13 +99,15 @@ def build_summary(rep: dict[str, Any]) -> dict[str, Any]:
                 c = per_cand[t]
                 caps.append({**capability(dim), "verdict": c["verdict"], "verdict_text": VERDICT_WORDS[c["verdict"]],
                              "delta_points": 100 * c["delta"], "n": c["n"], "mde_points": 100 * c["mde"] if c["mde"] == c["mde"] else None})
-        caps.sort(key=lambda c: ({"worse": 0, "better": 1, "inconclusive": 2, "insufficient_data": 3}[c["verdict"]], c["label"]))
+        caps.sort(key=lambda c: ({"worse": 0, "better": 1, "equivalent": 2, "inconclusive": 3, "insufficient_data": 4, "incomplete": 5}[c["verdict"]], c["label"]))
         overall = rep.get("overall", {}).get(t)
         m, mb = markers[t], markers[base]
         better = [c["label"] for c in caps if c["verdict"] == "better"]
         worse = [c["label"] for c in caps if c["verdict"] == "worse"]
         same = sum(1 for c in caps if c["verdict"] == "inconclusive")
         unclear = sum(1 for c in caps if c["verdict"] == "insufficient_data")
+        tied = sum(1 for c in caps if c["verdict"] == "equivalent")
+        incomplete = sum(1 for c in caps if c["verdict"] == "incomplete")
         cost_change = _pct_change(m["cost_per_1k_tasks"], mb["cost_per_1k_tasks"])
         speed_change = m["latency_p50"] - mb["latency_p50"]
 
@@ -114,8 +118,12 @@ def build_summary(rep: dict[str, Any]) -> dict[str, Any]:
             parts.append("worse at " + ", ".join(worse))
         if same:
             parts.append(f"no measurable difference in {same} other area{'s' if same != 1 else ''}")
+        if tied:
+            parts.append(f"equivalent in {tied} area{'s' if tied != 1 else ''} (within 3 points)")
         if unclear:
             parts.append(f"too few tests to judge {unclear} area{'s' if unclear != 1 else ''}")
+        if incomplete:
+            parts.append(f"{incomplete} area{'s' if incomplete != 1 else ''} incomplete because of errors. Fix errors and re-run")
         line = f"{t} vs {base}: " + ("; ".join(parts) if parts else "no shared tests to compare")
         if cost_change is not None:
             line += f". Cost per task {cost_change:+.0%}"

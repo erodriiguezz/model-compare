@@ -45,10 +45,11 @@ async def test_worse_candidate_lists_regressions_first(db_url):
     assert rep["summary"]["markers"]["cand"]["regressions"] == 2 * (N - 5)
 
 
-async def test_identical_models_show_no_difference_with_sensitivity(db_url):
+async def test_identical_models_are_equivalent_with_sensitivity(db_url):
     rep = await _report(db_url, set(range(10)), set(range(10)))
     d = _decision(rep)
-    assert d["overall_verdict"] == "inconclusive" and d["overall_verdict_text"] == "No measurable difference"
+    assert d["overall_verdict"] == "equivalent" and d["overall_verdict_text"].startswith("Equivalent")
+    assert "equivalent in 2 areas" in d["line"]
     assert "cand" not in rep["flagged"]
     assert d["sensitivity_points"] > 0  # never claims infinite precision
 

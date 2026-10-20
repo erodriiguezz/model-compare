@@ -47,7 +47,7 @@ def recommend_dimension(
     ties = [best]
     for t in ranked[1:]:
         pr = paired_bootstrap(paired_scores[best], paired_scores[t])
-        if pr.verdict in ("inconclusive", "insufficient_data"):
+        if pr.verdict in ("inconclusive", "equivalent", "insufficient_data", "incomplete"):
             ties.append(t)
     cheapest_tie = min(ties, key=lambda t: stats[t]["cost_per_case"])
     acceptable = [t for t in ranked if stats[t]["quality"] >= min_quality]
