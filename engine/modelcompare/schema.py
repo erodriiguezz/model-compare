@@ -131,6 +131,7 @@ class Completion(BaseModel):
     cost_usd: float = 0.0
     error: str | None = None
     cached: bool = False
+    temperature_fallback: bool = False  # provider rejected `temperature`; the call was retried without it
 
 
 class ScoreDetail(BaseModel):

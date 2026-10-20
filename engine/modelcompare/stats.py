@@ -9,7 +9,8 @@ from statistics import mean
 from typing import Literal
 
 MIN_CASES_FOR_VERDICT = 10
-Verdict = Literal["better", "worse", "inconclusive", "insufficient_data"]
+EQUIV_MARGIN = 0.03  # a tie is "equivalent" when the 90% CI of the paired delta sits inside +/- this
+Verdict = Literal["better", "worse", "equivalent", "inconclusive", "insufficient_data", "incomplete"]
 
 
 @dataclass
@@ -22,6 +23,8 @@ class PairedResult:
     ci_high: float
     p_value: float
     verdict: Verdict  # from B's perspective relative to A
+    ci90_low: float = math.nan  # TOST-style equivalence interval
+    ci90_high: float = math.nan
 
 
 def percentile(xs: list[float], q: float) -> float:
@@ -43,25 +46,28 @@ def paired_bootstrap(a: list[float], b: list[float], iters: int = 5000, seed: in
     diffs = [y - x for x, y in zip(a, b)]
     d = mean(diffs)
     if all(x == diffs[0] for x in diffs):
-        lo = hi = d
+        lo = hi = lo90 = hi90 = d
         p = 1.0 if d == 0 else 0.0
     else:
         rng = random.Random(seed)
         boots = sorted(mean(rng.choices(diffs, k=n)) for _ in range(iters))
         lo, hi = percentile(boots, alpha / 2), percentile(boots, 1 - alpha / 2)
+        lo90, hi90 = percentile(boots, 0.05), percentile(boots, 0.95)
         # Shift-to-null: fraction of centred bootstrap means at least as extreme as observed.
         extreme = sum(1 for m in boots if abs(m - d) >= abs(d))
         p = max(extreme / iters, 1 / iters)
-    return PairedResult(n, mean(a), mean(b), d, lo, hi, p, _verdict(n, lo, hi))
+    return PairedResult(n, mean(a), mean(b), d, lo, hi, p, _verdict(n, lo, hi, lo90, hi90), lo90, hi90)
 
 
-def _verdict(n: int, lo: float, hi: float) -> Verdict:
+def _verdict(n: int, lo: float, hi: float, lo90: float | None = None, hi90: float | None = None) -> Verdict:
     if n < MIN_CASES_FOR_VERDICT:
         return "insufficient_data"
     if lo > 0:
         return "better"
     if hi < 0:
         return "worse"
+    if lo90 is not None and hi90 is not None and lo90 >= -EQUIV_MARGIN and hi90 <= EQUIV_MARGIN:
+        return "equivalent"
     return "inconclusive"
 
 

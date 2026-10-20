@@ -16,7 +16,7 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | `targets/` | `Target` ABC; `LiteLLMTarget` (all real providers, pricing metadata); `MockTarget` |
 | `scorers/` | Registry via `@scorer(name)`; `deterministic.py`, `code_exec.py` (subprocess, timeout), `judge.py` (`llm_judge`) |
 | `runner.py` | Runs a benchmark: concurrency, cache key (sha256 of request), budget cap, weighted scoring, pre-run cost estimate |
-| `stats.py` | Pure-Python paired bootstrap (seeded, 5000 iters), exact McNemar, Wilson CI; `MIN_CASES_FOR_VERDICT = 10` |
+| `stats.py` | Pure-Python paired bootstrap (seeded, 5000 iters), exact McNemar, Wilson CI; `MIN_CASES_FOR_VERDICT = 10`, `EQUIV_MARGIN = 0.03` (TOST-style `equivalent`) |
 | `recommend.py` | Per-dimension recommendations, statistical ties, Pareto front, profile rankings |
 | `report.py` | Builds the comparison report from the latest runs: headline, regressions, warnings |
 | `html_report.py` | Self-contained HTML render (radar chart, side-by-side outputs) |

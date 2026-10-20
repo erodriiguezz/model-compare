@@ -7,3 +7,8 @@ reports/
 node_modules/
 .next/
 targets.yaml
+.modelcompare-qa/
+.claude/artifacts/
+.claude/budget/
+.claude/test-report.json
+.claude/review/

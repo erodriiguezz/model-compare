@@ -2,7 +2,7 @@
 issue: 1
 title: Trustworthy scores
 branch: feat/dashboard-v2-redesign-p1-scores
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -79,5 +79,15 @@ Filter `Result.error is not None` before building paired vectors. Track `n_error
 - API smoke `.claude/qa/api-smoke.json`: `POST /compare` returns 200 with `verdict` fields
 
 ## 5. Evidence
+- QA: passed on `5a341b1`. Verify: 785 pytest tests pass. App up on :8765 with mock targets. API smoke: 3/3 pass. Browser: n/a (backend only). AC coverage: AC-1.1–1.5 all covered. Diff coverage: not measured (no `coverage.command`).
+- AC table: see `docs/reviews/1.md`.
+- Reviewer: Request changes (1 High, 3 Medium, 3 Low). All fixed in `9c89232`; re-verified green.
+- Lines: 214 counted (+187/−27), 255 test/generated lines not counted.
+- Cost: ~4.5M tokens (cache-heavy), 65 tool calls, 3 red verify runs, 1 session, no hand-off.
+
 ## 6. Retro
+- The plan's file list missed `runner.py`, `schema.py` and `mock.py`, all of which AC-1.5 ("the run records the fallback") needed. Plans should trace each AC to where the data is persisted.
+- The global `pr-size-ignore` doesn't match Python's `test_*.py` convention, so the first count (411) read as over the limit. Proposal: add `**/test_*.py` and `**/tests/**` to the global default.
+- `api-smoke.mjs` has no poll/retry support, so a smoke check can't wait on an async job. Seeding through `app.setup` worked around it.
+
 ## 7. Hand-off

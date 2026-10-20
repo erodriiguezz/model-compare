@@ -180,6 +180,8 @@ async def run_benchmark(
             raise
         finally:
             run.finished_at = datetime.now(timezone.utc)
+            if any(r.completion.temperature_fallback for r in results):
+                run.target_config = {**run.target_config, "temperature_fallback": True}
             s.add(run)
             s.commit()
 

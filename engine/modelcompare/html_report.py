@@ -21,7 +21,7 @@ main{max-width:1100px;margin:0 auto;padding:32px 16px 80px}h1{font-size:26px;mar
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:500}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}.scroll{overflow-x:auto}
 .v{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12.5px;font-weight:600;background:var(--chip)}
-.v.better{color:var(--good)}.v.worse{color:var(--bad)}.v.mixed{color:var(--warn)}.v.inconclusive,.v.insufficient_data{color:var(--muted)}
+.v.better{color:var(--good)}.v.worse{color:var(--bad)}.v.mixed{color:var(--warn)}.v.inconclusive,.v.insufficient_data,.v.equivalent{color:var(--muted)}.v.incomplete{color:var(--warn)}
 .big{font-size:22px;font-weight:650}.warn{border-left:3px solid var(--warn)}ul{margin:6px 0;padding-left:20px}
 details{border-top:1px solid var(--line);padding:8px 0}summary{cursor:pointer}pre{white-space:pre-wrap;word-break:break-word;background:var(--chip);padding:10px;border-radius:8px;font-size:12.5px;max-height:320px;overflow:auto}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:700px){.pair{grid-template-columns:1fr}}
@@ -164,6 +164,8 @@ def _flagged(rep: dict[str, Any], show: int = 40) -> list[str]:
 GLOSSARY = [
     ("Better / Worse", "The difference is larger than chance would explain (95% confidence), in that direction."),
     ("No measurable difference", "Any difference is smaller than these tests can detect. It does not mean identical."),
+    ("Equivalent", "The 90% range of the difference sits inside +/-3 points: the models are close enough to treat as a tie."),
+    ("Incomplete", "More than 10% of calls errored on either side. Errors are not scored; fix them and re-run."),
     ("Not enough tests to tell", "Fewer than 10 shared tests; no verdict is attempted."),
     ("Points", "Average task score on a 0–100 scale. +3 pts means the candidate scores 3 points higher on average."),
     ("Consistent flip", "A task where every repeat of each model agreed, and the outcome changed between models. Likely a real change."),
@@ -209,6 +211,10 @@ def _evidence(rep: dict[str, Any], targets: list[str], base: str) -> list[str]:
             h.append(f'<li>Worse on: {escape(", ".join(hd["worse_on"]))}</li>')
         if hd["inconclusive_on"]:
             h.append(f'<li class="muted">No significant difference: {escape(", ".join(hd["inconclusive_on"]))}</li>')
+        if hd.get("equivalent_on"):
+            h.append(f'<li class="muted">Equivalent (within 3 points): {escape(", ".join(hd["equivalent_on"]))}</li>')
+        if hd.get("incomplete_on"):
+            h.append(f'<li>Incomplete, fix errors and re-run: {escape(", ".join(hd["incomplete_on"]))}</li>')
         h.append("</ul></div>")
     h.append("</div>")
 
