@@ -9,6 +9,7 @@ from statistics import mean
 from typing import Literal
 
 MIN_CASES_FOR_VERDICT = 10
+MAX_ERROR_RATE = 0.10  # more errors than this on either side and the comparison is incomplete
 EQUIV_MARGIN = 0.03  # a tie is "equivalent" when the 90% CI of the paired delta sits inside +/- this
 Verdict = Literal["better", "worse", "equivalent", "inconclusive", "insufficient_data", "incomplete"]
 
@@ -69,6 +70,17 @@ def _verdict(n: int, lo: float, hi: float, lo90: float | None = None, hi90: floa
     if lo90 is not None and hi90 is not None and lo90 >= -EQUIV_MARGIN and hi90 <= EQUIV_MARGIN:
         return "equivalent"
     return "inconclusive"
+
+
+def mean_ci(xs: list[float], iters: int = 2000, seed: int = 0, alpha: float = 0.05) -> tuple[float, float]:
+    """Bootstrap percentile CI of the mean of per-case scores (deterministic)."""
+    if not xs:
+        return (math.nan, math.nan)
+    if all(x == xs[0] for x in xs):
+        return (xs[0], xs[0])
+    rng = random.Random(seed)
+    boots = sorted(mean(rng.choices(xs, k=len(xs))) for _ in range(iters))
+    return percentile(boots, alpha / 2), percentile(boots, 1 - alpha / 2)
 
 
 def mcnemar_exact(b_only: int, a_only: int) -> float:

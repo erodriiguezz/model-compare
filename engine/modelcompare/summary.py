@@ -6,11 +6,12 @@ from the statistical report, so the evidence section and the summary can never d
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from modelcompare.runner import price_per_million
 from modelcompare.schema import TargetConfig
-from modelcompare.stats import wilson_ci
+from modelcompare.stats import EQUIV_MARGIN, MAX_ERROR_RATE, wilson_ci
 
 CAPABILITIES: dict[str, tuple[str, str]] = {
     "reasoning": ("Solves multi-step problems", "Math word problems, date arithmetic and logic puzzles with one right answer."),
@@ -146,3 +147,93 @@ def build_summary(rep: dict[str, Any]) -> dict[str, Any]:
             "flag_counts": rep.get("flagged", {}).get(t, {}).get("counts", {}),
         })
     return {"baseline": base, "markers": markers, "decisions": decisions}
+
+
+MAX_ADD_CASES = 500
+
+
+def cases_needed(n: int, mde: float, delta: float) -> int:
+    """Extra cases so the detectable difference shrinks to max(|delta|, EQUIV_MARGIN).
+
+    MDE scales with 1/sqrt(n), so n' = n * (mde / target)^2 and the answer is ceil(n' - n), at least 1.
+    """
+    target = max(abs(delta), EQUIV_MARGIN)
+    return max(1, math.ceil(n * (mde / target) ** 2 - n))
+
+
+def _money(x: float) -> str:
+    return f"${x:.2f}" if x >= 0.01 else f"${x:.4f}"
+
+
+def _names(labels: list[str]) -> str:
+    return ", ".join(labels)
+
+
+def _decision_suggestion(rep: dict[str, Any], d: dict[str, Any]) -> dict[str, Any] | None:
+    t, base = d["candidate"], d["baseline"]
+    caps = d["capabilities"]
+    better = [c["label"] for c in caps if c["verdict"] == "better"]
+    worse = [c["label"] for c in caps if c["verdict"] == "worse"]
+    tied = [c for c in caps if c["verdict"] == "equivalent"]
+    incomplete = any(c["verdict"] == "incomplete" for c in caps)
+    data = {"better": better, "worse": worse, "equivalent": len(tied)}
+    if better and worse:
+        return {"kind": "tradeoff", "target": t, "data": data,
+                "text": f"{t} is better at {_names(better)} but worse at {_names(worse)}. Choose by the capability you need."}
+    if worse:
+        return {"kind": "stay", "target": base, "data": data,
+                "text": f"Stay on {base}: {t} is worse at {_names(worse)}."}
+    if better and not incomplete:
+        cost = d["cost_change"]
+        extra = f" It costs {cost:+.0%} per task." if cost is not None else ""
+        return {"kind": "switch", "target": t, "data": {**data, "cost_change": cost},
+                "text": f"Switch to {t}: better at {_names(better)} and not worse anywhere else.{extra}"}
+    if tied and not better and not incomplete:
+        m = rep["summary"]["markers"]
+        cost_t, cost_b = m[t]["cost_per_1k_tasks"], m[base]["cost_per_1k_tasks"]
+        cheaper, other = (t, base) if cost_t < cost_b else (base, t)
+        saving = abs(cost_t - cost_b)
+        if not saving:
+            return {"kind": "tie", "target": base, "data": {**data, "saving_per_1k": 0.0},
+                    "text": f"Tie: {t} and {base} are equivalent and cost the same."}
+        return {"kind": "tie", "target": cheaper, "data": {**data, "saving_per_1k": saving},
+                "text": f"Tie: {t} and {base} are equivalent; cheaper is {cheaper} (saves {_money(saving)} / 1k tasks vs {other})."}
+    return None
+
+
+def suggestions(rep: dict[str, Any]) -> list[dict[str, Any]]:
+    """Ordered next steps: errors first, then decisions, then advice on collecting more data."""
+    fixes, decisions, advice = [], [], []
+    for t, per_bench in rep.get("errors", {}).items():
+        for bname, e in sorted(per_bench.items()):
+            if e["rate"] > MAX_ERROR_RATE:
+                reason = e["reasons"][0]["reason"] if e["reasons"] else "unknown error"
+                fixes.append({
+                    "kind": "fix_errors", "target": t, "benchmark": bname,
+                    "text": f"Fix errors: {t} failed {e['n_errors']} of {e['n_calls']} calls in {bname} (top reason: {reason}). Re-run after fixing.",
+                    "data": {"n_errors": e["n_errors"], "n_calls": e["n_calls"], "rate": e["rate"], "reason": reason},
+                })
+    for d in rep["summary"]["decisions"]:
+        if s := _decision_suggestion(rep, d):
+            decisions.append(s)
+        for c in d["capabilities"]:
+            if c["verdict"] not in ("inconclusive", "insufficient_data"):
+                continue
+            benches = [b for b in rep["benchmarks"] if b["dimension"] == c["dimension"] and d["candidate"] in b["summaries"]]
+            bench = min(benches, key=lambda b: (b["summaries"][d["candidate"]]["n_cases"], b["name"]))["name"] if benches else None
+            data = {"dimension": c["dimension"], "candidate": d["candidate"], "n": c["n"], "delta_points": c["delta_points"], "mde_points": c["mde_points"]}
+            if c["verdict"] == "insufficient_data" or c["mde_points"] is None:
+                add = max(1, 10 - c["n"])  # too few to judge at all: reach the 10-case minimum first
+            else:
+                add = cases_needed(c["n"], c["mde_points"] / 100, c["delta_points"] / 100)
+            if add > MAX_ADD_CASES:
+                advice.append({"kind": "too_small", "target": d["candidate"], "benchmark": bench, "data": {**data, "add": add},
+                               "text": f"{c['label']}: the difference between {d['candidate']} and {d['baseline']} is too small to measure here."})
+            else:
+                advice.append({"kind": "add_cases", "target": d["candidate"], "benchmark": bench, "data": {**data, "add": add},
+                               "text": f"To decide {d['candidate']} vs {d['baseline']} on {c['label'].lower()}, add {add} more cases to {bench}."})
+    for b in rep["benchmarks"]:
+        if b["saturated"]:
+            advice.append({"kind": "saturated", "benchmark": b["name"], "data": {},
+                           "text": f"Benchmark saturated: {b['name']} is too easy to separate these models. Add harder cases."})
+    return fixes + decisions + advice

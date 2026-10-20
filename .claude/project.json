@@ -23,7 +23,8 @@
     },
     "setup": [
       "cd web && npm ci && npm run build",
-      "cd engine && .venv/bin/modelcompare run -t mock-a -t mock-b -b benchmarks/standard/reasoning/math_word_problems.yaml -f targets.qa.yaml -y"
+      "cd engine && .venv/bin/modelcompare run -t mock-a -t mock-b -b benchmarks/standard/reasoning/math_word_problems.yaml -f targets.qa.yaml -y",
+      "cd engine && .venv/bin/python scripts/seed_qa.py"
     ],
     "notes": "QA runs on :8765 with mock targets, an isolated data dir and an isolated keys file, so it never touches the real DB or the real engine env file. targets.qa.yaml (mock targets only) lands in M1; MODELCOMPARE_KEYS_FILE is honoured from M3. Setup builds web/out, which the server mounts at /."
   },
