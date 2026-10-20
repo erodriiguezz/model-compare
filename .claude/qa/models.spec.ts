@@ -137,7 +137,7 @@ test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ p
     await expect(group(page, 'openai')).toBeVisible();
     await page.screenshot({ path: join(dir, `models-collapsed-${w}.png`), fullPage: true });
     await group(page, 'openai').getByRole('button', { name: /openai/i }).click();
-    await model(page, 'openai/gpt-4o').check();
+    await page.getByRole('checkbox', { name: /^openai\/gpt-4o(\s|$)/ }).check();
     await page.screenshot({ path: join(dir, `models-expanded-${w}.png`), fullPage: true });
     await group(page, 'anthropic').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(dir, `models-nokey-${w}.png`) });
