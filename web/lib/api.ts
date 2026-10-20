@@ -13,7 +13,7 @@ export const postJSON = <T,>(path: string, body?: unknown) =>
 
 export type Target = { name: string; model?: string; kind?: string; keys_ok?: boolean; missing_keys?: string[] };
 export type Benchmark = { name: string; dimension: string; capability: string; cases: number; needs_judge: boolean };
-export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number };
+export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number; unpriced?: string[] };
 export type Live = { target: string; benchmark: string; done: number; total: number; passed: number; errors: number };
 export type JobRun = { run_id: number; status: string; cost_usd: number; target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
 export type Job = {

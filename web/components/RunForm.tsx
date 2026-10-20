@@ -2,10 +2,10 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { getJSON, postJSON, usd, vendor, type Benchmark, type Estimate, type Target } from "@/lib/api";
+import { getJSON, postJSON, usd, vendor, type Benchmark, type Catalog, type Estimate, type Target } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "./States";
 
-type Data = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; targets: Target[]; benches: Benchmark[] };
+type Data = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; targets: Target[]; benches: Benchmark[]; catalog: Catalog | null };
 
 export default function RunForm({ onStart }: { onStart: (jobId: string) => void }) {
   const [data, setData] = useState<Data>({ status: "loading" });
@@ -23,8 +23,15 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
 
   useEffect(() => {
     let live = true;
-    Promise.all([getJSON<Target[]>("/targets/status"), getJSON<Benchmark[]>("/benchmarks")])
-      .then(([t, b]) => live && setData({ status: "ready", targets: t, benches: b }))
+    // The catalog is only needed to label ids that arrive from the Models page.
+    Promise.all([getJSON<Target[]>("/targets/status"), getJSON<Benchmark[]>("/benchmarks"), fromUrl ? getJSON<Catalog>("/models").catch(() => null) : null])
+      .then(([t, b, catalog]) => {
+        if (!live) return;
+        const noKey = new Set(catalog?.providers.filter((p) => p.reason === "no key").map((p) => p.provider));
+        const unusable = (n: string) => { const y = t.find((x) => x.name === n); return y ? y.keys_ok === false : noKey.has(n.split("/")[0]); };
+        setTargets((cur) => cur.filter((n) => !unusable(n)));
+        setData({ status: "ready", targets: t, benches: b, catalog });
+      })
       .catch((e: Error) => live && setData({ status: "error", message: `Could not load targets and benchmarks (${e.message}).` }));
     return () => { live = false; };
   }, [attempt]);
@@ -34,7 +41,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const needsJudge = data.status === "ready" && data.benches.some((b) => benches.includes(b.name) && b.needs_judge);
   // Judges: real models not under test, from a vendor not being compared when possible.
   const judges = data.status === "ready" ? data.targets.filter((t) => t.kind !== "mock" && t.keys_ok && !targets.includes(t.name)) : [];
-  const used = new Set(data.status === "ready" ? data.targets.filter((t) => targets.includes(t.name)).map((t) => vendor(t.model)) : []);
+  const used = new Set(data.status === "ready" ? targets.map((n) => vendor(data.targets.find((t) => t.name === n)?.model ?? n)) : []);
   const judgeName = judges.some((t) => t.name === judge) ? judge : (judges.find((t) => !used.has(vendor(t.model))) ?? judges[0])?.name ?? "";
   const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined,
     repeats: opts.repeats === "" ? undefined : Number(opts.repeats), budget_usd: opts.budget === "" ? undefined : Number(opts.budget), concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
@@ -56,7 +63,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   async function run() {
     if (!est) return;
-    if (est.usd > 0 && confirmKey !== key) return setConfirmKey(key);
+    if ((est.usd > 0 || est.unpriced?.length) && confirmKey !== key) return setConfirmKey(key);
     setStarting(true); setStartError("");
     try { onStart((await postJSON<{ job_id: string }>("/runs", body)).job_id); }
     catch (e) { setStartError((e as Error).message); setStarting(false); }
@@ -65,6 +72,12 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   // Ids picked on the Models page that targets.yaml does not list (catalog models); kept visible even when unchecked.
   const [initial] = useState(targets);
   const extra = data.status === "ready" ? initial.filter((n) => !data.targets.some((t) => t.name === n)) : [];
+  const fromNote = (n: string) => {
+    if (data.status !== "ready" || !data.catalog) return { text: "catalog", off: false };
+    const p = data.catalog.providers.find((x) => x.provider === n.split("/")[0]);
+    if (p?.reason === "no key") return { text: `no key (${p.var})`, off: true };
+    return !p || (p.key_ok && !p.models.some((m) => m.target === n)) ? { text: "not in catalog", off: false } : { text: "catalog", off: false };
+  };
   if (data.status === "loading") return <Loading label="Loading targets and benchmarks" />;
   if (data.status === "error") return <ErrorState message={data.message} onRetry={retry}>Check that <code>modelcompare serve</code> is running.</ErrorState>;
   if (!data.targets.length && !extra.length) return <Empty title="No targets configured">Copy targets.example.yaml to targets.yaml and add a model.</Empty>;
@@ -87,8 +100,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             <legend>From Models</legend>
             {extra.map((name) => (
               <label key={name} className="check">
-                <input type="checkbox" checked={targets.includes(name)} onChange={() => toggle(targets, setTargets, name)} />
-                <span>{name}</span><span className="muted">catalog</span>
+                <input type="checkbox" checked={targets.includes(name)} disabled={fromNote(name).off} onChange={() => toggle(targets, setTargets, name)} />
+                <span>{name}</span><span className="muted">{fromNote(name).text}</span>
               </label>
             ))}
           </fieldset>
@@ -138,6 +151,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
       {confirmKey === key && est ? (
         <div className="confirm" role="group" aria-label="Confirm cost">
           <p>This run makes {est.total_calls - est.cached_calls} calls and may cost up to {usd(est.usd)}.</p>
+          {!!est.unpriced?.length && <p className="danger">Heads up: cost unknown for {est.unpriced.join(", ")} — the budget cap can&apos;t be enforced for them.</p>}
           <button type="submit" className="btn" disabled={starting}>{starting ? "Starting…" : "Confirm and run"}</button>
           <button type="button" className="btn secondary" onClick={() => setConfirmKey("")}>Back</button>
         </div>

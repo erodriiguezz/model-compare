@@ -13,10 +13,10 @@ export default function ModelRow({ id, context, priceIn, priceOut, score, checke
           {note ? <span className="muted"> {note}</span> : <span className="muted show-sm"> {context} ctx · {priceIn} in · {priceOut} out</span>}
         </span>
       </label>
-      <span className="num hide-sm">{context}</span>
-      <span className="num hide-sm">{priceIn}</span>
-      <span className="num hide-sm">{priceOut}</span>
-      <span className="num">{score}</span>
+      <span className="num hide-sm"><span className="sr-only">Context </span>{context}</span>
+      <span className="num hide-sm"><span className="sr-only">Input price per 1M </span>{priceIn}</span>
+      <span className="num hide-sm"><span className="sr-only">Output price per 1M </span>{priceOut}</span>
+      <span className="num"><span className="sr-only">Pass rate </span>{score}</span>
     </li>
   );
 }

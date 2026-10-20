@@ -31,6 +31,7 @@
   --list-max-h: 280px;
   --col-min: 260px;
   --tap: 24px;
+  --bar-h: 64px;
   --field-w: 140px;
   --dur: 0.3s;
   --gutter: 16px;
@@ -164,7 +165,10 @@ button.provider-head { cursor: pointer; }
 .model-row .check { min-width: 0; align-items: center; }
 .model-id { overflow-wrap: anywhere; }
 .model-head { padding-top: var(--space-1); }
-.selection-bar { position: sticky; bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.selection-bar { min-height: var(--bar-h); position: sticky; bottom: var(--space-4); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
 @media (max-width: 640px) {
   .model-head, .model-row { grid-template-columns: minmax(0, 1fr) auto; }
 }
+html { scroll-padding-bottom: var(--bar-h); }
+.bar-actions { display: flex; gap: var(--space-2); }
+.keyless { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
