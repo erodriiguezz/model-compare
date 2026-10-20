@@ -18,6 +18,7 @@
       "MODELCOMPARE_HOME": ".modelcompare-qa",
       "MODELCOMPARE_TARGETS": "targets.qa.yaml",
       "MODELCOMPARE_KEYS_FILE": ".modelcompare-qa/keys.test",
+      "MODELCOMPARE_CATALOG_FIXTURES": "tests/fixtures/catalog",
       "LITELLM_MODE": "PRODUCTION"
     },
     "setup": [

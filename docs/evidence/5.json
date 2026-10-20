@@ -1,0 +1,61 @@
+{
+  "issue": 5,
+  "title": "Model catalog API",
+  "branch": "feat/dashboard-v2-redesign-p5-catalog",
+  "commit": "0d24cc5da6cbfeaea19d28e0fa865f4900efdc52",
+  "plan": ".claude/plans/5-dashboard-v2-catalog.md",
+  "size": "M",
+  "touchesApi": true,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "0d24cc5da6cbfeaea19d28e0fa865f4900efdc52",
+    "at": "2026-10-20T21:48:09.604Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-5.1",
+        "tests": 2
+      },
+      {
+        "id": "AC-5.2",
+        "tests": 1
+      },
+      {
+        "id": "AC-5.3",
+        "tests": 1
+      },
+      {
+        "id": "AC-5.4",
+        "tests": 1
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (7 Medium) → all fixed; approve",
+    "document": "docs/reviews/5.md"
+  },
+  "cost": {
+    "estTokens": 280000,
+    "actualTokens": 50798321,
+    "toolCalls": 35,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-20T21:48:51.104Z"
+}

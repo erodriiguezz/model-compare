@@ -13,6 +13,7 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | --- | --- |
 | `schema.py` | Pydantic models: `TargetConfig`, `Benchmark`, `Case`, `ScorerSpec`, `Completion`, `CaseResult`; benchmark fingerprint |
 | `bench_loader.py` | Resolves `standard` / `custom` / `<dimension>` / dir / file into benchmarks |
+| `catalog.py` | Per-provider model lists via httpx, chat filter, LiteLLM price/context, 10-min cache; `/api/models` |
 | `targets/` | `Target` ABC; `LiteLLMTarget` (all real providers, pricing metadata); `MockTarget` |
 | `scorers/` | Registry via `@scorer(name)`; `deterministic.py`, `code_exec.py` (subprocess, timeout), `judge.py` (`llm_judge`) |
 | `runner.py` | Runs a benchmark: concurrency, cache key (sha256 of request), budget cap, weighted scoring, pre-run cost estimate |

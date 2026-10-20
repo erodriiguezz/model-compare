@@ -155,3 +155,18 @@ def load_targets(path: str | Path) -> dict[str, TargetConfig]:
     items = data.get("targets", data) if isinstance(data, dict) else data
     targets = [TargetConfig.model_validate(t) for t in items]
     return {t.name: t for t in targets}
+
+
+def resolve_target(name: str, configured: dict[str, TargetConfig]) -> TargetConfig | None:
+    """A targets.yaml name wins. Otherwise a catalog id `<provider>/<model-id>` (the `target` that /api/models
+    lists) becomes an ad-hoc target, priced from the catalog when LiteLLM does not know the model."""
+    if name in configured:
+        return configured[name]
+    from modelcompare import catalog, keys
+
+    provider, _, model_id = name.partition("/")
+    if provider not in keys.PROVIDERS or not model_id:
+        return None
+    price_in, price_out = catalog.price_for(provider, model_id)
+    return TargetConfig(name=name, model=f"{keys.LITELLM_PREFIX.get(provider, provider)}/{model_id}",
+                        temperature=None, pricing=Pricing(input=price_in, output=price_out))

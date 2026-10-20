@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import json
+import os
 
 import pytest
 from fastapi.testclient import TestClient
@@ -147,3 +148,62 @@ def test_unknown_api_path_is_json_404_with_web_export(tmp_path):
     c = TestClient(create_app(tmp_path))
     assert c.get("/api/nope").json() == {"detail": "Not Found"}
     assert c.post("/api/nope", json={}).status_code == 404
+
+
+def test_run_catalog_target(client, monkeypatch, tmp_path):
+    """AC-5.4: a catalog id not in targets.yaml runs; a targets.yaml name wins over a catalog id."""
+    from modelcompare import api
+
+    seen = {}
+
+    async def fake_run(cfg, b, judge, **kw):
+        seen[cfg.name] = cfg
+        from types import SimpleNamespace
+        return SimpleNamespace(run_id=1, status="complete", results=[], cost_usd=0.0)
+
+    monkeypatch.setattr(api, "run_benchmark", fake_run)
+    clash = "groq/llama-3.3-70b-versatile"
+    path = Path(os.environ["MODELCOMPARE_TARGETS"])
+    path.write_text(json.dumps({"targets": [*json.loads(path.read_text())["targets"],
+                                            mock("good2", set()).model_copy(update={"name": clash}).model_dump()]}))
+    req = {"targets": [clash, "togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo", "good"],
+           "benchmarks": [client.bench_file]}
+    assert client.post("/runs/estimate", json=req).status_code == 200
+    assert client.post("/runs", json=req).status_code == 202
+    assert seen[clash].kind == "mock"  # the targets.yaml entry, not an ad-hoc one
+    assert seen["togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo"].model == "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    assert seen["togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo"].temperature is None
+    assert seen["good"].kind == "mock"
+    assert client.post("/runs", json={**req, "targets": ["nope/x"]}).status_code == 400
+    assert client.post("/runs", json={**req, "targets": ["plain-name"]}).status_code == 400
+    assert client.post("/runs", json={**req, "targets": ["llama-3.3-70b-versatile"]}).status_code == 400  # no bare ids
+
+
+def test_catalog_target_runs_without_a_targets_file_and_is_priced(client, monkeypatch, tmp_path):
+    fixtures = tmp_path / "fx"
+    fixtures.mkdir()
+    (fixtures / "groq.json").write_text(json.dumps({"data": [{"id": "zz-unknown-model", "context_window": 8192}]}))
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(fixtures))
+    monkeypatch.setenv("GROQ_API_KEY", "gq-fake-0001")
+    monkeypatch.setenv("MODELCOMPARE_TARGETS", str(tmp_path / "missing.yaml"))
+    req = {"targets": ["groq/zz-unknown-model"], "benchmarks": [client.bench_file]}
+    assert client.post("/runs/estimate", json=req).status_code == 200  # LiteLLM does not know this model
+    assert client.post("/runs", json=req).status_code == 202
+    (tmp_path / "bad.yaml").write_text("targets: [{name: x}")
+    monkeypatch.setenv("MODELCOMPARE_TARGETS", str(tmp_path / "bad.yaml"))
+    assert client.post("/runs/estimate", json=req).status_code >= 400  # malformed still errors
+
+
+def test_catalog_price_feeds_the_estimate(client, monkeypatch, tmp_path):
+    from modelcompare import catalog
+
+    fixtures = tmp_path / "fx"
+    fixtures.mkdir()
+    (fixtures / "togetherai.json").write_text(json.dumps([{"id": "zz/unknown", "type": "chat", "context_length": 8192,
+                                                           "pricing": {"input": 2.0, "output": 4.0}}]))
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(fixtures))
+    monkeypatch.setenv("TOGETHERAI_API_KEY", "tg-fake-0001")
+    catalog._cache.clear()
+    res = client.post("/runs/estimate", json={"targets": ["togetherai/zz/unknown"], "benchmarks": [client.bench_file]})
+    assert res.status_code == 200 and res.json()["usd"] > 0
+    catalog._cache.clear()

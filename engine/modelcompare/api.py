@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,12 +19,12 @@ from sqlmodel import select
 
 from modelcompare import db
 from modelcompare.bench_loader import resolve_benchmarks
-from modelcompare import keys
+from modelcompare import catalog, keys
 from modelcompare.html_report import render_html
 from modelcompare.recommend import load_profiles
 from modelcompare.report import build_report, latest_runs, runs_by_ids
 from modelcompare.runner import benchmarks_needing_judge, build_messages, cache_key, estimate_cost, run_benchmark
-from modelcompare.schema import Benchmark, TargetConfig, load_targets
+from modelcompare.schema import Benchmark, TargetConfig, load_targets, resolve_target
 from modelcompare.summary import capability
 
 @asynccontextmanager
@@ -42,11 +43,16 @@ def _targets_file() -> Path:
     return Path(os.getenv("MODELCOMPARE_TARGETS", "targets.yaml"))
 
 
-def _targets() -> dict[str, TargetConfig]:
+def _targets(required: bool = True) -> dict[str, TargetConfig]:
     path = _targets_file()
     if not path.exists():
+        if not required:
+            return {}
         raise HTTPException(404, f"{path} not found; copy targets.example.yaml to {path.name} and edit the model ids")
-    return load_targets(path)
+    try:
+        return load_targets(path)
+    except (yaml.YAMLError, ValueError, AttributeError, TypeError) as e:
+        raise HTTPException(400, f"{path} is not a valid targets file: {type(e).__name__}")
 
 
 def _benchmarks(specs: list[str]) -> list[Benchmark]:
@@ -77,6 +83,11 @@ def targets_status():
                 missing = [f"unknown provider ({type(e).__name__})"]
         out.append({"name": t.name, "model": t.model, "kind": t.kind, "keys_ok": not missing, "missing_keys": missing})
     return out
+
+
+def models(refresh: bool = False):
+    """Chat models each configured key can reach, by provider, with LiteLLM price and context where known."""
+    return catalog.list_models(refresh=refresh)
 
 
 @router.get("/benchmarks")
@@ -128,13 +139,14 @@ ASSUMED_LATENCY_S = 8.0  # per call, for the time estimate only
 
 def _resolve(req: RunRequest) -> tuple[dict[str, TargetConfig], list[Benchmark]]:
     """Validate a run request the way the CLI does: known targets, and a judge when a benchmark needs one."""
-    all_t = _targets()
+    all_t = _targets(required=False)  # catalog ids run without a targets file
     if not req.targets:
         raise HTTPException(400, "pick at least one target")
     extra = [x for x in (req.judge, req.baseline) if x]
-    unknown = [t for t in req.targets + extra if t not in all_t]
-    if unknown:
+    resolved = {t: resolve_target(t, all_t) for t in dict.fromkeys(req.targets + extra)}
+    if unknown := [t for t, cfg in resolved.items() if cfg is None]:
         raise HTTPException(400, f"unknown targets {unknown}")
+    all_t = {**all_t, **resolved}
     if req.baseline and req.baseline not in req.targets:
         raise HTTPException(400, "the baseline must be one of the selected targets")
     benches = _benchmarks(req.benchmarks)
@@ -335,7 +347,7 @@ _LOCAL_HOST = re.compile(r"(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?")
 def _local_only(request: Request) -> None:
     """DNS-rebinding and cross-site defence for routes that write secrets: loopback Host, and Origin if sent."""
     if not _LOCAL_HOST.fullmatch(request.headers.get("host", "").lower()):
-        raise HTTPException(403, "Settings are only available from localhost.")
+        raise HTTPException(403, "Only available from localhost.")
     origin = request.headers.get("origin")
     if origin is not None:
         scheme, sep, netloc = origin.lower().partition("://")
@@ -388,6 +400,7 @@ def create_app(web_out: Path | None = None) -> FastAPI:
     """API under /api and at the root (old aliases); the exported Next app at / (503 with build instructions if missing)."""
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
+    app.add_api_route("/api/models", models, methods=["GET"], dependencies=[Depends(_local_only)])  # no root alias: /models/ is a Next page
     app.include_router(settings, prefix="/api")  # no root alias: secrets stay under /api
     app.include_router(router, include_in_schema=False)
     # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).

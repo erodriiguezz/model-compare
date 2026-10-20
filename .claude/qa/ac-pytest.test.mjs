@@ -51,3 +51,15 @@ test('Host, Origin, provider and value checks [AC-4.3]', () => {
 test('a saved key is live in /targets/status without a restart [AC-4.4]', () => {
   assert.ok(pytest('tests/test_keys.py::test_ac_4_4_put_is_live_without_restart'));
 });
+test('catalog lists chat models with price and context [AC-5.1]', () => {
+  assert.ok(pytest('tests/test_catalog.py::test_ac_5_1_lists_chat_models_with_price_and_context', 'tests/test_catalog.py::test_ac_5_1_chat_filter'));
+});
+test('no key and provider failures are per provider [AC-5.2]', () => {
+  assert.ok(pytest('tests/test_catalog.py::test_ac_5_2_no_key_and_failure_are_per_provider', 'tests/test_catalog.py::test_ac_5_2_network_and_parse_errors_never_500'));
+});
+test('catalog is cached for 10 minutes, refresh and key change bypass [AC-5.3]', () => {
+  assert.ok(pytest('tests/test_catalog.py::test_ac_5_3_cache_refresh_and_key_change'));
+});
+test('a catalog id runs without targets.yaml, yaml names win [AC-5.4]', () => {
+  assert.ok(pytest('tests/test_api.py::test_run_catalog_target'));
+});

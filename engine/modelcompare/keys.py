@@ -23,6 +23,8 @@ PROVIDERS = {
     "groq": "GROQ_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
 }
+# LiteLLM's provider prefix where it differs from the provider name used here.
+LITELLM_PREFIX = {"togetherai": "together_ai"}
 MAX_LEN = 512
 # Characters that python-dotenv would treat specially (quotes, comments, escapes, interpolation) are rejected,
 # so a value is always written bare and reads back unchanged.
@@ -172,17 +174,23 @@ _PROBES = {
 }
 
 
+def auth_headers(provider: str, key: str) -> dict[str, str]:
+    """Request headers that authenticate `key` with the provider (shared by the probe and the catalog)."""
+    _, header, prefix = _PROBES[provider]
+    headers = {header: prefix + key}
+    if provider == "anthropic":
+        headers["anthropic-version"] = "2023-06-01"
+    return headers
+
+
 def probe(provider: str) -> dict:
     """Call the provider with the stored key. Returns {ok, message}; the message never contains the key."""
     key = os.environ.get(PROVIDERS[provider])
     if not key:
         return {"ok": False, "message": "No key is set."}
-    url, header, prefix = _PROBES[provider]
-    headers = {header: prefix + key}
-    if provider == "anthropic":
-        headers["anthropic-version"] = "2023-06-01"
+    url = _PROBES[provider][0]
     try:
-        code = httpx.get(url, headers=headers, timeout=10.0).status_code
+        code = httpx.get(url, headers=auth_headers(provider, key), timeout=10.0).status_code
     except httpx.HTTPError as e:
         return {"ok": False, "message": f"Could not reach the provider ({type(e).__name__})."}
     if code < 300:

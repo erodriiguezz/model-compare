@@ -1,0 +1,1 @@
+{"object": "list", "data": [{"id": "llama-3.3-70b-versatile", "context_window": 131072, "active": true}, {"id": "whisper-large-v3", "context_window": 448, "active": true}, {"id": "playai-tts", "context_window": 8192, "active": true}, {"id": "llama-old-retired", "context_window": 8192, "active": false}]}
