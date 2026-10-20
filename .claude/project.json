@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "integrationBranch": "main",
+  "productionBranch": "main",
+  "ticketSystem": "github",
+  "install": "cd engine && .venv/bin/pip install -e '.[dev]'",
+  "verify": "cd engine && .venv/bin/pytest -q",
+  "formatter": "none",
+  "app": {
+    "kind": "web",
+    "start": "cd engine && .venv/bin/modelcompare serve --port 8765",
+    "stop": null,
+    "health": ["http://127.0.0.1:8765/targets"],
+    "webUrl": "http://127.0.0.1:8765",
+    "env": {
+      "MODELCOMPARE_HOME": ".modelcompare-qa",
+      "MODELCOMPARE_TARGETS": "targets.qa.yaml",
+      "MODELCOMPARE_KEYS_FILE": ".modelcompare-qa/keys.test"
+    },
+    "notes": "QA runs on :8765 with mock targets, an isolated data dir and an isolated keys file, so it never touches the real DB or the real engine env file. targets.qa.yaml (mock targets only) lands in M1; MODELCOMPARE_KEYS_FILE is honoured from M3. M2a extends verify with the web lint/build and start with a web build step."
+  },
+  "e2e": null,
+  "coverage": { "command": null, "threshold": 80 },
+  "environments": {},
+  "autonomy": { "allowMerge": false },
+  "requiredChecks": []
+}
