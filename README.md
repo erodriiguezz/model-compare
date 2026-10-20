@@ -33,7 +33,7 @@ API keys are read from the environment, or from a `.env` file in the directory y
 cd engine && .venv/bin/modelcompare serve      # open http://127.0.0.1:8000
 ```
 
-The server serves the exported Next.js app from `web/out` at `/`; without it, it falls back to the old single-page dashboard. The API lives under `/api` (old root paths still work). Set `MODELCOMPARE_WEB_OUT` to serve an export from another directory (the export is read from the checkout, not packaged). To work on the UI with hot reload, run `modelcompare serve` and `cd web && npm run dev`, which proxies `/api` to port 8000.
+The server serves the exported Next.js app from `web/out` at `/`; without it, `/` returns a 503 asking you to run `cd web && npm run build`. The API lives under `/api` (old root paths still work). Set `MODELCOMPARE_WEB_OUT` to serve an export from another directory (the export is read from the checkout, not packaged). To work on the UI with hot reload, run `modelcompare serve` and `cd web && npm run dev`, which proxies `/api` to port 8000.
 
 Run it from `engine/` so it finds `targets.yaml` and `.env`. The page has four steps:
 

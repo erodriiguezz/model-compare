@@ -1,5 +1,6 @@
 """HTTP API used by the web dashboard, with mock targets (no network, no API keys)."""
 
+from pathlib import Path
 import json
 
 import litellm  # noqa: F401  # imported first: it loads ./.env, which would undo monkeypatch.delenv
@@ -26,11 +27,6 @@ def client(db_url, tmp_path, monkeypatch):
     c = TestClient(create_app(tmp_path / "no-web-out"))
     c.bench_file, c.judged_file = str(bench_file), str(tmp_path / "judged.yaml")
     return c
-
-
-def test_dashboard_is_served(client):
-    res = client.get("/")
-    assert res.status_code == 200 and 'id="report-frame"' in res.text
 
 
 def test_missing_targets_file_explains_setup(client, monkeypatch, tmp_path):
@@ -109,10 +105,20 @@ def test_api_prefix_and_alias(client):
     assert res.status_code == 200 and res.json() == client.get("/targets").json()
 
 
-def test_static_fallback(tmp_path):
-    """[AC-2.4] With no web export, / serves the old page."""
+def test_missing_export_explains_build(tmp_path):
+    """[AC-3.4] With no web export, / is a clear 503, and the old page is gone."""
     res = TestClient(create_app(tmp_path / "missing")).get("/")
-    assert res.status_code == 200 and 'id="report-frame"' in res.text
+    assert res.status_code == 503 and "npm run build" in res.text
+    assert not (Path(__file__).parents[1] / "modelcompare" / "web" / "index.html").exists()
+
+
+def test_root_serves_next(tmp_path):
+    """[AC-3.4] / and /history/ come from the Next export."""
+    (tmp_path / "history").mkdir()
+    (tmp_path / "index.html").write_text("<title>Next home</title>")
+    (tmp_path / "history" / "index.html").write_text("<title>Next history</title>")
+    c = TestClient(create_app(tmp_path))
+    assert "Next home" in c.get("/").text and "Next history" in c.get("/history/").text
 
 
 def test_next_export_served_and_compare_post_still_hits_api(client, tmp_path):
