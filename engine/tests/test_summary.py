@@ -183,6 +183,7 @@ async def test_suggestions_order_is_errors_decisions_then_data_advice(db_url):
 
 async def test_dimension_chart_data_has_ci_cost_and_vendor(db_url):
     rep = await _priced(db_url, set(range(8)), set(range(N)))
+    assert rep["dimensions"]["reasoning"]["label"] == "Solves multi-step problems"
     t = rep["dimensions"]["reasoning"]["targets"]["cand"]
     lo, hi = t["quality_ci"]
     assert lo <= t["quality"] <= hi and t["cost_per_1k_tasks"] > 0 and t["vendor"] == "mock"

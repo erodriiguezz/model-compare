@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from modelcompare import db
 from modelcompare.recommend import load_profiles, profile_rankings, recommend_dimension
-from modelcompare.summary import build_summary, suggestions
+from modelcompare.summary import build_summary, capability, suggestions
 from modelcompare.stats import MAX_ERROR_RATE, mcnemar_exact, mean_ci, min_detectable_diff, paired_bootstrap, percentile, wilson_ci
 
 
@@ -287,7 +287,7 @@ def build_report(
                 "latency_p95": max(o["latency_p95"] for o in ops),
                 "error_rate": _err_rate(ops),
             }
-        dimensions[dim] = {"n_cases": len(keys), "targets": stats}
+        dimensions[dim] = {"n_cases": len(keys), "label": capability(dim)["label"], "targets": stats}
         if baseline in aligned:
             dimension_comparisons[dim] = {
                 t: _compare(aligned[baseline], aligned[t],
