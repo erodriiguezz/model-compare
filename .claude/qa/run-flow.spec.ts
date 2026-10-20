@@ -57,6 +57,18 @@ test('[AC-3.2] cancel stops a running job and the status shows cancelled', async
   await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
 
+test('[AC-3.3] past jobs are listed and opening one shows its report', async ({ page, request }) => {
+  const res = await request.post('/api/runs', { data: { targets: ['mock-a', 'mock-b'], benchmarks: ['std-reasoning-math'] } });
+  const { job_id } = await res.json();
+  await expect.poll(async () => (await (await request.get(`/api/jobs/${job_id}`)).json()).status, { timeout: 30_000 }).toBe('done');
+  await page.goto('/history/');
+  await expect(page.getByRole('navigation', { name: 'Main' }).locator('[aria-current="page"]')).toHaveText('Compare');
+  await expect(page.getByRole('navigation', { name: 'Compare sections' }).locator('[aria-current="page"]')).toHaveText('History');
+  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
+  await page.locator(`a[href="/history/?job=${job_id}"]`).click();
+  await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toBeVisible();
+});
+
 test('[AC-3.5] loading while the job is fetched', async ({ page }) => {
   let release: () => void = () => {};
   const gate = new Promise<void>((r) => { release = r; });
@@ -65,6 +77,25 @@ test('[AC-3.5] loading while the job is fetched', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('Loading job');
   release();
   await expect(page.locator('[data-state="error"]')).toContainText('unknown job');
+});
+
+test('[AC-3.5] empty history links to a new run', async ({ page }) => {
+  await page.route('**/api/jobs', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/runs', (route) => route.fulfill({ json: [] }));
+  await page.goto('/history/');
+  await expect(page.getByRole('heading', { name: 'No runs yet' })).toBeVisible();
+  await page.getByRole('link', { name: 'Start your first comparison' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Compare' })).toBeVisible();
+});
+
+test('[AC-3.5] history shows an error with retry when the API fails', async ({ page }) => {
+  let down = true;
+  await page.route('**/api/jobs', (route) => (down ? route.abort() : route.continue()));
+  await page.goto('/history/');
+  await expect(page.locator('[data-state="error"]')).toContainText('Could not load history');
+  down = false;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
 });
 
 test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {

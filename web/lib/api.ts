@@ -24,3 +24,5 @@ export type Job = {
 export const TERMINAL = ["done", "cancelled", "failed", "interrupted"];
 export const vendor = (model = "") => (model.includes("/") ? model.split("/")[0] : model.split("-")[0]);
 export const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : "—");
+export type RunRow = { id: number; target_name: string; benchmark_name: string; status: string; n_results: number; passed: number; n_errors: number; cost_usd: number };
+export const fmtTime = (s: string) => new Date(/Z|\+/.test(s) ? s : `${s}Z`).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
