@@ -45,6 +45,9 @@ function Past() {
         </table></div>
         <More shown={limit.jobs} total={jobs.length} onAll={() => setLimit((l) => ({ ...l, jobs: Infinity }))} />
       </section>
+      {jobs.some((j) => j.status === "interrupted") && (
+        <p className="muted">Interrupted comparisons (the server restarted mid-run) still open with whatever finished. Run them again to complete them; cached answers are free.</p>
+      )}
       <section className="card" aria-labelledby="runs-h">
         <h2 id="runs-h">Runs</h2>
         <div className="table-wrap" tabIndex={0}><table>
