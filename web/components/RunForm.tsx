@@ -34,7 +34,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
       })
       .catch((e: Error) => live && setData({ status: "error", message: `Could not load targets and benchmarks (${e.message}).` }));
     return () => { live = false; };
-  }, [attempt]);
+  }, [attempt, fromUrl]);
   const retry = useCallback(() => { setData({ status: "loading" }); setAttempt((n) => n + 1); }, []);
 
   const base = targets.includes(baseline) ? baseline : targets[0] ?? "";

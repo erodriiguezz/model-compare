@@ -209,7 +209,7 @@ test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ p
     await group(page, 'openai').getByRole('button', { name: /openai/i }).click();
     await model(page, 'openai/gpt-4o').check();
     await page.screenshot({ path: join(dir, `models-expanded-${w}.png`), fullPage: true });
-    await group(page, 'anthropic').scrollIntoViewIfNeeded();
+    await group(page, 'no-key').scrollIntoViewIfNeeded();
     await page.screenshot({ path: join(dir, `models-nokey-${w}.png`) });
     await page.getByRole('searchbox', { name: 'Search models' }).fill('mini');
     await page.screenshot({ path: join(dir, `models-search-${w}.png`), fullPage: true });
