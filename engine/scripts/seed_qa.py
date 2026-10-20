@@ -21,10 +21,10 @@ BASE = "qa-base"
 # name -> (model, (usd per 1M in, out))
 TARGETS = {
     BASE: ("openai/qa-base", (3.0, 15.0)),
-    "qa-better": ("anthropic/qa-better", (15.0, 75.0)),
-    "qa-worse": ("google/qa-worse", (0.25, 1.25)),
-    "qa-tie": ("openai/qa-tie", (0.3, 1.5)),
-    "qa-flaky": ("mistral/qa-flaky", (1.0, 5.0)),
+    "qa-better": ("anthropic/qa-better", (8.0, 40.0)),
+    "qa-worse": ("google/qa-worse", (0.5, 2.5)),
+    "qa-tie": ("openai/qa-tie", (1.5, 7.5)),
+    "qa-flaky": ("mistral/qa-flaky", (2.0, 10.0)),
 }
 # dimension -> benchmark; correct cases per target (cases are q0..q39); the baseline solves q0..q19.
 BENCHMARKS = {"reasoning": "qa-reasoning", "coding": "qa-coding", "knowledge": "qa-knowledge",
@@ -49,7 +49,7 @@ def _run(s, target: str, bench: str, dim: str, correct: set[int], n_errors: int 
     s.flush()
     cost = (100 * p_in + 60 * p_out) / 1e6
     for i in range(n):
-        err = i >= N - n_errors
+        err = i < n_errors  # errors hit the cases this model would have solved
         ok = i in correct and not err
         s.add(db.Result(run_id=run.id, case_id=f"q{i}", repeat=0, score=float(ok), passed=ok, text="" if err else f"ANSWER: {i}",
                         input_tokens=0 if err else 100, output_tokens=0 if err else 60, latency_s=0.4, cost_usd=0.0 if err else cost,
