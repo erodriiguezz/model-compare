@@ -39,8 +39,9 @@ a { color: inherit; text-decoration: none; }
   max-width: var(--content-max); margin: 0 auto; padding: 0 var(--gutter);
   display: flex; align-items: center; gap: var(--space-6); min-height: 48px; flex-wrap: wrap;
 }
-.brand { font-weight: 600; }
-.nav-list { display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.brand { font-weight: 600; padding: var(--space-2) 0; }
+.topbar nav { min-width: 0; max-width: 100%; }
+.nav-list { overflow-x: auto; display: flex; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
 .nav-link { display: block; padding: var(--space-2) var(--space-3); border-radius: var(--radius); color: var(--text-muted); font-weight: 500; }
 .nav-link:hover { color: var(--text); background: var(--canvas); }
 .nav-link[aria-current="page"] { color: var(--accent); background: var(--canvas); }

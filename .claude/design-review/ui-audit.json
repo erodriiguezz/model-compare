@@ -1,0 +1,193 @@
+{
+  "base": "http://127.0.0.1:8765",
+  "at": "2026-10-20T13:58:44.833Z",
+  "passed": false,
+  "serious": 7,
+  "minor": 5,
+  "findings": [
+    {
+      "severity": "serious",
+      "check": "horizontal-overflow",
+      "route": "/,",
+      "target": "header.topbar > div.topbar-inner > nav",
+      "message": "extends 24px past the viewport",
+      "viewports": [
+        "mobile-320"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "console-error",
+      "route": "/,",
+      "target": "",
+      "message": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "request-failed",
+      "route": "/,",
+      "target": "",
+      "message": "net::ERR_ABORTED http://127.0.0.1:8765/models/",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "request-failed",
+      "route": "/,",
+      "target": "",
+      "message": "net::ERR_ABORTED http://127.0.0.1:8765/compare/",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "request-failed",
+      "route": "/,",
+      "target": "",
+      "message": "net::ERR_ABORTED http://127.0.0.1:8765/projects/",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "request-failed",
+      "route": "/,",
+      "target": "",
+      "message": "net::ERR_ABORTED http://127.0.0.1:8765/",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "serious",
+      "check": "request-failed",
+      "route": "/,",
+      "target": "",
+      "message": "net::ERR_ABORTED http://127.0.0.1:8765/settings/",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "minor",
+      "check": "tap-target",
+      "route": "/,",
+      "target": "header.topbar > div.topbar-inner > a.brand",
+      "message": "104×21px, under 24×24",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768"
+      ]
+    },
+    {
+      "severity": "minor",
+      "check": "http-404",
+      "route": "/,",
+      "target": "",
+      "message": "http://127.0.0.1:8765/,",
+      "viewports": [
+        "mobile-320",
+        "mobile-390",
+        "tablet-768",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "minor",
+      "check": "axe:landmark-one-main",
+      "route": "/,",
+      "target": "html",
+      "message": "Document should have one main landmark",
+      "viewports": [
+        "mobile-390",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "minor",
+      "check": "axe:region",
+      "route": "/,",
+      "target": "h1",
+      "message": "All page content should be contained by landmarks",
+      "viewports": [
+        "mobile-390",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    },
+    {
+      "severity": "minor",
+      "check": "axe:region",
+      "route": "/,",
+      "target": "div:nth-child(3) > div > div",
+      "message": "All page content should be contained by landmarks",
+      "viewports": [
+        "mobile-390",
+        "desktop-1280",
+        "desktop-1280-dark"
+      ]
+    }
+  ],
+  "ignored": [],
+  "screenshots": [
+    {
+      "route": "/,",
+      "viewport": "mobile-320",
+      "file": "/Users/ernesto/Documents/.worktrees/model-compare-mvp-dashboard-v2/.claude/design-review/home-mobile-320.png"
+    },
+    {
+      "route": "/,",
+      "viewport": "mobile-390",
+      "file": "/Users/ernesto/Documents/.worktrees/model-compare-mvp-dashboard-v2/.claude/design-review/home-mobile-390.png"
+    },
+    {
+      "route": "/,",
+      "viewport": "tablet-768",
+      "file": "/Users/ernesto/Documents/.worktrees/model-compare-mvp-dashboard-v2/.claude/design-review/home-tablet-768.png"
+    },
+    {
+      "route": "/,",
+      "viewport": "desktop-1280",
+      "file": "/Users/ernesto/Documents/.worktrees/model-compare-mvp-dashboard-v2/.claude/design-review/home-desktop-1280.png"
+    },
+    {
+      "route": "/,",
+      "viewport": "desktop-1280-dark",
+      "file": "/Users/ernesto/Documents/.worktrees/model-compare-mvp-dashboard-v2/.claude/design-review/home-desktop-1280-dark.png"
+    }
+  ]
+}

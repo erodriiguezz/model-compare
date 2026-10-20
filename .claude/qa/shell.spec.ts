@@ -57,7 +57,7 @@ test('[AC-2.3] error state with retry when the API is down', async ({ page }) =>
   let down = true;
   await page.route('**/api/targets', (route) => (down ? route.abort() : route.continue()));
   await page.goto('/settings/');
-  await expect(page.getByRole('alert')).toContainText('not reachable');
+  await expect(page.locator('[data-state="error"]')).toContainText('not reachable');
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByText('targets available')).toBeVisible();

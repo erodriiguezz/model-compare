@@ -54,7 +54,11 @@ touches_api: true
 **Context:** `architecture.md` — add a `web/` row; Known gaps — remove nothing.
 
 ### Screens
-- /, /compare, /models, /projects, /settings — shell and states
+- / — shell and states
+- /compare — shell and states
+- /models — shell and states
+- /projects — shell and states
+- /settings — shell and states
 
 ## 2. Grill
 See `mvp-dashboard-v2.md` §2.
