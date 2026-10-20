@@ -39,3 +39,15 @@ test('api prefix, alias and static export serving [AC-2.1]', () => {
 test('old page is gone and / serves the Next export [AC-3.4]', () => {
   assert.ok(pytest('tests/test_api.py::test_root_serves_next', 'tests/test_api.py::test_missing_export_explains_build'));
 });
+test('add, replace, remove keep other lines and mode 600 [AC-4.1]', () => {
+  assert.ok(pytest('tests/test_keys.py::test_ac_4_1_put_replace_delete_preserve_other_lines', 'tests/test_keys.py::test_ac_4_1_replace_in_place_keeps_position_and_creates_missing_file', 'tests/test_keys.py::test_ac_4_1_append_when_file_lacks_trailing_newline'));
+});
+test('keys are only ever returned masked [AC-4.2]', () => {
+  assert.ok(pytest('tests/test_keys.py::test_ac_4_2_values_never_in_any_response', 'tests/test_keys.py::test_ac_4_2_mask_short_values', 'tests/test_keys.py::test_ac_4_2_environment_source_is_reported'));
+});
+test('Host, Origin, provider and value checks [AC-4.3]', () => {
+  assert.ok(pytest('tests/test_keys.py::test_ac_4_3_host_and_origin_and_provider_checks', 'tests/test_keys.py::test_ac_4_3_invalid_values_rejected_and_file_unchanged', 'tests/test_keys.py::test_ac_4_3_non_string_and_bad_json_rejected'));
+});
+test('a saved key is live in /targets/status without a restart [AC-4.4]', () => {
+  assert.ok(pytest('tests/test_keys.py::test_ac_4_4_put_is_live_without_restart'));
+});

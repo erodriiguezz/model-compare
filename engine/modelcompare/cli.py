@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from modelcompare import db
 from modelcompare.bench_loader import resolve_benchmarks
 from modelcompare.html_report import render_html
+from modelcompare.keys import keys_file
 from modelcompare.report import build_report, latest_runs
 from modelcompare.runner import benchmarks_needing_judge, estimate_cost, run_benchmark
 from modelcompare.schema import load_targets
@@ -48,7 +49,7 @@ def run(
     targets_file: Path = TargetsFile,
 ):
     """Run benchmarks against one or more targets."""
-    load_dotenv()
+    load_dotenv(keys_file())
     all_targets, cfgs = _pick(targets_file, target)
     judge_cfg = all_targets.get(judge) if judge else None
     if judge and not judge_cfg:
@@ -116,7 +117,7 @@ def serve(host: str = "127.0.0.1", port: int = 8000):
     """Start the HTTP API used by the web dashboard."""
     import uvicorn
 
-    load_dotenv()
+    load_dotenv(keys_file())
     uvicorn.run("modelcompare.api:api", host=host, port=port)
 
 

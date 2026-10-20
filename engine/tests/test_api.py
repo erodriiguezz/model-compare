@@ -3,7 +3,6 @@
 from pathlib import Path
 import json
 
-import litellm  # noqa: F401  # imported first: it loads ./.env, which would undo monkeypatch.delenv
 import pytest
 from fastapi.testclient import TestClient
 

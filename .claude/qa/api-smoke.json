@@ -2,6 +2,9 @@
   "checks": [
     {"name":"QA targets are mock-only","method":"GET","url":"/targets","expectStatus":200,"expectBodyIncludes":"mock-a"},
     {"name":"compare reports error counts","method":"POST","url":"/compare","body":{"targets":["mock-a","mock-b"],"baseline":"mock-a"},"expectStatus":200,"expectBodyIncludes":"\"errors\"","ac":"AC-1.1"},
-    {"name":"compare reports a verdict","method":"POST","url":"/compare","body":{"targets":["mock-a","mock-b"],"baseline":"mock-a"},"expectStatus":200,"expectBodyIncludes":"\"overall\":\"equivalent\"","ac":"AC-1.3"}
+    {"name":"compare reports a verdict","method":"POST","url":"/compare","body":{"targets":["mock-a","mock-b"],"baseline":"mock-a"},"expectStatus":200,"expectBodyIncludes":"\"overall\":\"equivalent\"","ac":"AC-1.3"},
+    {"name":"settings keys list is masked and local","method":"GET","url":"/api/settings/keys","expectStatus":200,"expectBodyIncludes":"OPENAI_API_KEY","ac":"AC-4.2"},
+    {"name":"settings rejects a cross-site Origin","method":"PUT","url":"/api/settings/keys/openai","body":{"value":"sk-test-000000000000a1b2"},"headers":{"origin":"https://evil.example"},"expectStatus":403,"ac":"AC-4.3"},
+    {"name":"settings unknown provider is 404","method":"PUT","url":"/api/settings/keys/nope","body":{"value":"sk-test-000000000000a1b2"},"expectStatus":404,"ac":"AC-4.3"}
   ]
 }
