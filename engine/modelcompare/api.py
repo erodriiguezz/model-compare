@@ -9,8 +9,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -31,8 +32,9 @@ async def _lifespan(_app: FastAPI):
     yield
 
 
-api = FastAPI(title="ModelCompare", lifespan=_lifespan)
+router = APIRouter()
 WEB_DIR = Path(__file__).parent / "web"
+WEB_OUT = Path(__file__).resolve().parents[2] / "web" / "out"
 
 
 def _targets_file() -> Path:
@@ -53,18 +55,13 @@ def _benchmarks(specs: list[str]) -> list[Benchmark]:
         raise HTTPException(400, str(e))
 
 
-@api.get("/", include_in_schema=False)
-def dashboard():
-    return FileResponse(WEB_DIR / "index.html")
-
-
-@api.get("/targets")
+@router.get("/targets")
 def targets():
     # Configs hold model names and params only; API keys come from the environment.
     return [t.model_dump() for t in _targets().values()]
 
 
-@api.get("/targets/status")
+@router.get("/targets/status")
 def targets_status():
     """Whether each target's provider key is set. Reports variable names only, never values."""
     import litellm
@@ -81,7 +78,7 @@ def targets_status():
     return out
 
 
-@api.get("/benchmarks")
+@router.get("/benchmarks")
 def benchmarks(spec: list[str] = Query(["standard", "custom"])):
     return [
         {"name": b.name, "dimension": b.dimension, "version": b.version, "fingerprint": b.fingerprint,
@@ -92,12 +89,12 @@ def benchmarks(spec: list[str] = Query(["standard", "custom"])):
     ]
 
 
-@api.get("/profiles")
+@router.get("/profiles")
 def profiles():
     return load_profiles()
 
 
-@api.get("/runs")
+@router.get("/runs")
 def runs():
     with db.session() as s:
         summaries = db.run_summaries(s)
@@ -105,7 +102,7 @@ def runs():
         return [{**r.model_dump(), **summaries.get(r.id, empty)} for r in db.list_runs(s)]
 
 
-@api.get("/runs/{run_id}")
+@router.get("/runs/{run_id}")
 def run_detail(run_id: int):
     with db.session() as s:
         run = s.get(db.Run, run_id)
@@ -151,7 +148,7 @@ def _calls(benches: list[Benchmark]) -> int:
     return sum(len(b.cases) * b.repeats for b in benches)
 
 
-@api.post("/runs/estimate")
+@router.post("/runs/estimate")
 def estimate(req: RunRequest):
     """Upper-bound cost and duration, counting only calls that aren't already cached."""
     all_t, benches = _resolve(req)
@@ -200,7 +197,7 @@ def _job_dict(job: db.Job) -> dict:
     return job.model_dump(mode="json")
 
 
-@api.post("/runs", status_code=202)
+@router.post("/runs", status_code=202)
 def start_runs(req: RunRequest, bg: BackgroundTasks):
     all_t, benches = _resolve(req)
     job = db.Job(
@@ -261,14 +258,14 @@ def start_runs(req: RunRequest, bg: BackgroundTasks):
     return {"job_id": job.id, "total_calls": job.total_calls}
 
 
-@api.get("/jobs")
+@router.get("/jobs")
 def jobs():
     with db.session() as s:
         rows = list(s.exec(select(db.Job).order_by(db.Job.started_at.desc())))
     return [_job_dict(ACTIVE.get(j.id, j)) for j in rows]
 
 
-@api.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}")
 def job(job_id: str):
     if job_id in ACTIVE:
         j = ACTIVE[job_id]
@@ -280,7 +277,7 @@ def job(job_id: str):
     return {**_job_dict(j), "live": []}
 
 
-@api.post("/jobs/{job_id}/cancel")
+@router.post("/jobs/{job_id}/cancel")
 def cancel_job(job_id: str):
     if job_id not in ACTIVE:
         raise HTTPException(409, "job is not running")
@@ -300,12 +297,12 @@ def _job_report(job_id: str) -> dict:
         return build_report(s, rs, baseline=j.baseline if j.baseline in names else None)
 
 
-@api.get("/jobs/{job_id}/report")
+@router.get("/jobs/{job_id}/report")
 def job_report(job_id: str):
     return _job_report(job_id)
 
 
-@api.get("/jobs/{job_id}/report.html", response_class=HTMLResponse)
+@router.get("/jobs/{job_id}/report.html", response_class=HTMLResponse)
 def job_report_html(job_id: str):
     return render_html(_job_report(job_id))
 
@@ -317,7 +314,7 @@ class CompareRequest(BaseModel):
     min_quality: float = 0.7
 
 
-@api.post("/compare")
+@router.post("/compare")
 def compare(req: CompareRequest):
     with db.session() as s:
         rs = latest_runs(s, req.targets, req.benchmarks)
@@ -326,6 +323,28 @@ def compare(req: CompareRequest):
         return build_report(s, rs, baseline=req.baseline or req.targets[0], min_quality=req.min_quality)
 
 
-@api.post("/compare.html", response_class=HTMLResponse)
+@router.post("/compare.html", response_class=HTMLResponse)
 def compare_html(req: CompareRequest):
     return render_html(compare(req))
+
+
+def create_app(web_out: Path | None = None) -> FastAPI:
+    """API under /api and at the root (old aliases); the exported Next app at / when built, else the old page."""
+    app = FastAPI(title="ModelCompare", lifespan=_lifespan)
+    app.include_router(router, prefix="/api")
+    app.include_router(router, include_in_schema=False)
+    # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).
+    out = web_out or Path(os.getenv("MODELCOMPARE_WEB_OUT", WEB_OUT))
+
+    @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
+    def api_not_found(rest: str):
+        raise HTTPException(404, "Not Found")
+
+    if out.is_dir():
+        app.mount("/", StaticFiles(directory=out, html=True), name="web")
+    else:
+        app.add_api_route("/", lambda: FileResponse(WEB_DIR / "index.html"), include_in_schema=False)
+    return app
+
+
+api = create_app()

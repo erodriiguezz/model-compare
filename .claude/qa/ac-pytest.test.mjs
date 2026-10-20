@@ -20,3 +20,9 @@ test('saturated benchmark is flagged too easy [AC-1.4]', () => {
 test('temperature is retried without and the fallback recorded [AC-1.5]', () => {
   assert.ok(pytest('tests/test_litellm_target.py::test_temperature_fallback', 'tests/test_end_to_end.py::test_run_records_temperature_fallback_even_when_cached'));
 });
+test('api prefix, alias and static export serving [AC-2.1]', () => {
+  assert.ok(pytest('tests/test_api.py::test_api_prefix_and_alias', 'tests/test_api.py::test_next_export_served_and_compare_post_still_hits_api'));
+});
+test('no web export falls back to the old page [AC-2.4]', () => {
+  assert.ok(pytest('tests/test_api.py::test_static_fallback'));
+});

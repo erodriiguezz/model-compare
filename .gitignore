@@ -12,3 +12,5 @@ targets.yaml
 .claude/budget/
 .claude/test-report.json
 .claude/review/
+web/out/
+.claude/design-review/

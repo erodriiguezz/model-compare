@@ -21,7 +21,8 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | `report.py` | Builds the comparison report from the latest runs: headline, regressions, warnings |
 | `html_report.py` | Self-contained HTML render (radar chart, side-by-side outputs) |
 | `db.py` | SQLModel tables `Run`, `Result`, `CacheEntry` |
-| `cli.py` / `api.py` | Typer CLI and FastAPI app exposing the same operations |
+| `cli.py` / `api.py` | Typer CLI and FastAPI app exposing the same operations; API under `/api` plus root aliases |
+| `web/` (Next.js) | Static export in `web/out`, served at `/` by FastAPI; build with `npm run build` |
 
 ## Data flow
 `targets.yaml` + benchmark YAML → `runner.run_benchmark` → target completion (or cache hit) → scorers → `Run`/`Result` rows → `report.build_report` → `stats` + `recommend` → JSON/HTML.

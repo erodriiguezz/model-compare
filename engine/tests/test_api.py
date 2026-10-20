@@ -6,7 +6,7 @@ import litellm  # noqa: F401  # imported first: it loads ./.env, which would und
 import pytest
 from fastapi.testclient import TestClient
 
-from modelcompare.api import api
+from modelcompare.api import create_app
 from modelcompare.schema import Benchmark, TargetConfig
 from test_end_to_end import N, bench, mock
 
@@ -23,14 +23,14 @@ def client(db_url, tmp_path, monkeypatch):
         mock("good", set(range(N))).model_dump(), mock("bad", set()).model_dump(), paid.model_dump(),
     ]}))
     monkeypatch.setenv("MODELCOMPARE_TARGETS", str(targets))
-    c = TestClient(api)
+    c = TestClient(create_app(tmp_path / "no-web-out"))
     c.bench_file, c.judged_file = str(bench_file), str(tmp_path / "judged.yaml")
     return c
 
 
 def test_dashboard_is_served(client):
     res = client.get("/")
-    assert res.status_code == 200 and "<title>ModelCompare</title>" in res.text
+    assert res.status_code == 200 and 'id="report-frame"' in res.text
 
 
 def test_missing_targets_file_explains_setup(client, monkeypatch, tmp_path):
@@ -101,3 +101,44 @@ def test_estimate_counts_cached_calls(client):
 def test_baseline_must_be_selected(client):
     res = client.post("/runs", json={"targets": ["good"], "baseline": "bad", "benchmarks": [client.bench_file]})
     assert res.status_code == 400 and "baseline" in res.json()["detail"]
+
+
+def test_api_prefix_and_alias(client):
+    """[AC-2.1] /api/* and the old root paths return the same JSON."""
+    res = client.get("/api/targets")
+    assert res.status_code == 200 and res.json() == client.get("/targets").json()
+
+
+def test_static_fallback(tmp_path):
+    """[AC-2.4] With no web export, / serves the old page."""
+    res = TestClient(create_app(tmp_path / "missing")).get("/")
+    assert res.status_code == 200 and 'id="report-frame"' in res.text
+
+
+def test_next_export_served_and_compare_post_still_hits_api(client, tmp_path):
+    """[AC-2.1] GET /compare serves the exported page while POST /compare stays the API."""
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "index.html").write_text("<title>Next home</title>")
+    (out / "compare").mkdir()
+    (out / "compare" / "index.html").write_text("<title>Next compare</title>")
+    c = TestClient(create_app(out))
+    assert "Next home" in c.get("/").text
+    assert "Next compare" in c.get("/compare/").text
+    assert "Next compare" in c.get("/compare").text  # redirected to /compare/
+    res = c.post("/compare", json={"targets": ["nobody"]})
+    assert res.status_code == 404 and "no completed runs" in res.json()["detail"]
+    assert c.post("/api/compare", json={"targets": ["nobody"]}).status_code == 404
+
+
+def test_unknown_api_path_is_json_404(client):
+    out = client.get("/api/nope")
+    assert out.status_code == 404 and out.json() == {"detail": "Not Found"}
+    assert client.post("/api/nope", json={}).status_code == 404
+
+
+def test_unknown_api_path_is_json_404_with_web_export(tmp_path):
+    (tmp_path / "index.html").write_text("<title>Next home</title>")
+    c = TestClient(create_app(tmp_path))
+    assert c.get("/api/nope").json() == {"detail": "Not Found"}
+    assert c.post("/api/nope", json={}).status_code == 404
