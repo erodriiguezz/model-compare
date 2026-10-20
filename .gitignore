@@ -14,3 +14,4 @@ targets.yaml
 .claude/review/
 web/out/
 .claude/design-review/
+*.tsbuildinfo

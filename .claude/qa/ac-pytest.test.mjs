@@ -3,9 +3,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const engine = fileURLToPath(new URL('../../engine/', import.meta.url));
+// The QA harness copies this spec into its own directory, so locate the repo from where qa.mjs was started,
+// then from the spec's own location (when run directly with `node --test`).
+const repoRoot = () => {
+  for (const dir of [process.env.PWD, process.cwd(), fileURLToPath(new URL('.', import.meta.url))].filter(Boolean)) {
+    try {
+      const top = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+      if (existsSync(join(top, 'engine'))) return top;
+    } catch { /* not a git checkout: try the next candidate */ }
+  }
+  throw new Error('cannot find the repo root (the directory containing engine/)');
+};
+const engine = join(repoRoot(), 'engine');
 const pytest = (...ids) => execFileSync('.venv/bin/pytest', ['-q', ...ids], { cwd: engine, stdio: 'pipe' });
 
 test('errors are excluded and flagged incomplete [AC-1.1] [AC-1.2]', () => {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getJSON, pct, postJSON, TERMINAL, type Job } from "@/lib/api";
+import CaseExplorer from "./CaseExplorer";
 import { Chip, ReportTable } from "./ReportTable";
 import { Empty, ErrorState, Loading } from "./States";
 
@@ -63,7 +64,7 @@ export default function JobView({ id }: { id: string }) {
     <>
       <section className="card" aria-labelledby="job-h">
         <div className="between">
-          <h2 id="job-h">Comparison {job.id} <Chip text={job.status} /></h2>
+          <h2 id="job-h">Comparison {job.id} <Chip text={job.status} />{!active && job.status !== "done" && <span className="muted"> (partial results)</span>}</h2>
           {active && <button type="button" className="btn secondary" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
         </div>
         <div className="bar" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
@@ -85,7 +86,7 @@ export default function JobView({ id }: { id: string }) {
           </table></div>
         )}
       </section>
-      {!active && (job.run_ids.length ? <ReportTable jobId={job.id} /> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
+      {!active && (job.run_ids.length ? <><ReportTable jobId={job.id} /><CaseExplorer runs={job.runs} /></> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
     </>
   );
 }

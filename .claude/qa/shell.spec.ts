@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 const PAGES = [
   { path: '/', active: 'Compare' },
   { path: '/compare/', active: 'Compare' },
+  { path: '/history/', active: 'Compare' },
   { path: '/models/', active: 'Models' },
   { path: '/projects/', active: 'Projects' },
   { path: '/settings/', active: 'Settings' },
