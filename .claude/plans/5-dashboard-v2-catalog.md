@@ -2,7 +2,7 @@
 issue: 5
 title: Model catalog API
 branch: feat/dashboard-v2-redesign-p5-catalog
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -67,5 +67,13 @@ See `mvp-dashboard-v2.md` §2.
 - API smoke `GET /api/models` 200
 
 ## 5. Evidence
+- QA: passed on `0d24cc5`. Verify: 849 pytest tests pass (network blocked), plus web lint and build. App up. API smoke passes (`GET /api/models` 200). Browser: 41 tests pass. AC-5.1–5.4 covered. Diff coverage: not measured.
+- AC table: `docs/reviews/5.md`.
+- Reviewer: round 1 Request changes (7 Medium), all fixed. The lead also fixed the missing-`targets.yaml` 404.
+- Lines: 268 counted (277 test/fixture lines not counted).
+
 ## 6. Retro
+- The plan's "runnable without YAML" missed that the API 404s when `targets.yaml` is absent. The ACs should have included "no targets file".
+- The builder's first pass added bare-id resolution, which wasn't in the plan and broke report names. Briefs should say "only the id forms the plan lists".
+- Red-first was enforced in round 1 by asking for the red line. Briefs should ask for it from the start.
 ## 7. Hand-off
