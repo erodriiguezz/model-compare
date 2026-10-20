@@ -6,7 +6,7 @@ import litellm  # noqa: F401  # imported first: it loads ./.env, which would und
 import pytest
 from fastapi.testclient import TestClient
 
-from modelcompare.api import api
+from modelcompare.api import api, create_app
 from modelcompare.schema import Benchmark, TargetConfig
 from test_end_to_end import N, bench, mock
 
@@ -101,3 +101,31 @@ def test_estimate_counts_cached_calls(client):
 def test_baseline_must_be_selected(client):
     res = client.post("/runs", json={"targets": ["good"], "baseline": "bad", "benchmarks": [client.bench_file]})
     assert res.status_code == 400 and "baseline" in res.json()["detail"]
+
+
+def test_api_prefix_and_alias(client):
+    """[AC-2.1] /api/* and the old root paths return the same JSON."""
+    res = client.get("/api/targets")
+    assert res.status_code == 200 and res.json() == client.get("/targets").json()
+
+
+def test_static_fallback(tmp_path):
+    """[AC-2.4] With no web export, / serves the old page."""
+    res = TestClient(create_app(tmp_path / "missing")).get("/")
+    assert res.status_code == 200 and "<title>ModelCompare</title>" in res.text
+
+
+def test_next_export_served_and_compare_post_still_hits_api(client, tmp_path):
+    """[AC-2.1] GET /compare serves the exported page while POST /compare stays the API."""
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "index.html").write_text("<title>Next home</title>")
+    (out / "compare").mkdir()
+    (out / "compare" / "index.html").write_text("<title>Next compare</title>")
+    c = TestClient(create_app(out))
+    assert "Next home" in c.get("/").text
+    assert "Next compare" in c.get("/compare/").text
+    assert "Next compare" in c.get("/compare").text  # redirected to /compare/
+    res = c.post("/compare", json={"targets": ["nobody"]})
+    assert res.status_code == 404 and "no completed runs" in res.json()["detail"]
+    assert c.post("/api/compare", json={"targets": ["nobody"]}).status_code == 404
