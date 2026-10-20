@@ -2,7 +2,7 @@
 issue: 3
 title: Port run, report and history to Next.js
 branch: feat/dashboard-v2-redesign-p3-port
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -71,5 +71,14 @@ See `mvp-dashboard-v2.md` §2.
 - AC-3.4 `engine/tests/test_api.py::test_root_serves_next`
 
 ## 5. Evidence
+- QA (top of the stack, 3d): passed on `29f0a60`. Verify: 790 pytest tests pass, plus web lint and build. App up on :8765. API smoke passes. Browser: 33 Playwright tests pass. UI audit: 0 serious, 0 minor. AC-3.1–3.5 covered. Diff coverage: not measured. Parts 3a–3c: green except the AC step's later-part criteria.
+- AC table and screens: `docs/reviews/3.md`.
+- Reviewer: round 1 Request changes (2 High), round 2 Approve. All fixed except the `RunRequest` bounds follow-up.
+- Lines: 399 + 127 + 139 + 397 counted across 4 PRs.
+- Cost: ~32M tokens (cache-heavy), 1 session, no hand-off.
+
 ## 6. Retro
+- The plan estimated ~380 lines for "port + delete", but the port alone was ~490 and the deletion 375, so it should have been planned as stacked PRs from the start. A deletion of a large file can blow the size budget on its own.
+- The plan said "parity" but didn't list the old page's features. The first build missed seven of them. Plans that port a UI should inventory the features being ported.
+- `ac-coverage` can't scope to part of a plan, and the QA harness counted a red bridge test as proof. Propose: (1) let a PR-split row declare its criteria; (2) fail the AC gate when a mapped test is ✖.
 ## 7. Hand-off
