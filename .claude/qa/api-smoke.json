@@ -1,41 +1,7 @@
 {
   "checks": [
-    {
-      "name": "QA targets are mock-only",
-      "method": "GET",
-      "url": "/targets",
-      "expectStatus": 200,
-      "expectBodyIncludes": "mock-a"
-    },
-    {
-      "name": "compare reports error counts",
-      "method": "POST",
-      "url": "/compare",
-      "body": {
-        "targets": [
-          "mock-a",
-          "mock-b"
-        ],
-        "baseline": "mock-a"
-      },
-      "expectStatus": 200,
-      "expectBodyIncludes": "\"errors\"",
-      "ac": "AC-1.1"
-    },
-    {
-      "name": "compare reports a verdict",
-      "method": "POST",
-      "url": "/compare",
-      "body": {
-        "targets": [
-          "mock-a",
-          "mock-b"
-        ],
-        "baseline": "mock-a"
-      },
-      "expectStatus": 200,
-      "expectBodyIncludes": "\"overall\":\"equivalent\"",
-      "ac": "AC-1.3"
-    }
+    {"name":"QA targets are mock-only","method":"GET","url":"/targets","expectStatus":200,"expectBodyIncludes":"mock-a"},
+    {"name":"compare reports error counts","method":"POST","url":"/compare","body":{"targets":["mock-a","mock-b"],"baseline":"mock-a"},"expectStatus":200,"expectBodyIncludes":"\"errors\"","ac":"AC-1.1"},
+    {"name":"compare reports a verdict","method":"POST","url":"/compare","body":{"targets":["mock-a","mock-b"],"baseline":"mock-a"},"expectStatus":200,"expectBodyIncludes":"\"overall\":\"equivalent\"","ac":"AC-1.3"}
   ]
 }
