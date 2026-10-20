@@ -103,3 +103,14 @@ test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
   await page.goto('/compare/');
   await expect(page.getByRole('heading', { name: 'No targets configured' })).toBeVisible();
 });
+
+test('[AC-3.3] history caps long lists and shows all on request', async ({ page }) => {
+  const jobs = Array.from({ length: 30 }, (_, i) => ({ id: `j${i}`, targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'done', done_calls: 30, total_calls: 30, started_at: '2026-10-19T10:00:00' }));
+  await page.route('**/api/jobs', (route) => route.fulfill({ json: jobs }));
+  await page.goto('/history/');
+  const section = page.getByRole('region', { name: 'Comparisons' });
+  const rows = section.locator('tbody tr');
+  await expect(rows).toHaveCount(25);
+  await section.getByRole('button', { name: 'Show all' }).click();
+  await expect(rows).toHaveCount(30);
+});

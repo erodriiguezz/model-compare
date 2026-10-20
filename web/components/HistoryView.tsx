@@ -34,13 +34,13 @@ function Past() {
       <section className="card" aria-labelledby="jobs-h">
         <h2 id="jobs-h">Comparisons</h2>
         <div className="table-wrap" tabIndex={0}><table>
-          <thead><tr><th>Started</th><th>Models</th><th className="hide-sm">Baseline</th><th className="num hide-sm">Calls</th><th>Status</th></tr></thead>
+          <thead><tr><th>Started</th><th>Models</th><th className="hide-sm">Baseline</th><th className="num hide-sm">Calls</th><th className="hide-sm">Status</th></tr></thead>
           <tbody>{jobs.slice(0, limit.jobs).map((j) => (
             <tr key={j.id}>
-              <td className="nowrap"><Link href={`/history/?job=${j.id}`} prefetch={false}>{fmtTime(j.started_at)}</Link></td>
-              <td>{j.targets.map((t, i) => <span key={t} className="nowrap">{i > 0 && ", "}{t}</span>)}</td>
+              <td className="nowrap"><Link href={`/history/?job=${j.id}`} prefetch={false}>{fmtTime(j.started_at)}</Link><div className="show-sm"><Chip text={j.status} /></div></td>
+              <td>{j.targets.map((t, i) => <span key={t}>{i > 0 && ", "}<span className="nowrap">{t}</span></span>)}</td>
               <td className="hide-sm">{j.baseline}</td>
-              <td className="num hide-sm">{j.done_calls}/{j.total_calls}</td><td><Chip text={j.status} /></td>
+              <td className="num hide-sm">{j.done_calls}/{j.total_calls}</td><td className="hide-sm"><Chip text={j.status} /></td>
             </tr>))}</tbody>
         </table></div>
         <More shown={limit.jobs} total={jobs.length} onAll={() => setLimit((l) => ({ ...l, jobs: Infinity }))} />
@@ -48,11 +48,11 @@ function Past() {
       <section className="card" aria-labelledby="runs-h">
         <h2 id="runs-h">Runs</h2>
         <div className="table-wrap" tabIndex={0}><table>
-          <thead><tr><th>Model</th><th>Benchmark</th><th>Status</th><th className="num">Passed</th><th className="num hide-sm">Errors</th><th className="num hide-sm">Cost</th></tr></thead>
+          <thead><tr><th>Model</th><th>Benchmark</th><th className="hide-sm">Status</th><th className="num hide-sm">Passed</th><th className="num hide-sm">Errors</th><th className="num hide-sm">Cost</th></tr></thead>
           <tbody>{runs.slice(0, limit.runs).map((r) => (
             <tr key={r.id}>
-              <td className="nowrap">{r.target_name}</td><td className="nowrap">{r.benchmark_name}</td><td><Chip text={r.status} /></td>
-              <td className="num nowrap">{r.passed}/{r.n_results}</td>
+              <td className="nowrap">{r.target_name}<div className="show-sm"><Chip text={r.status} /></div></td><td className="nowrap">{r.benchmark_name}</td><td className="hide-sm"><Chip text={r.status} /></td>
+              <td className="num nowrap hide-sm">{r.passed}/{r.n_results}</td>
               <td className="num hide-sm">{r.n_errors}</td><td className="num hide-sm">${r.cost_usd.toFixed(3)}</td>
             </tr>))}</tbody>
         </table></div>

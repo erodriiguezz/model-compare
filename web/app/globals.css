@@ -123,4 +123,5 @@ select { font: inherit; padding: var(--space-2); border: 1px solid var(--border)
 .nowrap { white-space: nowrap; }
 td a { display: inline-block; min-height: var(--tap); line-height: var(--tap); }
 .link-btn { font: inherit; background: none; border: 0; padding: var(--space-2) 0; color: var(--accent); cursor: pointer; }
+@media (min-width: 641px) { .show-sm { display: none; } }
 @media (max-width: 640px) { .hide-sm { display: none; } }
