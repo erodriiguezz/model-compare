@@ -59,7 +59,9 @@ touches_api: true
 **Context:** `product.md` — dashboard row — the Compare page shows the verdict matrix + suggestions.
 
 ### Screens
-- /compare — the report with all panels; incomplete state; empty state
+- /compare/?job=qa-every-verdict — the report with all panels
+- /compare/?job=qa-incomplete — incomplete-only report
+- /compare — run form and the empty state
 
 ## 2. Grill
 See `mvp-dashboard-v2.md` §2.
