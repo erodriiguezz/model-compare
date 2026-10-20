@@ -21,3 +21,5 @@ Option 1. `next.config.ts` sets `output: 'export'` and `trailingSlash: true` so 
 - Dark mode, charts and the page port follow in later milestones.
 - Root aliases (`/runs`, `/jobs`, `/targets`, `/benchmarks`, `/profiles`, `POST /compare`) stay for the old page, so future pages must not reuse those names without a trailing slash. The aliases are slated for removal once the old page is gone.
 - Unknown `/api/*` paths return JSON 404 via a catch-all placed before the static mount.
+
+**Amended 2026-10-20 (#3):** the old page and its fallback are removed. If `web/out` is missing, `/` now returns a 503 telling the user to run `cd web && npm run build`. The root aliases remain for API clients and are still slated for removal.

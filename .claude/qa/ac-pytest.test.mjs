@@ -36,6 +36,6 @@ test('temperature is retried without and the fallback recorded [AC-1.5]', () => 
 test('api prefix, alias and static export serving [AC-2.1]', () => {
   assert.ok(pytest('tests/test_api.py::test_api_prefix_and_alias', 'tests/test_api.py::test_next_export_served_and_compare_post_still_hits_api'));
 });
-test('no web export falls back to the old page [AC-2.4]', () => {
-  assert.ok(pytest('tests/test_api.py::test_static_fallback'));
+test('old page is gone and / serves the Next export [AC-3.4]', () => {
+  assert.ok(pytest('tests/test_api.py::test_root_serves_next', 'tests/test_api.py::test_missing_export_explains_build'));
 });

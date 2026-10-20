@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import select
@@ -33,7 +33,6 @@ async def _lifespan(_app: FastAPI):
 
 
 router = APIRouter()
-WEB_DIR = Path(__file__).parent / "web"
 WEB_OUT = Path(__file__).resolve().parents[2] / "web" / "out"
 
 
@@ -329,7 +328,7 @@ def compare_html(req: CompareRequest):
 
 
 def create_app(web_out: Path | None = None) -> FastAPI:
-    """API under /api and at the root (old aliases); the exported Next app at / when built, else the old page."""
+    """API under /api and at the root (old aliases); the exported Next app at / (503 with build instructions if missing)."""
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
     app.include_router(router, include_in_schema=False)
@@ -343,7 +342,8 @@ def create_app(web_out: Path | None = None) -> FastAPI:
     if out.is_dir():
         app.mount("/", StaticFiles(directory=out, html=True), name="web")
     else:
-        app.add_api_route("/", lambda: FileResponse(WEB_DIR / "index.html"), include_in_schema=False)
+        app.add_api_route("/", lambda: PlainTextResponse(
+            "The dashboard is not built. Run: cd web && npm ci && npm run build", status_code=503), include_in_schema=False)
     return app
 
 

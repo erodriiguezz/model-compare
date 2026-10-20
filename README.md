@@ -33,14 +33,12 @@ API keys are read from the environment, or from a `.env` file in the directory y
 cd engine && .venv/bin/modelcompare serve      # open http://127.0.0.1:8000
 ```
 
-The server serves the exported Next.js app from `web/out` at `/`; without it, it falls back to the old single-page dashboard. The API lives under `/api` (old root paths still work). Set `MODELCOMPARE_WEB_OUT` to serve an export from another directory (the export is read from the checkout, not packaged). To work on the UI with hot reload, run `modelcompare serve` and `cd web && npm run dev`, which proxies `/api` to port 8000.
+The server serves the exported Next.js app from `web/out` at `/`; without it, `/` returns a 503 asking you to run `cd web && npm run build`. The API lives under `/api` (old root paths still work). Set `MODELCOMPARE_WEB_OUT` to serve an export from another directory (the export is read from the checkout, not packaged). To work on the UI with hot reload, run `modelcompare serve` and `cd web && npm run dev`, which proxies `/api` to port 8000.
 
-Run it from `engine/` so it finds `targets.yaml` and `.env`. The page has four steps:
+Run it from `engine/` so it finds `targets.yaml` and `.env`. The Compare section has two tabs:
 
-1. **Setup** lists your targets and shows whether each provider's API key is set.
-2. **Run** lets you pick targets, benchmarks, an optional judge and budget, then shows a cost estimate and live progress.
-3. **Results** shows every case of a run: the model output, its score and the scorer's reason.
-4. **Compare** renders the comparison report for the targets and baseline you choose.
+- **New run**: pick two or more models (a model whose provider key is missing is shown disabled as "no key"), choose a baseline and the benchmarks, and set optional repeats, parallel calls, a per-run budget and whether to reuse cached answers. A judge is picked automatically, from a vendor you are not comparing, when a benchmark needs one. The form shows a live cost estimate and asks for an inline confirmation before a paid run. The run then shows live progress with a Cancel button, followed by the report table (verdicts, error counts, warnings) and a case explorer with each case's output, score and the scorer's reason. "Open report" and "JSON" links give the full HTML and JSON reports.
+- **History**: past comparisons and runs. Opening a comparison shows its report; interrupted ones still open with whatever finished.
 
 The JSON API it uses is documented at http://127.0.0.1:8000/docs.
 
