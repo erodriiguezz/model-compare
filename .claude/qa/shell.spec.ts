@@ -42,7 +42,7 @@ test('[AC-2.3] loading, ready, empty and error states', async ({ page }) => {
   let release: () => void = () => {};
   const gate = new Promise<void>((r) => { release = r; });
   await page.route('**/api/targets', async (route) => { await gate; await route.continue(); });
-  await page.goto('/models/');
+  await page.goto('/projects/');
   await expect(page.getByRole('status')).toContainText('Loading targets');
   release();
   await expect(page.getByText('targets available')).toBeVisible();
