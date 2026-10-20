@@ -51,6 +51,7 @@ export function ReportTable({ jobId }: { jobId: string }) {
           <h2 id="report-h">Report · baseline {r.baseline}</h2>
           <span className="links"><a href={`/api/jobs/${jobId}/report.html`} target="_blank" rel="noopener">Open report</a><a href={`/api/jobs/${jobId}/report`} target="_blank" rel="noopener">JSON</a></span>
         </div>
+        {r.headline.length === 0 && <p className="muted">One model gives a scorecard; add a second for a verdict.</p>}
         {r.headline.map((h) => <p key={h.candidate}>{h.candidate} vs {h.baseline}: <Chip text={h.overall} /></p>)}
         {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
         {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}

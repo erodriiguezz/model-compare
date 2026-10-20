@@ -10,7 +10,7 @@ test('[AC-3.1] two models and a benchmark: estimate, run, progress updates, repo
   await page.route('**/api/runs', (route) => route.request().method() === 'POST'
     ? route.continue({ postData: JSON.stringify({ ...route.request().postDataJSON(), use_cache: false }) }) : route.continue());
   await page.goto('/compare/');
-  await expect(page.getByTestId('estimate')).toContainText('Pick two models');
+  await expect(page.getByTestId('estimate')).toContainText('Pick a model');
   await pick(page, ['mock-a', 'mock-slow']);
   await expect(page.getByTestId('estimate')).toContainText(/Estimate: 30 calls/);
   await page.getByRole('button', { name: 'Run comparison' }).click();
@@ -164,4 +164,65 @@ test('[AC-3.3] the case explorer shows each case and the report links open the H
   await explorer.getByRole('button', { name: 'View cases' }).first().click();
   await expect(explorer.getByRole('cell', { name: 'pens-bulk' })).toBeVisible();
   await expect(explorer.getByText('score 0.00').first()).toBeVisible();
+});
+
+const slowJob = async (request: import('@playwright/test').APIRequestContext) =>
+  (await (await request.post('/api/runs', { data: { targets: ['mock-a', 'mock-slow'], benchmarks: ['std-reasoning-math'], use_cache: false } })).json()).job_id as string;
+
+test('[AC-3.1] one model gives a scorecard without a verdict', async ({ page }) => {
+  await page.goto('/compare/');
+  await pick(page, ['mock-a']);
+  await expect(page.getByTestId('estimate')).toContainText('one model gives a scorecard; select two for a verdict');
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toContainText('mock-a', { timeout: 30_000 });
+  await expect(page.getByText('One model gives a scorecard; add a second for a verdict.')).toBeVisible();
+});
+
+test('[AC-3.1] a benchmark that needs a judge keeps Run disabled until a judge exists', async ({ page }) => {
+  let judges = false;
+  await page.route('**/api/benchmarks', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: (await res.json()).map((b: { name: string }) => ({ ...b, needs_judge: b.name === 'std-reasoning-math' })) });
+  });
+  await page.route('**/api/targets/status', async (route) => {
+    const res = await route.fetch();
+    const extra = judges ? [{ name: 'judge-x', model: 'openai/judge', kind: 'litellm', keys_ok: true, missing_keys: [] }] : [];
+    await route.fulfill({ response: res, json: [...(await res.json()), ...extra] });
+  });
+  await page.route('**/api/runs/estimate', (route) => route.fulfill({ json: { usd: 0, total_calls: 30, cached_calls: 0, minutes: 1 } }));
+  await page.goto('/compare/');
+  await pick(page, ['mock-a', 'mock-b']);
+  await expect(page.getByTestId('estimate')).toContainText('need a judge');
+  await expect(page.getByRole('button', { name: 'Run comparison' })).toBeDisabled();
+  judges = true;
+  await page.reload();
+  await pick(page, ['mock-a', 'mock-b']);
+  await expect(page.getByRole('combobox', { name: /^Judge/ })).toHaveValue('judge-x');
+  await expect(page.getByRole('button', { name: 'Run comparison' })).toBeEnabled();
+});
+
+test('[AC-3.5] a failed poll after the first load shows Reconnecting and recovers', async ({ page, request }) => {
+  const id = await slowJob(request);
+  let down = false;
+  await page.route(`**/api/jobs/${id}`, (route) => (down ? route.abort() : route.continue()));
+  await page.goto(`/compare/?job=${id}`);
+  await expect(page.getByRole('progressbar', { name: 'Progress' })).toBeVisible();
+  down = true;
+  await expect(page.getByText('Reconnecting…')).toBeVisible();
+  await expect(page.locator('[data-state="error"]')).toHaveCount(0);
+  down = false;
+  await expect(page.getByText('Reconnecting…')).toHaveCount(0, { timeout: 15_000 });
+});
+
+test('[AC-3.2] a cancel that loses the race (409) shows no error and refreshes the job', async ({ page, request }) => {
+  const id = await slowJob(request);
+  let polls = 0;
+  await page.route(`**/api/jobs/${id}`, (route) => { polls++; return route.continue(); });
+  await page.route(`**/api/jobs/${id}/cancel`, (route) => route.fulfill({ status: 409, json: { detail: 'job is not running' } }));
+  await page.goto(`/compare/?job=${id}`);
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  const before = polls;
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect.poll(() => polls).toBeGreaterThan(before);
+  await expect(page.locator('p[role="alert"]')).toHaveCount(0); // Next's route announcer is also a role=alert
 });

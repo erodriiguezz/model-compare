@@ -9,7 +9,7 @@ type CaseResult = {
   case_id: string; repeat: number; passed: boolean; score: number; error: string | null; text: string; cached: boolean; latency_s: number;
   tool_calls: unknown[]; scores: { type: string; score: number; reason?: string }[];
 };
-type Detail = { run: { target_name: string; benchmark_name: string; benchmark_version: string }; results: CaseResult[] };
+type Detail = { run: { target_name: string; benchmark_name: string; benchmark_version: string; benchmark_fingerprint: string; judge_model: string | null; target_config: { model?: string } }; results: CaseResult[] };
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; detail: Detail };
 
 function RunDetail({ id }: { id: number }) {
@@ -25,10 +25,14 @@ function RunDetail({ id }: { id: number }) {
   if (state.status === "loading") return <Loading label="Loading cases" />;
   if (state.status === "error") return <ErrorState message={state.message} onRetry={() => { setState({ status: "loading" }); setAttempt((n) => n + 1); }} />;
   const { run, results } = state.detail;
+  const sorted = [...results].sort((a, b) => a.case_id.localeCompare(b.case_id, undefined, { numeric: true }) || a.repeat - b.repeat);
   return (
+    <>
+      <h3>{run.target_name} · {run.benchmark_name}</h3>
+      <p className="muted">Model <code>{run.target_config.model}</code> · benchmark v{run.benchmark_version} ({run.benchmark_fingerprint}){run.judge_model && ` · judge ${run.judge_model}`}</p>
     <div className="table-wrap" tabIndex={0} aria-label={`Cases for ${run.target_name} on ${run.benchmark_name}`}><table>
       <thead><tr><th>Case</th><th>Result</th><th>Output</th><th>Why</th><th className="num">Time</th></tr></thead>
-      <tbody>{results.map((r) => (
+      <tbody>{sorted.map((r) => (
         <tr key={`${r.case_id}-${r.repeat}`}>
           <td>{r.case_id}{r.repeat > 0 && <div className="muted">repeat {r.repeat + 1}</div>}</td>
           <td><span className={`chip ${r.passed ? "ok" : "bad"}`}>{r.passed ? "pass" : "fail"}</span><div className="muted">score {r.score.toFixed(2)}</div></td>
@@ -37,6 +41,7 @@ function RunDetail({ id }: { id: number }) {
           <td className="num">{r.cached ? "cached" : `${r.latency_s.toFixed(1)}s`}</td>
         </tr>))}</tbody>
     </table></div>
+    </>
   );
 }
 

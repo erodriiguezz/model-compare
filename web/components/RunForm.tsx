@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getJSON, postJSON, vendor, type Benchmark, type Estimate, type Target } from "@/lib/api";
+import { getJSON, postJSON, usd, vendor, type Benchmark, type Estimate, type Target } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "./States";
 
 type Data = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; targets: Target[]; benches: Benchmark[] };
@@ -35,8 +35,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const used = new Set(data.status === "ready" ? data.targets.filter((t) => targets.includes(t.name)).map((t) => vendor(t.model)) : []);
   const judgeName = judges.some((t) => t.name === judge) ? judge : (judges.find((t) => !used.has(vendor(t.model))) ?? judges[0])?.name ?? "";
   const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined,
-    repeats: Number(opts.repeats) || undefined, budget_usd: Number(opts.budget) || undefined, concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
-  const ready = targets.length >= 2 && benches.length > 0 && (!needsJudge || !!judgeName);
+    repeats: opts.repeats === "" ? undefined : Number(opts.repeats), budget_usd: opts.budget === "" ? undefined : Number(opts.budget), concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
+  const ready = targets.length >= 1 && benches.length > 0 && (!needsJudge || !!judgeName);
   const key = JSON.stringify(body);
   const est = estimate?.key === key && !("error" in estimate.value) ? estimate.value : null;
 
@@ -53,7 +53,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
 
   const toggle = (list: string[], set: (v: string[]) => void, v: string) => set(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   async function run() {
-    if (est && est.usd > 0 && confirmKey !== key) return setConfirmKey(key);
+    if (!est) return;
+    if (est.usd > 0 && confirmKey !== key) return setConfirmKey(key);
     setStarting(true); setStartError("");
     try { onStart((await postJSON<{ job_id: string }>("/runs", body)).job_id); }
     catch (e) { setStartError((e as Error).message); setStarting(false); }
@@ -68,7 +69,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
     <form className="card form" onSubmit={(e) => { e.preventDefault(); void run(); }}>
       <div className="form-cols">
         <fieldset>
-          <legend>Models (pick at least two)</legend>
+          <legend>Models (pick one, or two or more to compare)</legend>
           {data.targets.map((t) => (
             <label key={t.name} className="check">
               <input type="checkbox" checked={targets.includes(t.name)} disabled={t.keys_ok === false} onChange={() => toggle(targets, setTargets, t.name)} />
@@ -107,19 +108,20 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
       <div className="form-row">
         <label>Repeats<input type="number" min={1} max={10} placeholder="deck default" value={opts.repeats} onChange={(e) => setOpts({ ...opts, repeats: e.target.value })} /></label>
         <label>Parallel calls per model<input type="number" min={1} max={64} value={opts.concurrency} onChange={(e) => setOpts({ ...opts, concurrency: e.target.value })} /></label>
-        <label>Budget per run (USD)<input type="number" min={0} step={1} placeholder="no cap" value={opts.budget} onChange={(e) => setOpts({ ...opts, budget: e.target.value })} /></label>
+        <label>Budget per run (USD)<input type="number" min={0} step="0.01" placeholder="no cap" value={opts.budget} onChange={(e) => setOpts({ ...opts, budget: e.target.value })} /></label>
         <label className="check"><input type="checkbox" checked={opts.cache} onChange={(e) => setOpts({ ...opts, cache: e.target.checked })} />Reuse cached answers</label>
       </div>
       <p className="muted" aria-live="polite" data-testid="estimate">
-        {!ready && (needsJudge && !judgeName ? "These benchmarks need a judge model that is not under test." : "Pick two models and a benchmark to see an estimate.")}
+        {!ready && (needsJudge && !judgeName ? "These benchmarks need a judge model that is not under test." : "Pick a model and a benchmark to see an estimate.")}
         {ready && estimate?.key !== key && "Estimating…"}
         {ready && estimate?.key === key && ("error" in estimate.value ? estimate.value.error
-          : `Estimate: ${estimate.value.total_calls} calls (${estimate.value.cached_calls} cached) · about $${estimate.value.usd.toFixed(3)} · ~${Math.max(1, Math.round(estimate.value.minutes))} min`)}
+          : `Estimate: ${estimate.value.total_calls} calls (${estimate.value.cached_calls} cached) · up to ${usd(estimate.value.usd)} · ~${Math.max(1, Math.round(estimate.value.minutes))} min`)}
+        {ready && targets.length < 2 && " · one model gives a scorecard; select two for a verdict"}
       </p>
       {startError && <p role="alert" className="danger">{startError}</p>}
       {confirmKey === key && est ? (
         <div className="confirm" role="group" aria-label="Confirm cost">
-          <p>This run makes {est.total_calls - est.cached_calls} calls and may cost up to ${est.usd.toFixed(2)}.</p>
+          <p>This run makes {est.total_calls - est.cached_calls} calls and may cost up to {usd(est.usd)}.</p>
           <button type="submit" className="btn" disabled={starting}>{starting ? "Starting…" : "Confirm and run"}</button>
           <button type="button" className="btn secondary" onClick={() => setConfirmKey("")}>Back</button>
         </div>
