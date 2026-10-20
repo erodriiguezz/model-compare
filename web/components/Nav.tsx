@@ -16,12 +16,12 @@ export default function Nav() {
   return (
     <header className="topbar">
       <div className="topbar-inner">
-        <Link href="/" className="brand">ModelCompare</Link>
+        <Link href="/" prefetch={false} className="brand">ModelCompare</Link>
         <nav aria-label="Main">
           <ul className="nav-list">
             {ITEMS.map(({ href, label }) => (
               <li key={href}>
-                <Link href={href} className="nav-link" aria-current={active.startsWith(href) ? "page" : undefined}>
+                <Link href={href} prefetch={false} className="nav-link" aria-current={active.startsWith(href) ? "page" : undefined}>
                   {label}
                 </Link>
               </li>
