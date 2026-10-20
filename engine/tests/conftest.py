@@ -1,7 +1,7 @@
 import os
 
 # Before anything imports litellm: it would otherwise load a real env file from the working directory.
-os.environ.setdefault("LITELLM_MODE", "PRODUCTION")
+os.environ["LITELLM_MODE"] = "PRODUCTION"  # always: an exported DEV would load a real env file
 
 import httpx  # noqa: E402
 import pytest  # noqa: E402
