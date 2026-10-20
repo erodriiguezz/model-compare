@@ -18,12 +18,12 @@ from sqlmodel import select
 
 from modelcompare import db
 from modelcompare.bench_loader import resolve_benchmarks
-from modelcompare import keys
+from modelcompare import catalog, keys
 from modelcompare.html_report import render_html
 from modelcompare.recommend import load_profiles
 from modelcompare.report import build_report, latest_runs, runs_by_ids
 from modelcompare.runner import benchmarks_needing_judge, build_messages, cache_key, estimate_cost, run_benchmark
-from modelcompare.schema import Benchmark, TargetConfig, load_targets
+from modelcompare.schema import Benchmark, TargetConfig, load_targets, resolve_target
 from modelcompare.summary import capability
 
 @asynccontextmanager
@@ -79,6 +79,11 @@ def targets_status():
     return out
 
 
+def models(refresh: bool = False):
+    """Chat models each configured key can reach, by provider, with LiteLLM price and context where known."""
+    return catalog.list_models(refresh=refresh)
+
+
 @router.get("/benchmarks")
 def benchmarks(spec: list[str] = Query(["standard", "custom"])):
     return [
@@ -132,9 +137,10 @@ def _resolve(req: RunRequest) -> tuple[dict[str, TargetConfig], list[Benchmark]]
     if not req.targets:
         raise HTTPException(400, "pick at least one target")
     extra = [x for x in (req.judge, req.baseline) if x]
-    unknown = [t for t in req.targets + extra if t not in all_t]
-    if unknown:
+    resolved = {t: resolve_target(t, all_t) for t in dict.fromkeys(req.targets + extra)}
+    if unknown := [t for t, cfg in resolved.items() if cfg is None]:
         raise HTTPException(400, f"unknown targets {unknown}")
+    all_t = {**all_t, **resolved}
     if req.baseline and req.baseline not in req.targets:
         raise HTTPException(400, "the baseline must be one of the selected targets")
     benches = _benchmarks(req.benchmarks)
@@ -388,6 +394,7 @@ def create_app(web_out: Path | None = None) -> FastAPI:
     """API under /api and at the root (old aliases); the exported Next app at / (503 with build instructions if missing)."""
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
+    app.add_api_route("/api/models", models, methods=["GET"])  # no root alias: /models/ is a Next page
     app.include_router(settings, prefix="/api")  # no root alias: secrets stay under /api
     app.include_router(router, include_in_schema=False)
     # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).

@@ -147,3 +147,28 @@ def test_unknown_api_path_is_json_404_with_web_export(tmp_path):
     c = TestClient(create_app(tmp_path))
     assert c.get("/api/nope").json() == {"detail": "Not Found"}
     assert c.post("/api/nope", json={}).status_code == 404
+
+
+def test_run_catalog_target(client, monkeypatch):
+    """AC-5.4: a catalog id not in targets.yaml runs; a targets.yaml name wins over a catalog id."""
+    from modelcompare import api
+
+    seen = {}
+
+    async def fake_run(cfg, b, judge, **kw):
+        seen[cfg.name] = cfg
+        from types import SimpleNamespace
+        return SimpleNamespace(run_id=1, status="complete", results=[], cost_usd=0.0)
+
+    monkeypatch.setattr(api, "run_benchmark", fake_run)
+    req = {"targets": ["groq/llama-3.3-70b-versatile", "togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo", "good"],
+           "benchmarks": [client.bench_file]}
+    assert client.post("/runs/estimate", json=req).status_code == 200
+    res = client.post("/runs", json=req)
+    assert res.status_code == 202
+    assert seen["groq/llama-3.3-70b-versatile"].model == "groq/llama-3.3-70b-versatile"
+    assert seen["groq/llama-3.3-70b-versatile"].temperature is None
+    assert seen["togetherai/meta-llama/Llama-3.3-70B-Instruct-Turbo"].model == "together_ai/meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    assert seen["good"].kind == "mock"  # the targets.yaml entry, not an ad-hoc one
+    assert client.post("/runs", json={**req, "targets": ["nope/x"]}).status_code == 400
+    assert client.post("/runs", json={**req, "targets": ["plain-name"]}).status_code == 400
