@@ -1,1 +1,1 @@
-{"data":[{"type":"model","id":"claude-sonnet-4-5","display_name":"Claude Sonnet 4.5"},{"type":"model","id":"claude-haiku-4-5","display_name":"Claude Haiku 4.5"}],"has_more":false}
+{"data": [{"type": "model", "id": "claude-sonnet-4-5", "display_name": "Claude Sonnet 4.5"}, {"type": "model", "id": "claude-haiku-4-5", "display_name": "Claude Haiku 4.5"}, {"type": "model", "id": "claude-sonnet-4-5-20250929", "display_name": "Claude Sonnet 4.5 (dated)"}], "has_more": false}

@@ -23,6 +23,8 @@ PROVIDERS = {
     "groq": "GROQ_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
 }
+# LiteLLM's provider prefix where it differs from the provider name used here.
+LITELLM_PREFIX = {"togetherai": "together_ai"}
 MAX_LEN = 512
 # Characters that python-dotenv would treat specially (quotes, comments, escapes, interpolation) are rejected,
 # so a value is always written bare and reads back unchanged.

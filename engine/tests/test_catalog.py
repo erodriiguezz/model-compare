@@ -27,7 +27,7 @@ def clean(monkeypatch):
 
 @pytest.fixture
 def client(tmp_path):
-    return TestClient(create_app(tmp_path / "no-web-out"))
+    return TestClient(create_app(tmp_path / "no-web-out"), base_url="http://localhost:8765")
 
 
 def by_provider(res):
@@ -41,8 +41,10 @@ class FakeHttp:
         self.calls, self.fail = [], set(fail)
         monkeypatch.setattr(httpx, "get", self)
 
-    def __call__(self, url, headers=None, timeout=None):
+    def __call__(self, url, headers=None, timeout=None, params=None):
         self.calls.append(url)
+        if url == "https://openrouter.ai/api/v1/key":
+            return httpx.Response(401 if "openrouter-key" in self.fail else 200, json={}, request=httpx.Request("GET", url))
         provider = next(p for p, u in catalog._URLS.items() if u == url)
         if provider in self.fail:
             return httpx.Response(500, request=httpx.Request("GET", url))
@@ -59,15 +61,19 @@ def test_ac_5_1_lists_chat_models_with_price_and_context(client, monkeypatch):
     p = by_provider(res)
     assert all(r["key_ok"] for r in p.values())
     ids = {prov: {m["id"] for m in r["models"]} for prov, r in p.items()}
-    assert ids["openai"] == {"gpt-4o", "gpt-4o-mini"}
+    assert ids["openai"] == {"gpt-4o", "gpt-4o-mini"}  # not the completion-only or responses-only models
     assert ids["gemini"] == {"gemini-2.0-flash"}
     assert ids["togetherai"] == {"meta-llama/Llama-3.3-70B-Instruct-Turbo"}
     assert ids["groq"] == {"llama-3.3-70b-versatile"}
-    assert ids["openrouter"] == {"openai/gpt-4o-mini"}
-    assert ids["anthropic"] == {"claude-sonnet-4-5", "claude-haiku-4-5"}
+    assert ids["openrouter"] == {"openai/gpt-4o-mini", "openrouter/auto"}
+    assert ids["anthropic"] == {"claude-sonnet-4-5", "claude-haiku-4-5", "claude-sonnet-4-5-20250929"}
     gpt = next(m for m in p["openai"]["models"] if m["id"] == "gpt-4o")  # enriched from litellm.model_cost
     assert gpt["target"] == "openai/gpt-4o" and gpt["price_in"] > 0 and gpt["price_out"] > gpt["price_in"] and gpt["context"] > 0
-    orr = p["openrouter"]["models"][0]  # provider-reported per-token prices -> per 1M
+    orr = next(m for m in p["openrouter"]["models"] if m["id"] == "openai/gpt-4o-mini")  # per-token prices -> per 1M
+    auto = next(m for m in p["openrouter"]["models"] if m["id"] == "openrouter/auto")  # -1 means "varies"
+    assert "price_in" not in auto and "price_out" not in auto and auto["context"] == 2000000
+    dated = next(m for m in p["anthropic"]["models"] if m["id"] == "claude-sonnet-4-5-20250929")
+    assert dated["price_in"] == 3.0 and dated["context"] > 0
     assert (orr["price_in"], orr["price_out"], orr["context"]) == (0.15, 0.6, 128000)
     assert p["togetherai"]["models"][0]["price_in"] == 0.88
     assert p["gemini"]["models"][0]["context"] == 1048576
@@ -111,7 +117,7 @@ def test_ac_5_2_network_and_parse_errors_never_500(client, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", FAKE["OPENAI_API_KEY"])
     monkeypatch.setenv("GROQ_API_KEY", FAKE["GROQ_API_KEY"])
 
-    def get(url, headers=None, timeout=None):
+    def get(url, headers=None, timeout=None, params=None):
         if "groq" in url:
             return httpx.Response(200, text="not json", request=httpx.Request("GET", url))
         raise httpx.ConnectError(f"boom {headers}", request=httpx.Request("GET", url))
@@ -145,3 +151,45 @@ def test_ac_5_3_cache_refresh_and_key_change(client, monkeypatch):
 
 def test_no_root_alias_for_models(client):
     assert client.get("/models").status_code == 404
+
+
+def test_openrouter_key_is_checked_against_the_key_endpoint(client, monkeypatch):
+    FakeHttp(monkeypatch, fail={"openrouter-key"})
+    monkeypatch.setenv("OPENROUTER_API_KEY", FAKE["OPENROUTER_API_KEY"])
+    row = by_provider(client.get("/api/models"))["openrouter"]
+    assert row["key_ok"] is False and "401" in row["error"]  # the models list itself is public
+
+
+def test_models_is_local_only(client, monkeypatch):
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(FIXTURES))
+    assert client.get("/api/models", headers={"host": "evil.example"}).status_code == 403
+    assert client.get("/api/models", headers={"origin": "https://evil.example"}).status_code == 403
+    assert client.get("/api/models", headers={"host": "localhost:8765"}).status_code == 200
+
+
+def test_filters_drop_inactive_and_non_chat_modes(monkeypatch):
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(FIXTURES))
+    monkeypatch.setenv("GROQ_API_KEY", FAKE["GROQ_API_KEY"])
+    assert [m["id"] for m in catalog._fetch("groq", "k")] == ["llama-3.3-70b-versatile"]  # active:false dropped
+    ids = {m["id"] for m in catalog._fetch("openai", "k")}
+    assert "gpt-3.5-turbo-instruct" not in ids and "o1-pro" not in ids  # completion / responses-only
+
+
+def test_pagination_is_followed_and_capped(monkeypatch):
+    pages = {None: {"data": [{"id": "claude-a"}], "has_more": True, "last_id": "claude-a"},
+             "claude-a": {"data": [{"id": "claude-b"}], "has_more": False}}
+    calls = []
+
+    def get(url, headers=None, timeout=None, params=None):
+        calls.append(params)
+        return httpx.Response(200, json=pages[(params or {}).get("after_id")], request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", get)
+    assert [m["id"] for m in catalog._fetch("anthropic", "k")] == ["claude-a", "claude-b"]
+    gem = {None: {"models": [{"name": "models/g1"}], "nextPageToken": "t2"}, "t2": {"models": [{"name": "models/g2"}]}}
+    monkeypatch.setattr(httpx, "get", lambda url, headers=None, timeout=None, params=None: httpx.Response(
+        200, json=gem[(params or {}).get("pageToken")], request=httpx.Request("GET", url)))
+    assert [m["id"] for m in catalog._fetch("gemini", "k")] == ["g1", "g2"]
+    monkeypatch.setattr(httpx, "get", lambda url, headers=None, timeout=None, params=None: httpx.Response(
+        200, json={"data": [{"id": "claude-x"}], "has_more": True, "last_id": "x"}, request=httpx.Request("GET", url)))
+    assert len(catalog._fetch("anthropic", "k")) == 1  # same page forever: capped, ids de-duplicated

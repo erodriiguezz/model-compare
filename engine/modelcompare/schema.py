@@ -157,20 +157,16 @@ def load_targets(path: str | Path) -> dict[str, TargetConfig]:
     return {t.name: t for t in targets}
 
 
-# LiteLLM's provider prefix where it differs from the name used for the key (keys.PROVIDERS).
-_LITELLM_PREFIX = {"togetherai": "together_ai"}
-
-
 def resolve_target(name: str, configured: dict[str, TargetConfig]) -> TargetConfig | None:
-    """A targets.yaml name wins. Otherwise a catalog id `<provider>/<model-id>` (as listed by /api/models in
-    each model's `target`), or a bare model id from the cached catalog, becomes an ad-hoc target."""
+    """A targets.yaml name wins. Otherwise a catalog id `<provider>/<model-id>` (the `target` that /api/models
+    lists) becomes an ad-hoc target, priced from the catalog when LiteLLM does not know the model."""
     if name in configured:
         return configured[name]
     from modelcompare import catalog, keys
 
-    if "/" not in name:
-        name = catalog.find_cached(name) or name
     provider, _, model_id = name.partition("/")
     if provider not in keys.PROVIDERS or not model_id:
         return None
-    return TargetConfig(name=name, model=f"{_LITELLM_PREFIX.get(provider, provider)}/{model_id}", temperature=None)
+    price_in, price_out = catalog.price_for(provider, model_id)
+    return TargetConfig(name=name, model=f"{keys.LITELLM_PREFIX.get(provider, provider)}/{model_id}",
+                        temperature=None, pricing=Pricing(input=price_in, output=price_out))
