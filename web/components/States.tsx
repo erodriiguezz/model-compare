@@ -19,11 +19,11 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
   );
 }
 
-export function Error({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function ErrorState({ message, onRetry, children }: { message: string; onRetry: () => void; children?: ReactNode }) {
   return (
     <div className="card state" role="alert" data-state="error">
       <h2>Something went wrong</h2>
-      <p className="muted">{message}</p>
+      <p className="muted">{message} {children}</p>
       <button type="button" className="btn" onClick={onRetry}>Try again</button>
     </div>
   );

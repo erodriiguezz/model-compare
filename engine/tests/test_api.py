@@ -6,7 +6,7 @@ import litellm  # noqa: F401  # imported first: it loads ./.env, which would und
 import pytest
 from fastapi.testclient import TestClient
 
-from modelcompare.api import api, create_app
+from modelcompare.api import create_app
 from modelcompare.schema import Benchmark, TargetConfig
 from test_end_to_end import N, bench, mock
 
@@ -23,14 +23,14 @@ def client(db_url, tmp_path, monkeypatch):
         mock("good", set(range(N))).model_dump(), mock("bad", set()).model_dump(), paid.model_dump(),
     ]}))
     monkeypatch.setenv("MODELCOMPARE_TARGETS", str(targets))
-    c = TestClient(api)
+    c = TestClient(create_app(tmp_path / "no-web-out"))
     c.bench_file, c.judged_file = str(bench_file), str(tmp_path / "judged.yaml")
     return c
 
 
 def test_dashboard_is_served(client):
     res = client.get("/")
-    assert res.status_code == 200 and "<title>ModelCompare</title>" in res.text
+    assert res.status_code == 200 and 'id="report-frame"' in res.text
 
 
 def test_missing_targets_file_explains_setup(client, monkeypatch, tmp_path):
@@ -112,7 +112,7 @@ def test_api_prefix_and_alias(client):
 def test_static_fallback(tmp_path):
     """[AC-2.4] With no web export, / serves the old page."""
     res = TestClient(create_app(tmp_path / "missing")).get("/")
-    assert res.status_code == 200 and "<title>ModelCompare</title>" in res.text
+    assert res.status_code == 200 and 'id="report-frame"' in res.text
 
 
 def test_next_export_served_and_compare_post_still_hits_api(client, tmp_path):
@@ -129,3 +129,16 @@ def test_next_export_served_and_compare_post_still_hits_api(client, tmp_path):
     res = c.post("/compare", json={"targets": ["nobody"]})
     assert res.status_code == 404 and "no completed runs" in res.json()["detail"]
     assert c.post("/api/compare", json={"targets": ["nobody"]}).status_code == 404
+
+
+def test_unknown_api_path_is_json_404(client):
+    out = client.get("/api/nope")
+    assert out.status_code == 404 and out.json() == {"detail": "Not Found"}
+    assert client.post("/api/nope", json={}).status_code == 404
+
+
+def test_unknown_api_path_is_json_404_with_web_export(tmp_path):
+    (tmp_path / "index.html").write_text("<title>Next home</title>")
+    c = TestClient(create_app(tmp_path))
+    assert c.get("/api/nope").json() == {"detail": "Not Found"}
+    assert c.post("/api/nope", json={}).status_code == 404

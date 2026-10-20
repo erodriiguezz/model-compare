@@ -333,7 +333,13 @@ def create_app(web_out: Path | None = None) -> FastAPI:
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
     app.include_router(router, include_in_schema=False)
+    # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).
     out = web_out or Path(os.getenv("MODELCOMPARE_WEB_OUT", WEB_OUT))
+
+    @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
+    def api_not_found(rest: str):
+        raise HTTPException(404, "Not Found")
+
     if out.is_dir():
         app.mount("/", StaticFiles(directory=out, html=True), name="web")
     else:

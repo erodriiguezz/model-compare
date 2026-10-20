@@ -13,3 +13,4 @@ targets.yaml
 .claude/test-report.json
 .claude/review/
 web/out/
+.claude/design-review/
