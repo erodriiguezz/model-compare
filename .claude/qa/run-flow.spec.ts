@@ -19,6 +19,7 @@ test('[AC-3.1] two models and a benchmark: estimate, run, progress updates, repo
   await expect(job.locator('[data-verdict="running"]')).toBeVisible({ timeout: 10_000 });
   const bar = page.getByRole('progressbar', { name: 'Progress' });
   await expect.poll(async () => Number(await bar.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
   const report = page.getByRole('region', { name: 'std-reasoning-math' });
   await expect(report).toBeVisible({ timeout: 30_000 });
   await expect(report.locator('[data-verdict="equivalent"]')).toBeVisible();
@@ -67,6 +68,7 @@ test('[AC-3.3] past jobs are listed and opening one shows its report', async ({ 
   await expect(page.getByRole('navigation', { name: 'Compare sections' }).locator('[aria-current="page"]')).toHaveText('History');
   await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
   await page.locator(`a[href="/history/?job=${job_id}"]`).click();
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
   await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toBeVisible();
 });
 
@@ -175,6 +177,7 @@ test('[AC-3.1] one model gives a scorecard without a verdict', async ({ page }) 
   await pick(page, ['mock-a']);
   await expect(page.getByTestId('estimate')).toContainText('one model gives a scorecard; select two for a verdict');
   await page.getByRole('button', { name: 'Run comparison' }).click();
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
   await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toContainText('mock-a', { timeout: 30_000 });
   await expect(page.getByText('One model gives a scorecard; add a second for a verdict.')).toBeVisible();
 });

@@ -114,7 +114,8 @@ test('[AC-7.5] regressions list the cases that got worse and details stay collap
   await page.goto(JOB);
   const reg = page.getByRole('region', { name: 'Regressions' });
   await expect(reg).toContainText('qa-worse');
-  await expect(reg.locator('li').first()).toContainText(/qa-reasoning/);
+  await reg.getByRole('button', { name: /Show all/ }).click();
+  await expect(reg).toContainText('qa-worse · qa-reasoning');
   const details = page.locator('details', { has: page.getByText('Details', { exact: true }) });
   await expect(details).not.toHaveAttribute('open', '');
   await details.getByText('Details', { exact: true }).click();
@@ -144,7 +145,7 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
   await page.goto(JOB);
   await expect(page.getByRole('status').filter({ hasText: 'Loading report' })).toBeVisible();
   release();
-  const alert = page.getByRole('alert');
+  const alert = page.locator('[data-state="error"]');
   await expect(alert).toContainText('Could not load the report');
   await alert.getByRole('button', { name: 'Try again' }).click();
   await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
