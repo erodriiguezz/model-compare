@@ -55,6 +55,12 @@ touches_api: true
 
 **Size** M · ~300 lines · ~280k tokens
 
+**PR split** (lead decision during delivery: security-review fixes took it to 443 counted lines, so the same scope ships as two stacked PRs, each ≤400)
+| Part | Branch | Content | Criteria |
+| --- | --- | --- | --- |
+| 4a | `feat/dashboard-v2-redesign-p4a-keys` | `keys.py`, settings API with Host/Origin checks, CLI key loading, ADR | AC-4.1, AC-4.2, AC-4.3, AC-4.4 |
+| 4b | `feat/dashboard-v2-redesign-p4b-settings` | Settings page and `KeyRow` | AC-4.2, AC-4.5 |
+
 **Out of scope:** encryption at rest, multiple keys per provider.
 
 **Context:** `architecture.md` — Storage and config — API keys row: "Environment, the env file, or Settings page (writes the env file)".

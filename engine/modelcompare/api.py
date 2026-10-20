@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -17,6 +18,7 @@ from sqlmodel import select
 
 from modelcompare import db
 from modelcompare.bench_loader import resolve_benchmarks
+from modelcompare import keys
 from modelcompare.html_report import render_html
 from modelcompare.recommend import load_profiles
 from modelcompare.report import build_report, latest_runs, runs_by_ids
@@ -327,10 +329,66 @@ def compare_html(req: CompareRequest):
     return render_html(compare(req))
 
 
+_LOCAL_HOST = re.compile(r"(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?")
+
+
+def _local_only(request: Request) -> None:
+    """DNS-rebinding and cross-site defence for routes that write secrets: loopback Host, and Origin if sent."""
+    if not _LOCAL_HOST.fullmatch(request.headers.get("host", "").lower()):
+        raise HTTPException(403, "Settings are only available from localhost.")
+    origin = request.headers.get("origin")
+    if origin is not None:
+        scheme, sep, netloc = origin.lower().partition("://")
+        if not sep or scheme not in ("http", "https") or not _LOCAL_HOST.fullmatch(netloc):
+            raise HTTPException(403, "Cross-origin requests are not allowed.")
+
+
+settings = APIRouter(prefix="/settings", dependencies=[Depends(_local_only)])
+
+
+def _provider(provider: str) -> str:
+    if provider not in keys.PROVIDERS:
+        raise HTTPException(404, "Unknown provider")
+    return provider
+
+
+@settings.get("/keys")
+def keys_list():
+    return keys.all_status()
+
+
+@settings.put("/keys/{provider}")
+async def keys_put(provider: str, request: Request):
+    _provider(provider)
+    if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
+        raise HTTPException(415, "Content-Type must be application/json.")
+    try:
+        body = await request.json()
+        keys.set_key(provider, body.get("value") if isinstance(body, dict) else None)
+    except (ValueError, UnicodeDecodeError) as e:  # InvalidKey and bad JSON; messages never hold the value
+        raise HTTPException(422, str(e) if isinstance(e, keys.InvalidKey) else 'Body must be JSON {"value": string}.')
+    return keys.status(provider)
+
+
+@settings.delete("/keys/{provider}")
+def keys_delete(provider: str):
+    try:
+        keys.remove_key(_provider(provider))
+    except keys.EnvironmentOnly:
+        raise HTTPException(409, "This key is set in the server environment and cannot be removed here.")
+    return keys.status(provider)
+
+
+@settings.post("/keys/{provider}/test")
+def keys_test(provider: str):
+    return keys.probe(_provider(provider))
+
+
 def create_app(web_out: Path | None = None) -> FastAPI:
     """API under /api and at the root (old aliases); the exported Next app at / (503 with build instructions if missing)."""
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
+    app.include_router(settings, prefix="/api")  # no root alias: secrets stay under /api
     app.include_router(router, include_in_schema=False)
     # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).
     out = web_out or Path(os.getenv("MODELCOMPARE_WEB_OUT", WEB_OUT))

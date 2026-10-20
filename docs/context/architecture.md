@@ -33,7 +33,7 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | Database | SQLite at `.modelcompare/modelcompare.db` | `MODELCOMPARE_DB_URL` — Postgres is a supported target but has no tests yet |
 | Data dir | `.modelcompare/` | `MODELCOMPARE_HOME` |
 | Targets file | `targets.yaml` (from `targets.example.yaml`) | `-f` / `MODELCOMPARE_TARGETS` |
-| API keys | Environment or `.env` via python-dotenv | — |
+| API keys | Environment, the env file, or Settings page (writes the env file) | `MODELCOMPARE_KEYS_FILE` |
 
 Schema is created with `SQLModel.metadata.create_all`; there are no migrations.
 

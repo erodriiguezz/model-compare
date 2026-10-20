@@ -17,7 +17,8 @@
     "env": {
       "MODELCOMPARE_HOME": ".modelcompare-qa",
       "MODELCOMPARE_TARGETS": "targets.qa.yaml",
-      "MODELCOMPARE_KEYS_FILE": ".modelcompare-qa/keys.test"
+      "MODELCOMPARE_KEYS_FILE": ".modelcompare-qa/keys.test",
+      "LITELLM_MODE": "PRODUCTION"
     },
     "setup": [
       "cd web && npm ci && npm run build",
