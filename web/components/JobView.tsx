@@ -6,7 +6,7 @@ import { Chip, ReportTable } from "./ReportTable";
 import { Empty, ErrorState, Loading } from "./States";
 
 const POLL_MS = 1000;
-type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; job: Job };
+type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; job: Job; retrying?: boolean };
 
 /** Polls a job until it ends, then shows its report. */
 export default function JobView({ id }: { id: string }) {
@@ -18,21 +18,33 @@ export default function JobView({ id }: { id: string }) {
   useEffect(() => {
     let live = true;
     let timer: ReturnType<typeof setTimeout>;
+    let fails = 0;
+    let loaded = false;
     const tick = () => getJSON<Job>(`/jobs/${id}`)
       .then((job) => {
         if (!live) return;
+        fails = 0; loaded = true;
         setState({ status: "ready", job });
         if (!TERMINAL.includes(job.status)) timer = setTimeout(tick, POLL_MS);
       })
-      .catch((e: Error) => live && setState({ status: "error", message: `Could not load this comparison (${e.message}).` }));
+      .catch((e: Error) => {
+        if (!live) return;
+        if (!loaded) return setState({ status: "error", message: `Could not load this comparison (${e.message}).` });
+        setState((s) => (s.status === "ready" ? { ...s, retrying: true } : s));
+        timer = setTimeout(tick, Math.min(POLL_MS * 2 ** ++fails, 15_000));
+      });
     void tick();
     return () => { live = false; clearTimeout(timer); };
   }, [id, attempt]);
   const retry = useCallback(() => { setState({ status: "loading" }); setAttempt((n) => n + 1); }, []);
-
   async function cancel() {
     setStopping(true); setCancelError("");
-    try { await postJSON(`/jobs/${id}/cancel`); } catch (e) { setCancelError((e as Error).message); setStopping(false); }
+    try { await postJSON(`/jobs/${id}/cancel`); }
+    catch (e) {
+      setStopping(false);
+      if ((e as { status?: number }).status === 409) setAttempt((n) => n + 1); // it ended meanwhile: refresh now
+      else setCancelError((e as Error).message);
+    }
   }
 
   if (state.status === "loading") return <Loading label="Loading job" />;
@@ -58,10 +70,11 @@ export default function JobView({ id }: { id: string }) {
           <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
         </div>
         <p className="muted">{job.done_calls}/{job.total_calls} calls · {job.targets.join(", ")}</p>
+        {state.retrying && <p className="muted" role="status">Reconnecting…</p>}
         {job.error && <p role="alert" className="danger">{job.error}</p>}
         {cancelError && <p role="alert" className="danger">{cancelError}</p>}
         {done >= 30 && errs / done > 0.2 && (
-          <p role="alert" className="danger">{pct(errs, done)} of calls are failing, so scores will be meaningless.{firstError && <> First error: <code>{firstError.slice(0, 200)}</code></>} Consider stopping.</p>
+          <p className="danger">{pct(errs, done)} of calls are failing, so scores will be meaningless.{firstError && <> First error: <code>{firstError.slice(0, 200)}</code></>} Consider stopping.</p>
         )}
         {rows.length > 0 && (
           <div className="table-wrap" tabIndex={0}><table>

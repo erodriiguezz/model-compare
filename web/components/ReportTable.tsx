@@ -5,19 +5,19 @@ import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
 
 const TONES: Record<string, [string, string]> = {
-  better: ["Better", "ok"], worse: ["Worse", "bad"], equivalent: ["Equivalent", "info"], inconclusive: ["Inconclusive", "muted"],
+  better: ["Better", "ok"], mixed: ["Mixed", "warn"], worse: ["Worse", "bad"], equivalent: ["Equivalent", "info"], inconclusive: ["Inconclusive", "muted"],
   insufficient_data: ["Not enough data", "muted"], incomplete: ["Incomplete", "warn"],
   done: ["done", "ok"], failed: ["failed", "bad"], interrupted: ["interrupted", "bad"], cancelled: ["cancelled", "warn"],
   running: ["running", "info"], queued: ["queued", "muted"], budget_exceeded: ["budget exceeded", "warn"],
 };
 
-/** A status or verdict chip; a value we do not know renders as plain text. */
+/** A status or verdict chip; a value we do not know renders as a muted chip showing the raw text. */
 export function Chip({ text }: { text: string }) {
   const known = TONES[text];
-  return known ? <span className={`chip ${known[1]}`} data-verdict={text}>{known[0]}</span> : <span>{text}</span>;
+  return known ? <span className={`chip ${known[1]}`} data-verdict={text}>{known[0]}</span> : <span className="chip muted" data-verdict={text}>{text}</span>;
 }
 
-type Summary = { model: string; n_cases: number; mean_score: number; pass_rate: number; n_errors: number; n_calls: number; cost_usd: number };
+type Summary = { mean_score: number; pass_rate: number; n_errors: number; n_calls: number };
 type Comparison = { candidate: string; verdict: string; delta: number; ci: [number, number]; n: number };
 type Bench = { name: string; dimension: string; summaries: Record<string, Summary>; comparisons: Comparison[]; saturated: boolean; saturation_message: string | null };
 type Report = {
@@ -29,7 +29,6 @@ type Report = {
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
 const pts = (v: number) => `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`;
-
 export function ReportTable({ jobId }: { jobId: string }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -54,8 +53,8 @@ export function ReportTable({ jobId }: { jobId: string }) {
         {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       </section>
       {r.benchmarks.map((b) => (
-        <section key={b.name} className="card" aria-label={b.name}>
-          <h2>{b.name} <span className="muted">{b.dimension}</span></h2>
+        <section key={b.name} className="card" aria-labelledby={`bench-${b.name}`}>
+          <h2 id={`bench-${b.name}`}>{b.name} <span className="muted">{b.dimension}</span></h2>
           {b.saturated && <p className="note">{b.saturation_message}</p>}
           <div className="table-wrap" tabIndex={0}><table>
             <thead><tr><th>Model</th><th className="num">Score</th><th className="num">Pass rate</th><th className="num">Errors</th><th>Verdict</th><th className="num">Change vs baseline (pts)</th></tr></thead>

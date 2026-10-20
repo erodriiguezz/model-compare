@@ -12,7 +12,7 @@ export default function CompareView() {
     <main className="page">
       <h1>Compare</h1>
       <p className="muted lede">Run benchmarks and compare models side by side.</p>
-      {job ? <JobView id={job} /> : <RunForm onStart={(id) => router.push(`/compare/?job=${id}`)} />}
+      {job ? <JobView key={job} id={job} /> : <RunForm onStart={(id) => router.push(`/compare/?job=${id}`)} />}
     </main>
   );
 }

@@ -2,7 +2,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, init);
   if (!res.ok) {
     const detail = await res.json().then((b) => (typeof b?.detail === "string" ? b.detail : null)).catch(() => null);
-    throw new Error(detail ?? `${path} returned ${res.status}`);
+    throw Object.assign(new Error(detail ?? `${path} returned ${res.status}`), { status: res.status });
   }
   return res.json() as Promise<T>;
 }
@@ -20,8 +20,7 @@ export type Job = {
   id: string; targets: string[]; baseline: string | null; status: string; error: string | null; started_at: string;
   total_calls: number; done_calls: number; run_ids: number[]; runs: JobRun[]; live: Live[];
 };
-export type RunRow = { id: number; target_name: string; benchmark_name: string; status: string; n_results: number; passed: number; n_errors: number; cost_usd: number };
 
 export const TERMINAL = ["done", "cancelled", "failed", "interrupted"];
+export const vendor = (model = "") => (model.includes("/") ? model.split("/")[0] : model.split("-")[0]);
 export const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)}%` : "—");
-export const fmtTime = (s: string) => new Date(/Z|\+/.test(s) ? s : `${s}Z`).toLocaleString();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getJSON, postJSON, type Benchmark, type Estimate, type Target } from "@/lib/api";
+import { getJSON, postJSON, vendor, type Benchmark, type Estimate, type Target } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "./States";
 
 type Data = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; targets: Target[]; benches: Benchmark[] };
@@ -13,7 +13,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const [benches, setBenches] = useState<string[]>([]);
   const [baseline, setBaseline] = useState("");
   const [judge, setJudge] = useState("");
-  const [estimate, setEstimate] = useState<Estimate | { error: string } | null>(null);
+  const [estimate, setEstimate] = useState<{ key: string; value: Estimate | { error: string } } | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
 
@@ -28,8 +28,12 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
 
   const base = targets.includes(baseline) ? baseline : targets[0] ?? "";
   const needsJudge = data.status === "ready" && data.benches.some((b) => benches.includes(b.name) && b.needs_judge);
-  const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judge ? judge : undefined };
-  const ready = targets.length >= 2 && benches.length > 0;
+  // Judges: real models not under test, from a vendor not being compared when possible.
+  const judges = data.status === "ready" ? data.targets.filter((t) => t.kind !== "mock" && !targets.includes(t.name)) : [];
+  const used = new Set(data.status === "ready" ? data.targets.filter((t) => targets.includes(t.name)).map((t) => vendor(t.model)) : []);
+  const judgeName = judges.some((t) => t.name === judge) ? judge : (judges.find((t) => !used.has(vendor(t.model))) ?? judges[0])?.name ?? "";
+  const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined };
+  const ready = targets.length >= 2 && benches.length > 0 && (!needsJudge || !!judgeName);
   const key = JSON.stringify(body);
 
   useEffect(() => {
@@ -37,8 +41,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
     let live = true;
     const t = setTimeout(() => {
       postJSON<Estimate>("/runs/estimate", JSON.parse(key))
-        .then((e) => live && setEstimate(e))
-        .catch((e: Error) => live && setEstimate({ error: e.message }));
+        .then((value) => live && setEstimate({ key, value }))
+        .catch((e: Error) => live && setEstimate({ key, value: { error: e.message } }));
     }, 250);
     return () => { live = false; clearTimeout(t); };
   }, [key, ready]);
@@ -88,18 +92,18 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
         </label>
         {needsJudge && (
           <label>Judge
-            <select value={judge} onChange={(e) => setJudge(e.target.value)}>
-              <option value="">Choose a judge</option>
-              {data.targets.map((t) => <option key={t.name}>{t.name}</option>)}
+            <select value={judgeName} onChange={(e) => setJudge(e.target.value)}>
+              {!judges.length && <option value="">No judge available</option>}
+              {judges.map((t) => <option key={t.name} value={t.name}>{t.name}{used.has(vendor(t.model)) ? " (same vendor as a model under test)" : ""}</option>)}
             </select>
           </label>
         )}
       </div>
       <p className="muted" aria-live="polite" data-testid="estimate">
-        {!ready && "Pick two models and a benchmark to see an estimate."}
-        {ready && !estimate && "Estimating…"}
-        {ready && estimate && ("error" in estimate ? estimate.error
-          : `Estimate: ${estimate.total_calls} calls (${estimate.cached_calls} cached) · about $${estimate.usd.toFixed(3)} · ~${Math.max(1, Math.round(estimate.minutes))} min`)}
+        {!ready && (needsJudge && !judgeName ? "These benchmarks need a judge model that is not under test." : "Pick two models and a benchmark to see an estimate.")}
+        {ready && estimate?.key !== key && "Estimating…"}
+        {ready && estimate?.key === key && ("error" in estimate.value ? estimate.value.error
+          : `Estimate: ${estimate.value.total_calls} calls (${estimate.value.cached_calls} cached) · about $${estimate.value.usd.toFixed(3)} · ~${Math.max(1, Math.round(estimate.value.minutes))} min`)}
       </p>
       {startError && <p role="alert" className="danger">{startError}</p>}
       <div><button type="submit" className="btn" disabled={!ready || starting}>{starting ? "Starting…" : "Run comparison"}</button></div>

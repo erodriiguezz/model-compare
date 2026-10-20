@@ -29,6 +29,8 @@
   --topbar-h: 48px;
   --skeleton-h: 14px;
   --list-max-h: 280px;
+  --col-min: 260px;
+  --dur: 0.3s;
   --gutter: 16px;
   --content-max: 1120px;
   --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -98,12 +100,12 @@ td .muted, td.num .muted { font-size: var(--text-xs); }
 .note { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--warning); color: var(--warning); }
 .warnings { margin: var(--space-3) 0 0; padding-left: var(--space-4); color: var(--warning); }
 .bar { height: var(--space-2); background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-.bar > div { height: 100%; background: var(--accent); transition: width 0.3s; }
+.bar > div { height: 100%; background: var(--accent); transition: width var(--dur); }
 .btn.secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 .form { display: flex; flex-direction: column; gap: var(--space-4); }
 .form > * + * { margin-top: 0; }
-.form-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); }
+.form-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--col-min), 1fr)); gap: var(--space-4); }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 legend { font-weight: 600; margin-bottom: var(--space-2); padding: 0; }
 .check input { width: var(--space-4); height: var(--space-4); }
