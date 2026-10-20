@@ -40,9 +40,9 @@ test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights t
   await page.goto(JOB);
   const scatter = page.locator('[data-chart="cost-scatter"]');
   await expect(scatter).toBeVisible();
-  await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /quality .* \$ per 1k tasks/i);
+  await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /pass rate .* \$ per 1k tasks/i);
   await expect(scatter).toContainText('$ per 1k tasks');
-  await expect(scatter).toContainText('Quality');
+  await expect(scatter).toContainText('Overall pass rate');
   const front = await scatter.locator('.sr-only tbody tr[data-pareto="true"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
   const rest = await scatter.locator('.sr-only tbody tr[data-pareto="false"]').evaluateAll((rows) => rows.map((r) => r.getAttribute('data-target')).sort());
   expect(front).toEqual(['qa-better', 'qa-tie', 'qa-worse']);
@@ -56,4 +56,25 @@ test('[AC-7.3] the scatter fits a 390px screen', async ({ page }) => {
   await page.goto(JOB);
   await expect(page.locator('[data-chart="cost-scatter"]')).toBeVisible();
   expect(await noPageScroll(page)).toBe(true);
+});
+
+test('[AC-7.3] an incomplete model is never on the Pareto front and is marked incomplete', async ({ page }) => {
+  await page.goto('/compare/?job=qa-incomplete');
+  const scatter = page.locator('[data-chart="cost-scatter"]');
+  await expect(scatter).toBeVisible();
+  const flaky = scatter.locator('.sr-only tbody tr[data-target="qa-flaky"]');
+  await expect(flaky).toHaveAttribute('data-pareto', 'false');
+  await expect(flaky).toHaveAttribute('data-incomplete', 'true');
+  await expect(flaky).toContainText('Incomplete');
+  await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /qa-flaky .*incomplete/);
+  await expect(scatter.locator('.recharts-wrapper')).toContainText('qa-flaky (incomplete)');
+});
+
+test('[AC-7.1] an incomplete bar is flagged and has no whisker', async ({ page }) => {
+  await page.goto('/compare/?job=qa-incomplete');
+  const chart = page.locator('[data-chart="ranked-bars"]');
+  await expect(chart).toHaveCount(1);
+  await expect(chart.locator('.sr-only tbody tr', { hasText: 'qa-flaky' })).toContainText('Incomplete');
+  await expect(chart.locator('.recharts-wrapper')).toContainText('qa-flaky (incomplete)');
+  await expect(chart.locator('.recharts-errorBar')).toHaveCount(1); // the baseline only
 });

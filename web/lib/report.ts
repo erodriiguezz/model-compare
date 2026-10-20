@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-export type DimTarget = { quality: number; quality_ci: [number, number]; cost_per_1k_tasks: number; vendor: string };
+export type DimTarget = { quality: number; quality_ci: [number, number]; vendor: string; incomplete: boolean };
 export type Dimension = { label: string; n_cases: number; targets: Record<string, DimTarget> };
-export type Marker = { task_success: number; cost_per_1k_tasks: number };
+export type Marker = { task_success: number; cost_per_1k_tasks: number; incomplete: boolean };
 
 /** Provider colour tokens, keyed by the vendor prefix of the model id. */
 const PROVIDER_TOKEN: Record<string, string> = { openai: "openai", anthropic: "anthropic", google: "google", gemini: "google", vertex_ai: "google" };
@@ -27,9 +27,10 @@ const noSubscription = () => () => {};
 /** Recharts cannot read CSS variables, so resolve the design tokens once on the client (null while prerendering). */
 export const useChartColors = (): ChartColors | null => useSyncExternalStore(noSubscription, readColors, () => null);
 
-/** Targets not dominated on (quality up, cost down). Equal points do not dominate each other. */
-export function paretoFront<T extends { quality: number; cost: number }>(points: T[]): T[] {
-  return points
-    .filter((p) => !points.some((q) => q.quality >= p.quality && q.cost <= p.cost && (q.quality > p.quality || q.cost < p.cost)))
+/** Complete targets not dominated on (quality up, cost down), on raw values. Incomplete ones neither join nor dominate. */
+export function paretoFront<T extends { quality: number; cost: number; incomplete?: boolean }>(points: T[]): T[] {
+  const ok = points.filter((p) => !p.incomplete);
+  return ok
+    .filter((p) => !ok.some((q) => q.quality >= p.quality && q.cost <= p.cost && (q.quality > p.quality || q.cost < p.cost)))
     .sort((a, b) => a.cost - b.cost);
 }
