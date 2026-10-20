@@ -33,6 +33,7 @@
   --tap: 24px;
   --bar-h: 64px;
   --chart-h: 320px;
+  --chip-col: 120px;
   --field-w: 140px;
   --dur: 0.3s;
   --gutter: 16px;
@@ -185,8 +186,9 @@ html { scroll-padding-bottom: var(--bar-h); }
 
 /* Report panels */
 .suggestions { margin: var(--space-3) 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
-.suggestions li { display: flex; gap: var(--space-3); align-items: baseline; }
-.suggestions .chip { flex: none; min-width: 7ch; text-align: center; }
+.suggestions li { display: grid; grid-template-columns: var(--chip-col) 1fr; gap: var(--space-3); align-items: baseline; }
+.suggestions .chip { justify-self: start; }
+@media (max-width: 480px) { .suggestions li { grid-template-columns: 1fr; gap: var(--space-1); } }
 .suggestions li > div > * + * { margin-top: 0; }
 .regressions { margin: var(--space-3) 0; padding-left: var(--space-4); }
 .details > summary { cursor: pointer; font-weight: 600; padding: var(--space-2) 0; min-height: var(--tap); }
