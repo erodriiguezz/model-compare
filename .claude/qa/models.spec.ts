@@ -129,7 +129,7 @@ test('[AC-6.4] a provider that fails shows its error with a retry that refetches
 });
 
 test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ page }) => {
-  const dir = join(process.cwd(), '.claude/artifacts/screenshots/6');
+  const dir = join(process.env.SDLC_OUT_DIR ?? '.', '..', 'screenshots', '6');
   mkdirSync(dir, { recursive: true });
   for (const w of [1280, 390]) {
     await page.setViewportSize({ width: w, height: 900 });
