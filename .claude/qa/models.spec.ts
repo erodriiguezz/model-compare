@@ -33,9 +33,11 @@ test('[AC-6.1] providers are listed, expand to models with price and context, an
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-  const anthropic = group(page, 'anthropic');
-  await expect(anthropic.locator('.chip')).toHaveText('no key');
-  await anthropic.getByRole('link', { name: 'Add key' }).click();
+  const nokey = group(page, 'no-key');
+  await expect(nokey).toContainText('Anthropic');
+  await expect(nokey).toContainText('Together AI');
+  await expect(group(page, 'anthropic')).toHaveCount(0);
+  await nokey.getByRole('link', { name: 'Add keys' }).click();
   await expect(page).toHaveURL(/\/settings\/$/);
 });
 
@@ -127,6 +129,73 @@ test('[AC-6.4] a provider that fails shows its error with a retry that refetches
   await openai.getByRole('button', { name: 'Retry' }).click();
   await expect(openai.locator('.chip')).toHaveText('key set');
   expect(urls[1]).toContain('refresh=1');
+});
+
+const status = (rows: object[]) => (page: Page) => page.route('**/api/targets/status', (route) => route.fulfill({ json: rows }));
+const yaml = [{ name: 'mock-a', model: 'mock/a', kind: 'mock', keys_ok: true }, { name: 'nokey', model: 'openai/x', kind: 'litellm', keys_ok: false, missing_keys: ['X_KEY'] }];
+
+test('[AC-6.1] disclosure buttons control their list and searching shows a plain header', async ({ page }) => {
+  await page.goto('/models/');
+  const toggle = group(page, 'openai').getByRole('button', { name: /OpenAI/ });
+  await expect(toggle).toHaveAttribute('aria-controls', 'openai-models');
+  await toggle.click();
+  await expect(page.locator('#openai-models')).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Search models' }).fill('gpt');
+  await expect(group(page, 'openai').getByRole('button')).toHaveCount(0);
+});
+
+test('[AC-6.1] the pass rate sums the latest done run per model and benchmark', async ({ page }) => {
+  const run = (id: number, benchmark_name: string, status: string, passed: number) => ({ id, target_name: 'mock-a', benchmark_name, status, n_results: 10, passed, n_errors: 0, cost_usd: 0 });
+  await page.route('**/api/runs', (route) => route.fulfill({ json: [run(1, 'b1', 'done', 10), run(2, 'b1', 'done', 0), run(3, 'b2', 'budget_exceeded', 5), run(4, 'b3', 'failed', 10)] }));
+  await page.goto('/models/');
+  await expect(page.locator('li', { has: model(page, 'mock-a') })).toContainText('25%');
+});
+
+test('[AC-6.2] selection: unknown and keyless ids are dropped once loaded, and Clear empties it', async ({ page }) => {
+  await status(yaml)(page);
+  await page.goto('/models/?sel=mock-a,nokey,ghost%2Fid');
+  await expect(page.getByTestId('selection-bar')).toContainText('1 selected');
+  await expect(page.getByRole('status').filter({ hasText: 'selected' })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await expect(page.getByTestId('selection-bar')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/models\/$/);
+});
+
+test('[AC-6.4] a failed retry says so inline', async ({ page }) => {
+  let n = 0;
+  await page.route('**/api/models*', (route) => (++n === 1
+    ? route.fulfill({ json: { ...none, providers: [{ provider: 'openai', var: 'X', key_ok: false, error: 'HTTP 500', models: [] }] } }) : route.abort()));
+  await page.goto('/models/');
+  await group(page, 'openai').getByRole('button', { name: 'Retry' }).click();
+  await expect(group(page, 'openai')).toContainText('Retry failed');
+});
+
+test('[AC-6.2] From Models rows show key status, can be unchecked, and keyless yaml targets are dropped', async ({ page }) => {
+  await status(yaml)(page);
+  const t = encodeURIComponent('mock-a,nokey,openai/gpt-4o-mini,anthropic/claude-x,zz/nothing');
+  await page.goto(`/compare/?targets=${t}`);
+  const from = page.getByRole('group', { name: 'From Models' });
+  await expect(from.getByRole('checkbox', { name: /^openai\/gpt-4o-mini/ })).toBeChecked();
+  await expect(from.getByRole('checkbox', { name: /^anthropic\/claude-x/ })).toBeDisabled();
+  await expect(from.getByRole('checkbox', { name: /^anthropic\/claude-x/ })).not.toBeChecked();
+  await expect(from).toContainText('no key (ANTHROPIC_API_KEY)');
+  await expect(from).toContainText('not in catalog');
+  await expect(page.getByRole('checkbox', { name: /^nokey\b/ })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^mock-a\b/ })).toBeChecked();
+  await from.getByRole('checkbox', { name: /^openai\/gpt-4o-mini/ }).uncheck();
+  await expect(from.getByRole('checkbox', { name: /^openai\/gpt-4o-mini/ })).not.toBeChecked();
+});
+
+test('[AC-6.2] an unpriced model forces the cost confirmation (nothing runs)', async ({ page }) => {
+  await page.route('**/api/runs/estimate', (route) => route.fulfill({ json: { usd: 0, judge_usd: 0, total_calls: 15, cached_calls: 0, minutes: 1, unpriced: ['openai/gpt-4o-mini'] } }));
+  let started = false;
+  await page.route('**/api/runs', (route) => { if (route.request().method() === 'POST') started = true; return route.fulfill({ json: [] }); });
+  await page.goto('/compare/?targets=openai%2Fgpt-4o-mini');
+  await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  const confirm = page.getByRole('group', { name: 'Confirm cost' });
+  await expect(confirm).toContainText("cost unknown for openai/gpt-4o-mini \u2014 the budget cap can't be enforced for them");
+  expect(started).toBe(false);
 });
 
 test('[AC-6.1] screenshots: collapsed, expanded, no-key row, search', async ({ page }) => {

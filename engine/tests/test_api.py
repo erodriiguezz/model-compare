@@ -207,3 +207,19 @@ def test_catalog_price_feeds_the_estimate(client, monkeypatch, tmp_path):
     res = client.post("/runs/estimate", json={"targets": ["togetherai/zz/unknown"], "benchmarks": [client.bench_file]})
     assert res.status_code == 200 and res.json()["usd"] > 0
     catalog._cache.clear()
+
+
+def test_estimate_lists_targets_with_unknown_price(client, monkeypatch, tmp_path):
+    """A paid model with no known price must be flagged so the UI can force the cost confirmation."""
+    fixtures = tmp_path / "fx"
+    fixtures.mkdir()
+    (fixtures / "groq.json").write_text(json.dumps({"data": [{"id": "zz-unknown-model", "context_window": 8192}]}))
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(fixtures))
+    monkeypatch.setenv("GROQ_API_KEY", "gq-fake-0001")
+    from modelcompare import catalog
+    catalog._cache.clear()
+    base = {"benchmarks": [client.bench_file]}
+    out = client.post("/runs/estimate", json={**base, "targets": ["groq/zz-unknown-model", "good"]}).json()
+    assert out["unpriced"] == ["groq/zz-unknown-model"]  # the mock target is free, not unpriced
+    assert client.post("/runs/estimate", json={**base, "targets": ["good"]}).json()["unpriced"] == []
+    catalog._cache.clear()
