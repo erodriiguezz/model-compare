@@ -70,6 +70,17 @@ def price_per_million(target: TargetConfig) -> tuple[float, float]:
     return price_in or 0.0, price_out or 0.0
 
 
+def price_unknown(target: TargetConfig) -> bool:
+    """True when a paid target has no known price (neither explicit nor in LiteLLM), so estimates read $0."""
+    if target.kind == "mock" or (target.pricing.input is not None and target.pricing.output is not None):
+        return False
+    from modelcompare.targets.litellm_target import model_metadata
+
+    meta = model_metadata(target.model)
+    return (target.pricing.input is None and meta.get("input_cost_per_token") is None) or (
+        target.pricing.output is None and meta.get("output_cost_per_token") is None)
+
+
 def estimate_cost(target: TargetConfig, bench: Benchmark) -> float:
     """Rough pre-run USD estimate (chars/4 tokens in, fixed assumption out)."""
     price_in, price_out = price_per_million(target)

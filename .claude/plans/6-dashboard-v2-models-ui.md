@@ -2,7 +2,7 @@
 issue: 6
 title: Models page
 branch: feat/dashboard-v2-redesign-p6-models-ui
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -57,5 +57,13 @@ See `mvp-dashboard-v2.md` §2.
 - AC-6.1–AC-6.4 `.claude/qa/models.spec.ts`
 
 ## 5. Evidence
+- QA: passed on `c8dda4e` (verify, app, api, browser, screenshots, UI audit 0 serious, AC-6.1–6.4 covered). Diff coverage: not measured.
+- AC table and screens: `docs/reviews/6.md`.
+- Reviewer: round 1 Request changes (1 High), all fixed. The lead verified the fixes.
+- Lines: 299 counted (235 test lines not counted), including a small engine addition (`unpriced` in the estimate).
+
 ## 6. Retro
+- The cost gate assumed every model has a price, and the catalog broke that assumption. Plans that add a new source of targets should re-check every place that assumes "price known".
+- The builder left background work running and stopped responding after its fixes, so the lead had to stop it. Builders should finish with no background processes.
+- During cleanup the lead ran `pgrep -fl`, which printed another profile's process environment, tokens included, into the transcript. Process inspection should never print command lines or environments. Proposal: add `pgrep -fl` and `ps eww` to the secret-guard deny patterns.
 ## 7. Hand-off

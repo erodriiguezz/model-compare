@@ -13,7 +13,7 @@ export const postJSON = <T,>(path: string, body?: unknown) =>
 
 export type Target = { name: string; model?: string; kind?: string; keys_ok?: boolean; missing_keys?: string[] };
 export type Benchmark = { name: string; dimension: string; capability: string; cases: number; needs_judge: boolean };
-export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number };
+export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number; unpriced?: string[] };
 export type Live = { target: string; benchmark: string; done: number; total: number; passed: number; errors: number };
 export type JobRun = { run_id: number; status: string; cost_usd: number; target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
 export type Job = {
@@ -33,3 +33,9 @@ const send = <T,>(method: string, path: string, body?: unknown) =>
   request<T>(path, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 export const putJSON = <T,>(path: string, body: unknown) => send<T>("PUT", path, body);
 export const deleteJSON = <T,>(path: string) => send<T>("DELETE", path);
+
+export type CatalogModel = { id: string; target: string; name?: string | null; context?: number | null; price_in?: number | null; price_out?: number | null };
+export type CatalogProvider = { provider: string; var: string; key_ok: boolean; reason?: string; error?: string; models: CatalogModel[] };
+export type Catalog = { providers: CatalogProvider[]; cached_at: string };
+export const ctxLabel = (n?: number | null) => (!n ? "—" : n >= 1e6 ? `${+(n / 1e6).toFixed(1)}M` : `${Math.round(n / 1000)}k`);
+export const priceLabel = (v?: number | null) => (v == null ? "—" : `$${v.toFixed(2)}`);

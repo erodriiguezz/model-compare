@@ -23,7 +23,7 @@ from modelcompare import catalog, keys
 from modelcompare.html_report import render_html
 from modelcompare.recommend import load_profiles
 from modelcompare.report import build_report, latest_runs, runs_by_ids
-from modelcompare.runner import benchmarks_needing_judge, build_messages, cache_key, estimate_cost, run_benchmark
+from modelcompare.runner import benchmarks_needing_judge, build_messages, cache_key, estimate_cost, price_unknown, run_benchmark
 from modelcompare.schema import Benchmark, TargetConfig, load_targets, resolve_target
 from modelcompare.summary import capability
 
@@ -189,6 +189,7 @@ def estimate(req: RunRequest):
     return {
         "usd": usd + judge_usd,
         "judge_usd": judge_usd,
+        "unpriced": [t for t in dict.fromkeys([*req.targets, *([req.judge] if judged and req.judge else [])]) if price_unknown(all_t[t])],
         "total_calls": total,
         "cached_calls": cached,
         "minutes": per_target * ASSUMED_LATENCY_S / max(req.concurrency, 1) / 60,
