@@ -10,12 +10,12 @@ export default function ModelRow({ id, context, priceIn, priceOut, score, checke
         <input type="checkbox" checked={checked} disabled={disabled} onChange={onToggle} />
         <span className="model-id">
           {id}
-          <span className="muted show-sm"> {note ?? `${context} ctx · ${priceIn} in · ${priceOut} out`}</span>
+          {note ? <span className="muted"> {note}</span> : <span className="muted show-sm"> {context} ctx · {priceIn} in · {priceOut} out</span>}
         </span>
       </label>
-      <span className="num hide-sm">{note ?? context}</span>
-      <span className="num hide-sm">{note ? "" : priceIn}</span>
-      <span className="num hide-sm">{note ? "" : priceOut}</span>
+      <span className="num hide-sm">{context}</span>
+      <span className="num hide-sm">{priceIn}</span>
+      <span className="num hide-sm">{priceOut}</span>
       <span className="num">{score}</span>
     </li>
   );

@@ -12,7 +12,7 @@ export default function ProviderRow({ id, label, token, chip, count, open, onTog
       <span className="provider-dot" style={{ background: `var(--provider-${token})` }} aria-hidden="true" />
       <span className="provider-name">{label}</span>
       {chip}
-      <span className="muted">{count} {count === 1 ? "model" : "models"}</span>
+      {count > 0 && <span className="muted">{count} {count === 1 ? "model" : "models"}</span>}
     </>
   );
   return (
