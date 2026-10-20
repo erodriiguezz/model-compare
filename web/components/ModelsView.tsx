@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { ctxLabel, getJSON, pct, priceLabel, type Catalog, type RunRow, type Target } from "@/lib/api";
 import ModelRow from "./ModelRow";
 import ProviderRow from "./ProviderRow";
@@ -22,9 +22,8 @@ function latestScores(runs: RunRow[]) {
 }
 
 export default function ModelsView() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const selected = useMemo(() => (params.get("sel") ?? "").split(",").filter(Boolean), [params]);
+  const initial = useSearchParams().get("sel");
+  const [selected, setSelected] = useState<string[]>(() => (initial ?? "").split(",").filter(Boolean));
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [open, setOpen] = useState<Set<string>>(new Set(["configured"]));
@@ -42,7 +41,9 @@ export default function ModelsView() {
 
   const toggleSel = (id: string) => {
     const next = selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id];
-    router.replace(next.length ? `/models/?sel=${encodeURIComponent(next.join(","))}` : "/models/", { scroll: false });
+    setSelected(next);
+    // The URL mirrors the selection so it survives a reload; no navigation needed.
+    window.history.replaceState(null, "", next.length ? `/models/?sel=${encodeURIComponent(next.join(","))}` : "/models/");
   };
   const toggleOpen = (id: string) => setOpen((o) => { const n = new Set(o); if (!n.delete(id)) n.add(id); return n; });
 
@@ -95,10 +96,9 @@ function Tree({ data, selected, open, query, setQuery, onSel, onOpen, onRetry }:
 
   return (
     <>
-      <label className="search">
-        <span className="sr-only">Search models</span>
-        <input type="search" placeholder="Search models by id" value={query} onChange={(e) => setQuery(e.target.value)} />
-      </label>
+      <div className="search">
+        <input type="search" aria-label="Search models" placeholder="Search models by id" value={query} onChange={(e) => setQuery(e.target.value)} />
+      </div>
       {!groups.length && <Empty title="No models match">Nothing matches &ldquo;{query}&rdquo;. Try a shorter id.</Empty>}
       {groups.length > 0 && (
         <div className="model-head muted small" aria-hidden="true">
