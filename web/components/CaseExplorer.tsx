@@ -53,7 +53,7 @@ export default function CaseExplorer({ runs }: { runs: JobRun[] }) {
       <h2 id="cases-h">Case explorer</h2>
       <p className="muted">Every run in this comparison. Open one to see each task: the model&apos;s output, its score and why.</p>
       <div className="table-wrap" tabIndex={0}><table>
-        <thead><tr><th>Model</th><th>Benchmark</th><th className="num">Passed</th><th className="num">Errors</th><th className="num">Cost</th><th>Status</th><th><span className="sr-only">Cases</span></th></tr></thead>
+        <thead><tr><th>Model</th><th>Benchmark</th><th className="num">Passed</th><th className="num">Errors</th><th className="num">Cost</th><th>Status</th><th>Cases</th></tr></thead>
         <tbody>{runs.map((r) => (
           <tr key={r.run_id}>
             <td>{r.target}</td><td>{r.benchmark}</td><td className="num">{r.passed}/{r.n_results} <span className="muted">{pct(r.passed, r.n_results)}</span></td>

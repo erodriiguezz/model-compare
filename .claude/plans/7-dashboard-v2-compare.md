@@ -2,7 +2,7 @@
 issue: 7
 title: Compare page and suggestions
 branch: feat/dashboard-v2-redesign-p7-compare
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -54,12 +54,23 @@ touches_api: true
 | 7b | `feat/dashboard-v2-redesign-p7b-charts` | ranked bars with CI whiskers, quality-vs-cost scatter with Pareto front | AC-7.1, AC-7.3 |
 | 7c | `feat/dashboard-v2-redesign-p7c-panels` | verdict matrix, suggestions panel, regressions, page states | AC-7.2, AC-7.4, AC-7.5 |
 
+**Delivery notes**
+- The report composer is `web/components/ReportTable.tsx` (it fetches the report and lays out the panels); `JobView` shows it for `/compare/?job=` and `/history/?job=`.
+- The old per-benchmark tables are kept, collapsed under "Details"; flows that read them open Details first.
+- Suggestion kinds beyond the plan: `tradeoff` (better somewhere, worse elsewhere) and `too_small` (needed cases above 500).
+- `insufficient_data` is shown as "Inconclusive" in the matrix, with "n<10" instead of a point change.
+- Incomplete models (error rate above 10%) are hatched in the bars and kept off the Pareto front.
+- A finished job collapses its progress table to a one-line summary ("Show progress" opens it).
+- The empty state shows on `/compare/` (no `?job`) when `GET /api/runs?limit=1` returns no run.
+
 **Out of scope:** exporting charts, dark mode.
 
 **Context:** `product.md` — dashboard row — the Compare page shows the verdict matrix + suggestions.
 
 ### Screens
-- /compare — the report with all panels; incomplete state; empty state
+- /compare/?job=qa-every-verdict — the report with all panels
+- /compare/?job=qa-incomplete — incomplete-only report
+- /compare — run form and the empty state
 
 ## 2. Grill
 See `mvp-dashboard-v2.md` §2.
@@ -71,5 +82,13 @@ See `mvp-dashboard-v2.md` §2.
 - QA seed `engine/scripts/seed_qa.py` — mock runs producing every verdict
 
 ## 5. Evidence
+- QA (top of the stack, 7c): passed on `61423c8`. Verify, app, API smoke, 73 browser tests, screenshots, and the UI audit of the report screens (0 serious, 0 minor). AC-7.1–7.5 covered. 7a and 7b green except the later-part ACs.
+- AC table and screens: `docs/reviews/7.md`.
+- Reviewer: round 1 Request changes (3 High), all fixed.
+- Lines: 254 + 192 + 219 counted across 3 PRs.
+
 ## 6. Retro
+- The Screens list named only `/compare`, so the audit skipped the report itself. Screens should list the exact URLs, query strings included, that show each state.
+- The data behind the charts (errors excluded) quietly contradicted the matrix. Any visual that ranks models must respect the incomplete flag; this should be a standing review item.
+- A rate limit stopped the builder mid-part. Resuming the same agent worked cleanly because each part was committed as it went.
 ## 7. Hand-off

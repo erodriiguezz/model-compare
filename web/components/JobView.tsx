@@ -15,6 +15,7 @@ export default function JobView({ id }: { id: string }) {
   const [attempt, setAttempt] = useState(0);
   const [stopping, setStopping] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -58,6 +59,8 @@ export default function JobView({ id }: { id: string }) {
   ];
   const done = rows.reduce((n, r) => n + r.done, 0);
   const errs = rows.reduce((n, r) => n + r.errors, 0);
+  const dims = new Set(job.runs.map((r) => r.dimension));
+  const capabilities = dims.has(undefined) ? job.benchmarks.length : dims.size;
   const firstError = job.runs.find((r) => r.first_error)?.first_error;
 
   return (
@@ -70,14 +73,21 @@ export default function JobView({ id }: { id: string }) {
         <div className="bar" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
           <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
         </div>
-        <p className="muted">{job.done_calls}/{job.total_calls} calls · {job.targets.join(", ")}</p>
+        {active
+          ? <p className="muted">{job.done_calls}/{job.total_calls} calls · {job.targets.join(", ")}</p>
+          : (
+            <p className="muted" data-job-summary>
+              {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
+              <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
+            </p>
+          )}
         {state.retrying && <p className="muted" role="status">Reconnecting…</p>}
         {job.error && <p role="alert" className="danger">{job.error}</p>}
         {cancelError && <p role="alert" className="danger">{cancelError}</p>}
         {done >= 30 && errs / done > 0.2 && (
           <p className="danger">{pct(errs, done)} of calls are failing, so scores will be meaningless.{firstError && <> First error: <code>{firstError.slice(0, 200)}</code></>} Consider stopping.</p>
         )}
-        {rows.length > 0 && (
+        {rows.length > 0 && (active || showProgress) && (
           <div className="table-wrap" tabIndex={0}><table>
             <thead><tr><th>Model</th><th>Benchmark</th><th className="num">Progress</th><th className="num">Passed</th><th className="num">Errors</th></tr></thead>
             <tbody>{rows.map((r) => (
@@ -86,7 +96,7 @@ export default function JobView({ id }: { id: string }) {
           </table></div>
         )}
       </section>
-      {!active && (job.run_ids.length ? <><ReportTable jobId={job.id} /><CaseExplorer runs={job.runs} /></> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
+      {!active && (job.run_ids.length ? <ReportTable jobId={job.id}><CaseExplorer runs={job.runs} /></ReportTable> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
     </>
   );
 }

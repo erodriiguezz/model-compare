@@ -1,0 +1,67 @@
+{
+  "issue": 7,
+  "title": "Compare page and suggestions",
+  "branch": "feat/dashboard-v2-redesign-p7c-panels",
+  "commit": "61423c88df94c634638e86d2ca3ceb012546b4d7",
+  "plan": ".claude/plans/7-dashboard-v2-compare.md",
+  "size": "L",
+  "touchesApi": true,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "61423c88df94c634638e86d2ca3ceb012546b4d7",
+    "at": "2026-10-21T00:15:57.352Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-7.1",
+        "tests": 3
+      },
+      {
+        "id": "AC-7.2",
+        "tests": 2
+      },
+      {
+        "id": "AC-7.3",
+        "tests": 3
+      },
+      {
+        "id": "AC-7.4",
+        "tests": 2
+      },
+      {
+        "id": "AC-7.5",
+        "tests": 7
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (3 High) → all fixed; approve",
+    "document": "docs/reviews/7.md"
+  },
+  "cost": {
+    "estTokens": 350000,
+    "actualTokens": 92345297,
+    "toolCalls": 82,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-21T00:16:58.509Z"
+}

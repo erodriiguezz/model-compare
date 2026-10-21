@@ -15,7 +15,7 @@ export type Target = { name: string; model?: string; kind?: string; keys_ok?: bo
 export type Benchmark = { name: string; dimension: string; capability: string; cases: number; needs_judge: boolean };
 export type Estimate = { usd: number; total_calls: number; cached_calls: number; minutes: number; unpriced?: string[] };
 export type Live = { target: string; benchmark: string; done: number; total: number; passed: number; errors: number };
-export type JobRun = { run_id: number; status: string; cost_usd: number; target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
+export type JobRun = { run_id: number; dimension?: string; status: string; cost_usd: number; target: string; benchmark: string; passed: number; n_results: number; n_errors: number; first_error: string | null };
 export type Job = {
   id: string; targets: string[]; baseline: string | null; status: string; error: string | null; started_at: string; benchmarks: string[];
   total_calls: number; done_calls: number; run_ids: number[]; runs: JobRun[]; live: Live[];
