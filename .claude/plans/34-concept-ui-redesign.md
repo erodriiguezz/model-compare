@@ -165,8 +165,7 @@ none
 
 ### Screens
 - /compare/ — Choose
-- /compare/?job=<running> — Run
-- /compare/?job=<done> — Report
+- /compare/?job=qa-every-verdict — Report (seeded by scripts/seed_qa.py; the Run screen is captured by concept-ui.spec.ts with a mocked running job)
 - /history/ — History
 - /projects/ — Projects list
 - /projects/edit/?slug=<slug> and ?new=1 — Project editor (and the draft dialog)

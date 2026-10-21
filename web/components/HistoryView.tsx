@@ -45,7 +45,7 @@ function Past() {
     if (state.status !== "ready") return [];
     const q = query.trim().toLowerCase();
     return state.jobs.filter((j) =>
-      (filter === "all" || (filter === "done") === (j.status === "done")) &&
+      (filter === "all" || (filter === "done" ? j.status === "done" : j.status in OUTCOME && j.status !== "done")) &&
       (!q || [...j.targets, ...j.benchmarks].some((x) => x.toLowerCase().includes(q))));
   }, [state, filter, query]);
 
