@@ -10,25 +10,26 @@ const matrix = (page: Page) => page.getByRole('region', { name: 'Verdict matrix'
 const suggestions = (page: Page) => page.getByRole('region', { name: 'Suggestions' });
 
 test.afterEach(async ({ request }) => {
-  await request.delete('/api/settings/keys/openai');
-  await request.delete('/api/projects/qa-drafted');
+  await request.delete('/api/settings/keys/gemini');
+  await request.delete('/api/projects/qa-e2e-drafted');
   await request.delete('/api/projects/qa-nine-shot');
 });
 
+// Gemini, not OpenAI: models.spec owns the OpenAI key and the two files run in parallel workers.
 test('[AC-9.5] Settings key (masked) -> Models lists that provider -> select mock models -> run -> verdict and suggestions', async ({ page }) => {
   await page.goto('/settings/');
-  const row = page.locator('[data-provider="openai"]');
+  const row = page.locator('[data-provider="gemini"]');
   await row.getByRole('button', { name: 'Add' }).click();
-  await row.getByLabel('OpenAI API key').fill(FAKE);
+  await row.getByLabel('Gemini API key').fill(FAKE);
   await row.getByRole('button', { name: 'Save' }).click();
   await expect(row.locator('.chip')).toHaveText('set');
   await expect(row.locator('.key-mask')).toHaveText('sk-…a1b2');
   expect(await page.content()).not.toContain(FAKE);
 
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Models' }).click();
-  const openai = page.locator('[data-group="openai"]');
-  await openai.getByRole('button', { name: /openai/i }).click();
-  await expect(openai.getByRole('checkbox', { name: /^openai\/gpt-4o-mini\b/ })).toBeVisible(); // recorded catalog fixture
+  const gemini = page.locator('[data-group="gemini"]');
+  await gemini.getByRole('button', { name: /gemini/i }).click();
+  await expect(gemini.getByRole('checkbox', { name: /^gemini\/gemini-2.0-flash\b/ })).toBeVisible(); // recorded catalog fixture
 
   await page.getByRole('checkbox', { name: /^mock-a(\s|$)/ }).check();
   await page.getByRole('checkbox', { name: /^mock-b(\s|$)/ }).check();
@@ -50,22 +51,23 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
   await dialog.getByLabel('Examples').fill('Capital of Spain? => Madrid');
   await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
   await expect(page.getByText('Unsaved draft')).toBeVisible();
+  await page.getByLabel('Name', { exact: true }).fill('qa-e2e-drafted'); // projects.spec saves the mock's own name in parallel
   await page.getByLabel('Case 1 expected').fill('Paris');
   await page.getByRole('button', { name: 'Save project' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
-  expect((await (await request.get('/api/projects/qa-drafted')).json()).cases[0].expected).toBe('Paris');
+  expect((await (await request.get('/api/projects/qa-e2e-drafted')).json()).cases[0].expected).toBe('Paris');
 
   await page.getByRole('button', { name: 'Run on selected models' }).click();
   const run = page.getByRole('dialog', { name: 'Run on selected models' });
   await run.getByRole('checkbox', { name: /^mock-a\b/ }).check();
   await run.getByRole('checkbox', { name: /^mock-b\b/ }).check();
   await run.getByRole('button', { name: 'Open Compare' }).click();
-  await expect(page.getByRole('checkbox', { name: /^qa-drafted\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^qa-e2e-drafted\b/ })).toBeChecked();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   await expect(matrix(page)).toBeVisible({ timeout: 30_000 });
   await expect(suggestions(page)).toBeVisible();
-  await expect(page.getByText('qa-drafted').first()).toBeVisible();
+  await expect(page.getByText('qa-e2e-drafted').first()).toBeVisible();
 });
 
 // Each page of the plan's Screens list, with how to force and recognise every state.
