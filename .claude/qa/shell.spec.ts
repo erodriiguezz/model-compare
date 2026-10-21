@@ -19,7 +19,7 @@ for (const vp of VIEWPORTS) {
       for (const label of ['Compare', 'Models', 'Projects', 'Settings']) await expect(nav.getByRole('link', { name: label })).toBeVisible();
       await expect(nav.locator('[aria-current="page"]')).toHaveText(active);
       await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
-      expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim())).toBe('#f7f7f5');
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim())).toBe('#f6f6f7');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       if (vp.width === 390) {
         const left = await page.locator('h1').evaluate((el) => el.getBoundingClientRect().left);
