@@ -10,9 +10,11 @@ type Data = { status: "loading" } | { status: "error"; message: string } | { sta
 export default function RunForm({ onStart }: { onStart: (jobId: string) => void }) {
   const [data, setData] = useState<Data>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const fromUrl = useSearchParams().get("targets");
+  const params = useSearchParams();
+  const fromUrl = params.get("targets");
+  const benchesFromUrl = params.getAll("benchmarks"); // one param per name: names may contain commas
   const [targets, setTargets] = useState<string[]>(() => (fromUrl ?? "").split(",").filter(Boolean));
-  const [benches, setBenches] = useState<string[]>([]);
+  const [benches, setBenches] = useState<string[]>(benchesFromUrl);
   const [baseline, setBaseline] = useState("");
   const [judge, setJudge] = useState("");
   const [opts, setOpts] = useState({ repeats: "", concurrency: "8", budget: "", cache: true });
@@ -30,6 +32,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
         const noKey = new Set(catalog?.providers.filter((p) => p.reason === "no key").map((p) => p.provider));
         const unusable = (n: string) => { const y = t.find((x) => x.name === n); return y ? y.keys_ok === false : noKey.has(n.split("/")[0]); };
         setTargets((cur) => cur.filter((n) => !unusable(n)));
+        const known = new Set(b.map((x) => x.name));
+        setBenches((cur) => cur.flatMap((v) => (known.has(v) ? [v] : v.split(","))).filter((n) => known.has(n))); // an old "a,b" link still works
         setData({ status: "ready", targets: t, benches: b, catalog });
       })
       .catch((e: Error) => live && setData({ status: "error", message: `Could not load targets and benchmarks (${e.message}).` }));

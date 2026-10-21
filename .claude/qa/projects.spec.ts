@@ -301,3 +301,178 @@ test('[AC-9.2] twelve or more cases stay scannable: a compact table, one expande
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'editor-many-390');
 });
+
+const draftWith = async (page: Page, model = 'mock-drafter') => {
+  await page.getByRole('button', { name: 'Draft with AI' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Model').selectOption(model);
+  await dialog.getByLabel('Describe the project').fill('Capital cities of Europe');
+  await dialog.getByLabel('Examples').fill('Capital of Spain? => Madrid\nCapital of Italy? => Rome');
+  return dialog;
+};
+
+test('[AC-9.3] Draft fills the editor unsaved with a cost banner, and every field is editable before saving', async ({ page, request }) => {
+  made.push('qa-drafted');
+  page.on('dialog', (d) => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+  await page.goto('/projects/edit/?new=1');
+  const dialog = await draftWith(page);
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('status').filter({ hasText: /Unsaved draft · cost \$/ })).toBeVisible();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('qa-drafted');
+  await expect(page.getByRole('table', { name: 'Cases' }).getByRole('button', { name: /^Edit case \d$/ })).toHaveCount(3);
+  await expect(page.getByRole('checkbox', { name: /^contains/ })).toBeChecked();
+  expect((await request.get('/api/projects/qa-drafted')).status()).toBe(404); // nothing saved yet
+  await shot(page, 'editor-draft');
+  await editCase(page, 1).click();
+  await page.getByLabel('Case 1 expected').fill('Paris, France');
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await expect(page.getByText('Unsaved draft')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('qa-drafted');
+  expect((await (await request.get('/api/projects/qa-drafted')).json()).cases[0].expected).toBe('Paris, France');
+
+  // A project created in this session runs under the name it was saved with.
+  await page.getByRole('button', { name: 'Run on selected models' }).click();
+  await page.getByRole('dialog', { name: 'Run on selected models' }).getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await page.getByRole('button', { name: 'Open Compare' }).click();
+  await expect(page).toHaveURL(/benchmarks=qa-drafted$/);
+  await expect(page.getByRole('checkbox', { name: /^qa-drafted\b/ })).toBeChecked();
+});
+
+test('[AC-9.3] the dialog traps focus, Esc closes it and returns focus, and draft errors stay inside it', async ({ page }) => {
+  await page.goto('/projects/edit/?new=1');
+  const trigger = page.getByRole('button', { name: 'Draft with AI' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  await draftWith(page, 'mock-drafter-code'); // a real draft that asks for a code-running scorer
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText("drafts can't use code_exec");
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('');
+  await expect(page.getByText('Unsaved draft')).toHaveCount(0);
+  await shot(page, 'draft-dialog-error');
+  await page.unroute('**/api/projects/draft');
+  await page.route('**/api/projects/draft', (r) => r.fulfill({ status: 502, json: { detail: 'The model call failed: boom' } }));
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('The model call failed');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('');
+});
+
+test('[AC-9.3] leaving with unsaved changes asks in an in-page dialog; saved or untouched forms leave freely', async ({ page }) => {
+  page.on('dialog', (d) => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+  await page.goto('/projects/edit/?new=1');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Models' }).click();
+  await expect(page).toHaveURL(/\/models\/$/); // untouched: no prompt
+  await page.goBack();
+  await page.getByLabel('Name', { exact: true }).fill('half-written');
+  await page.getByRole('link', { name: '← Projects' }).click();
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await expect(ask).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/edit\//);
+  await shot(page, 'leave-dialog');
+  await ask.getByRole('button', { name: 'Stay' }).click();
+  await expect(ask).toBeHidden();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('half-written');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' }).click();
+  await ask.getByRole('button', { name: 'Discard and leave' }).click();
+  await expect(page).toHaveURL(/\/settings\/$/);
+});
+
+test('[AC-9.4] Run on selected models opens Compare with the project and models preselected, and the run completes', async ({ page, request }) => {
+  await create(request, 'qa-nine-run');
+  await page.goto('/projects/edit/?slug=qa-nine-run');
+  await page.getByRole('button', { name: 'Run on selected models' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Run on selected models' });
+  await expect(dialog.getByRole('button', { name: 'Open Compare' })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await dialog.getByRole('checkbox', { name: /^mock-b\b/ }).check();
+  await shot(page, 'run-dialog');
+  await dialog.getByRole('button', { name: 'Open Compare' }).click();
+  await expect(page).toHaveURL(/\/compare\/\?targets=mock-a%2Cmock-b&benchmarks=qa-nine-run$/);
+  await expect(page.getByRole('checkbox', { name: /^mock-a\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^qa-nine-run\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).not.toBeChecked();
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 });
+  await expect(page.getByText('qa-nine-run').first()).toBeVisible();
+});
+
+test('[AC-9.3] Enter inside the Draft dialog never saves the project behind it', async ({ page, request }) => {
+  made.push('qa-nine-enter', 'qa-drafted');
+  const writes: string[] = [];
+  page.on('request', (r) => { if (r.method() !== 'GET' && /\/api\/projects(\/[\w-]*)?$/.test(r.url()) && !r.url().endsWith('/draft')) writes.push(`${r.method()} ${r.url()}`); });
+  await page.goto('/projects/edit/?new=1');
+  await page.getByLabel('Name', { exact: true }).fill('qa-nine-enter'); // a save would succeed: name, scorer and a case are all there
+  await page.getByRole('checkbox', { name: /^contains/ }).check();
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await page.getByLabel('Case 1 input').fill('Hello?');
+  await page.getByLabel('Case 1 expected').fill('Hi');
+  const dialog = await draftWith(page);
+  await dialog.getByLabel('Number of cases').press('Enter');
+  await expect(dialog).toBeHidden(); // Enter submits the dialog's own form: it drafts
+  await expect(page.getByText('Unsaved draft')).toBeVisible();
+  expect(writes).toEqual([]);
+  expect((await request.get('/api/projects/qa-nine-enter')).status()).toBe(404);
+  expect((await request.get('/api/projects/qa-drafted')).status()).toBe(404);
+});
+
+test('[AC-9.3] after a draft, the back link asks first; after saving, links leave without a prompt', async ({ page }) => {
+  made.push('qa-drafted');
+  await page.goto('/projects/edit/?new=1');
+  const dialog = await draftWith(page);
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(page.getByText('Unsaved draft')).toBeVisible();
+  await page.getByRole('link', { name: '← Projects' }).click();
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await expect(ask).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/edit\//);
+  await ask.getByRole('button', { name: 'Stay' }).click();
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Models' }).click();
+  await expect(page).toHaveURL(/\/models\/$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('[AC-9.3] the browser Back button asks before dropping an unsaved draft', async ({ page }) => {
+  made.push('qa-drafted');
+  page.on('dialog', (d) => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+  await page.goto('/projects/');
+  await page.getByRole('link', { name: /New project|Create your first project/ }).click();
+  const dialog = await draftWith(page);
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(page.getByText('Unsaved draft')).toBeVisible();
+  await page.goBack();
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await expect(ask).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/edit\/\?new=1$/);
+  await ask.getByRole('button', { name: 'Stay' }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('qa-drafted'); // the draft is still there
+  await page.goBack(); // Stay put the guard back: a second Back asks again
+  await expect(ask).toBeVisible();
+  await ask.getByRole('button', { name: 'Discard and leave' }).click();
+  await expect(page).toHaveURL(/\/projects\/$/);
+});
+
+test('[AC-9.4] a project name with a comma and spaces is preselected on /compare', async ({ page, request }) => {
+  await create(request, 'qa nine, spaced');
+  await page.goto('/projects/edit/?slug=qa-nine-spaced');
+  await page.getByRole('button', { name: 'Run on selected models' }).click();
+  await page.getByRole('dialog', { name: 'Run on selected models' }).getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await page.getByRole('button', { name: 'Open Compare' }).click();
+  await expect(page).toHaveURL(/benchmarks=qa%20nine%2C%20spaced$/);
+  await expect(page.getByRole('checkbox', { name: /^qa nine, spaced\b/ })).toBeChecked();
+  await page.goto('/compare/?targets=mock-a&benchmarks=qa%20nine%2C%20spaced&benchmarks=std-reasoning-math'); // repeated params
+  await expect(page.getByRole('checkbox', { name: /^qa nine, spaced\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).toBeChecked();
+});

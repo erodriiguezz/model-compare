@@ -219,3 +219,10 @@ textarea { resize: vertical; }
 table.cases td { vertical-align: middle; }
 .preview { display: block; max-width: var(--col-min); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 640px) { .scorer-grid { grid-template-columns: 1fr; } .preview { max-width: var(--field-w); } }
+
+/* Dialogs */
+.dialog { width: min(100% - 2 * var(--gutter), var(--col-min) * 2); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.dialog::backdrop { background: var(--text); opacity: 0.4; }
+.dialog .form > * + * { margin-top: 0; }
+.dialog label { display: flex; flex-direction: column; gap: var(--space-1); font-weight: 500; }
+.dialog label.check { flex-direction: row; font-weight: 400; }
