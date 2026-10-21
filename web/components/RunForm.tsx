@@ -10,9 +10,11 @@ type Data = { status: "loading" } | { status: "error"; message: string } | { sta
 export default function RunForm({ onStart }: { onStart: (jobId: string) => void }) {
   const [data, setData] = useState<Data>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
-  const fromUrl = useSearchParams().get("targets");
+  const params = useSearchParams();
+  const fromUrl = params.get("targets");
+  const benchesFromUrl = params.get("benchmarks");
   const [targets, setTargets] = useState<string[]>(() => (fromUrl ?? "").split(",").filter(Boolean));
-  const [benches, setBenches] = useState<string[]>([]);
+  const [benches, setBenches] = useState<string[]>(() => (benchesFromUrl ?? "").split(",").filter(Boolean));
   const [baseline, setBaseline] = useState("");
   const [judge, setJudge] = useState("");
   const [opts, setOpts] = useState({ repeats: "", concurrency: "8", budget: "", cache: true });
@@ -30,6 +32,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
         const noKey = new Set(catalog?.providers.filter((p) => p.reason === "no key").map((p) => p.provider));
         const unusable = (n: string) => { const y = t.find((x) => x.name === n); return y ? y.keys_ok === false : noKey.has(n.split("/")[0]); };
         setTargets((cur) => cur.filter((n) => !unusable(n)));
+        setBenches((cur) => cur.filter((n) => b.some((x) => x.name === n)));
         setData({ status: "ready", targets: t, benches: b, catalog });
       })
       .catch((e: Error) => live && setData({ status: "error", message: `Could not load targets and benchmarks (${e.message}).` }));
