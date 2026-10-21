@@ -197,3 +197,21 @@ html { scroll-padding-bottom: var(--bar-h); }
 .legend .chip + .muted { margin-left: var(--space-1); }
 .card p a { text-decoration: underline; text-underline-offset: 2px; }
 .links a { display: inline-block; padding: var(--space-1) 0; }
+
+/* Projects */
+.cases { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.case-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--col-min), 1fr)); gap: var(--space-3); }
+.case-grid .wide { grid-column: 1 / -1; }
+.form label, .case-grid label { display: flex; flex-direction: column; gap: var(--space-1); font-weight: 500; }
+.form label.check { flex-direction: row; font-weight: 400; }
+input:not([type]), input[type="text"], input[type="number"], textarea { font: inherit; width: 100%; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+input[type="number"] { width: var(--field-w); }
+textarea { resize: vertical; }
+[aria-invalid="true"] { border-color: var(--danger); }
+.scorers .params { margin: 0 0 var(--space-2) calc(var(--tap) + var(--space-2)); width: calc(100% - var(--tap) - var(--space-2)); }
+.field-errors { margin: 0; padding: 0; list-style: none; }
+.link-btn.danger { color: var(--danger); }
+.scorers .check { align-items: center; flex-wrap: wrap; }
+.scorers .check .muted { flex: 1 0 100%; margin: 0 0 0 calc(var(--tap) + var(--space-2)); text-align: left; }
+.name-cell { overflow-wrap: anywhere; }
+.btn.destructive-text { color: var(--danger); }

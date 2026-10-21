@@ -1,7 +1,7 @@
-import ApiPage from "@/components/ApiPage";
+import ProjectsView from "@/components/ProjectsView";
 
 export const metadata = { title: "Projects · ModelCompare" };
 
 export default function Page() {
-  return <ApiPage title="Projects" blurb="Group runs and comparisons by project." />;
+  return <ProjectsView />;
 }
