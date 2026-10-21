@@ -52,6 +52,7 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
   await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
   await expect(page.getByText('Unsaved draft')).toBeVisible();
   await page.getByLabel('Name', { exact: true }).fill('qa-e2e-drafted'); // projects.spec saves the mock's own name in parallel
+  await page.getByRole('button', { name: 'Edit case 1' }).click();
   await page.getByLabel('Case 1 expected').fill('Paris');
   await page.getByRole('button', { name: 'Save project' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
@@ -77,6 +78,7 @@ const PAGES = [
   { name: 'projects', url: '/projects/', api: '**/api/projects', loading: /Loading projects/, empty: { body: [], text: 'No projects yet' }, error: 'Could not load projects', ready: (p: Page) => expect(p.getByRole('row', { name: /qa-nine-shot/ })).toBeVisible() },
   { name: 'editor', url: '/projects/edit/?new=1', api: '**/api/scorers', loading: /Loading project/, empty: null, error: 'Could not load the project', ready: (p: Page) => expect(p.getByText('No cases yet')).toBeVisible() },
   { name: 'settings', url: '/settings/', api: '**/api/settings/keys', loading: /Loading keys/, empty: { body: [{ provider: 'openai', var: 'OPENAI_API_KEY', set: false, masked: null, source: null }], text: 'No keys yet' }, error: 'Provider keys could not be loaded', ready: (p: Page) => expect(p.locator('.key-list')).toBeVisible() },
+  { name: 'history', url: '/history/', api: '**/api/jobs', loading: /Loading history/, empty: { body: [], text: 'No runs yet', also: ['**/api/runs', []] as const }, error: 'Could not load history', ready: (p: Page) => expect(p.getByRole('region', { name: 'Comparisons' })).toBeVisible() },
   { name: 'models', url: '/models/', api: '**/api/models', loading: /Loading models/, empty: { body: { providers: [{ provider: 'openai', var: 'OPENAI_API_KEY', key_ok: false, reason: 'no key', models: [] }], cached_at: '2026-01-01T00:00:00+00:00' }, text: 'No models yet', also: ['**/api/targets/status', []] as const }, error: 'Could not load models', ready: (p: Page) => expect(p.locator('[data-group="configured"]')).toBeVisible() },
   { name: 'compare', url: '/compare/', api: '**/api/targets/status', loading: /Loading targets and benchmarks/, empty: { body: [], text: 'No targets configured' }, error: 'Could not load targets and benchmarks', ready: (p: Page) => expect(p.getByRole('button', { name: 'Run comparison' })).toBeVisible() },
   { name: 'report', url: `/compare/?job=${JOB}`, api: `**/api/jobs/${JOB}`, loading: /Loading job/, empty: { body: EMPTY_JOB, text: 'No finished runs' }, error: 'Could not load this comparison', ready: (p: Page) => expect(matrix(p)).toBeVisible() },

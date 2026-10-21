@@ -44,9 +44,9 @@ Run it from `engine/` so it finds `targets.yaml` and `.env`. The dashboard follo
   - **History**: past comparisons and runs. Opening one shows its report; interrupted ones open with whatever finished.
 - **Projects**: your own benchmarks, saved as YAML in `engine/benchmarks/custom/` (override with `MODELCOMPARE_CUSTOM_DIR`).
   - The list shows each project's dimension, case count and last run; a file that does not parse is listed with its error.
-  - The editor takes a name, description, dimension, system prompt, scorers (with optional JSON parameters) and a pass threshold, plus a case table (id, input, expected, optional per-case scorer, tags). Problems the API finds appear next to the field or case that caused them.
+  - The editor takes a name, description, dimension, system prompt, scorers (with optional JSON parameters) and a pass threshold, plus a compact case table (id, input and expected previews, scorer; Edit opens one case at a time). Scorers that run code (`code_exec`, `test_quality`) carry a warning when picked. Problems the API finds appear next to the field or case that caused them.
   - **Draft with AI** asks a model you choose to write cases and scorers from a description and pasted examples (`input => expected`, one per line). The draft lands in the editor **unsaved**, with its cost shown; nothing is written until you press Save. Drafts never use the code-running scorers (`code_exec`, `test_quality`); add those by hand if you want them.
-  - Leaving the editor with unsaved changes asks first.
+  - Leaving the editor with unsaved changes asks first, in the page: for the nav links, the back link and the browser Back button. Closing the tab uses the browser's own prompt.
   - **Run on selected models** opens Compare with the project and the models you ticked already selected.
 
 The JSON API it uses is documented at http://127.0.0.1:8000/docs.

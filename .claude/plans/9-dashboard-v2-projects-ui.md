@@ -54,6 +54,7 @@ touches_api: false
 
 **Delivery notes**
 - The criteria line for the end-to-end journeys was rewritten from the range "AC-9.5–AC-9.7" into three explicit lines (same wording as the MVP plan) so the AC gate sees all three.
+- `product.md` was also rewritten as a single table (frontmatter and prose removed) so the context-size check passes.
 - `status.md`'s three prose lines are converted to table rows when its row is updated, so the context-size check passes.
 
 **Out of scope:** project sharing, import/export.
@@ -67,6 +68,7 @@ touches_api: false
 - /models — model tree
 - /compare — run form
 - /compare/?job=qa-every-verdict — report
+- /history — job list
 
 ## 2. Grill
 See `mvp-dashboard-v2.md` §2.
