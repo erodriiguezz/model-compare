@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from modelcompare.schema import Benchmark
 
 BENCH_ROOT = Path(__file__).resolve().parent.parent / "benchmarks"
+
+
+def custom_dir() -> Path:
+    """Where saved projects live; MODELCOMPARE_CUSTOM_DIR points QA and tests elsewhere."""
+    return Path(os.getenv("MODELCOMPARE_CUSTOM_DIR") or BENCH_ROOT / "custom")
 
 
 _CACHE: dict[Path, tuple[int, Benchmark]] = {}
@@ -23,6 +29,8 @@ def load(path: Path) -> Benchmark:
 
 
 def _yaml_files(d: Path) -> list[Path]:
+    if not d.is_dir():
+        return []
     return sorted(p for p in d.rglob("*.y*ml") if p.name != "profiles.yaml")
 
 
@@ -34,7 +42,7 @@ def resolve_benchmarks(specs: list[str]) -> list[Benchmark]:
     for spec in specs:
         p = Path(spec)
         if spec in ("standard", "custom"):
-            paths += _yaml_files(BENCH_ROOT / spec)
+            paths += _yaml_files(custom_dir() if spec == "custom" else BENCH_ROOT / spec)
         elif (BENCH_ROOT / "standard" / spec).is_dir():
             paths += _yaml_files(BENCH_ROOT / "standard" / spec)
         elif p.is_dir():
@@ -44,7 +52,7 @@ def resolve_benchmarks(specs: list[str]) -> list[Benchmark]:
         else:
             names.append(spec)
     if names:
-        by_name = {load(p).name: p for p in _yaml_files(BENCH_ROOT / "standard") + _yaml_files(BENCH_ROOT / "custom")}
+        by_name = {load(p).name: p for p in _yaml_files(BENCH_ROOT / "standard") + _yaml_files(custom_dir())}
         if missing := [n for n in names if n not in by_name]:
             raise FileNotFoundError(f"benchmark spec not found: {', '.join(missing)}")
         paths += [by_name[n] for n in names]

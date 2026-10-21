@@ -66,3 +66,15 @@ test('a catalog id runs without targets.yaml, yaml names win [AC-5.4]', () => {
 test('suggestions: tie saving, add-N-cases from the MDE, saturation and errors [AC-7.4]', () => {
   assert.ok(pytest('tests/test_summary.py::test_suggestions_tie_names_the_cheaper_model_and_saving', 'tests/test_summary.py::test_suggestions_switch_when_better_everywhere_and_stay_when_worse', 'tests/test_summary.py::test_suggestions_wide_ci_asks_for_n_more_cases_from_the_mde', 'tests/test_summary.py::test_suggestions_tiny_difference_is_called_unmeasurable', 'tests/test_summary.py::test_suggestions_saturated_benchmark_gets_its_own_line', 'tests/test_summary.py::test_suggestions_errors_come_first_and_name_the_top_reason', 'tests/test_summary.py::test_suggestions_order_is_errors_decisions_then_data_advice', 'tests/test_summary.py::test_dimension_chart_data_has_ci_and_vendor', 'tests/test_summary.py::test_suggestions_no_tie_while_a_capability_is_still_open', 'tests/test_summary.py::test_incomplete_flag_on_dimension_targets_and_markers', 'tests/test_summary.py::test_cases_needed_never_suggests_a_token_handful', 'tests/test_seed_qa.py::test_seed_is_idempotent_and_covers_every_verdict'));
 });
+test('projects: create, read, update, delete and load through bench_loader [AC-8.1]', () => {
+  assert.ok(pytest('tests/test_projects.py::test_ac_8_1_create_read_update_delete', 'tests/test_projects.py::test_ac_8_1_broken_file_is_listed_not_fatal'));
+});
+test('projects: invalid benchmark, bad slug and big body are rejected [AC-8.2]', () => {
+  assert.ok(pytest('tests/test_projects.py::test_ac_8_2_invalid_benchmark_gets_field_errors', 'tests/test_projects.py::test_ac_8_2_bad_slug_is_400', 'tests/test_projects.py::test_ac_8_2_body_over_1mb_is_413', 'tests/test_projects.py::test_foreign_host_is_403_on_projects'));
+});
+test('projects: draft with the mock target returns an unsaved benchmark [AC-8.3]', () => {
+  assert.ok(pytest('tests/test_projects.py::test_ac_8_3_draft_returns_unsaved_benchmark', 'tests/test_projects.py::test_ac_8_3_invalid_model_output_is_422_with_reason'));
+});
+test('scorers endpoint lists the registry [AC-8.4]', () => {
+  assert.ok(pytest('tests/test_projects.py::test_ac_8_4_scorers_lists_the_registry'));
+});

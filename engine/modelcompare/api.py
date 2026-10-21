@@ -15,12 +15,12 @@ import yaml
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlmodel import select
 
 from modelcompare import db
 from modelcompare.bench_loader import resolve_benchmarks
-from modelcompare import catalog, keys
+from modelcompare import catalog, keys, projects
 from modelcompare.html_report import render_html
 from modelcompare.recommend import load_profiles
 from modelcompare.report import build_report, latest_runs, runs_by_ids
@@ -409,12 +409,60 @@ def keys_test(provider: str):
     return keys.probe(_provider(provider))
 
 
+async def _json_body(request: Request) -> dict:
+    if int(request.headers.get("content-length") or 0) > projects.MAX_BODY:
+        raise HTTPException(413, "Body is over 1 MB.")
+    return projects.parse_body(await request.body())
+
+
+projects_api = APIRouter(prefix="/projects", dependencies=[Depends(_local_only)])
+
+
+@projects_api.get("")
+def projects_list():
+    return projects.list_projects()
+
+
+@projects_api.post("", status_code=201)
+async def projects_create(request: Request):
+    return projects.create(await _json_body(request))
+
+
+@projects_api.post("/draft")
+async def projects_draft(request: Request):
+    try:
+        req = projects.DraftRequest.model_validate(await _json_body(request))
+    except ValidationError as e:
+        raise HTTPException(422, projects._errors(e))
+    cfg = resolve_target(req.target, _targets(required=False))
+    if cfg is None:
+        raise HTTPException(400, f"unknown target: {req.target}")
+    return await projects.draft(req, cfg)
+
+
+@projects_api.get("/{slug}")
+def projects_get(slug: str):
+    return projects.get(slug)
+
+
+@projects_api.put("/{slug}")
+async def projects_update(slug: str, request: Request):
+    return projects.update(slug, await _json_body(request))
+
+
+@projects_api.delete("/{slug}", status_code=204)
+def projects_delete(slug: str):
+    projects.delete(slug)
+
+
 def create_app(web_out: Path | None = None) -> FastAPI:
     """API under /api and at the root (old aliases); the exported Next app at / (503 with build instructions if missing)."""
     app = FastAPI(title="ModelCompare", lifespan=_lifespan)
     app.include_router(router, prefix="/api")
     app.add_api_route("/api/models", models, methods=["GET"], dependencies=[Depends(_local_only)])  # no root alias: /models/ is a Next page
     app.include_router(settings, prefix="/api")  # no root alias: secrets stay under /api
+    app.include_router(projects_api, prefix="/api")  # no root alias: /projects/ is a Next page
+    app.add_api_route("/api/scorers", lambda: projects.scorer_list(), methods=["GET"], dependencies=[Depends(_local_only)])
     app.include_router(router, include_in_schema=False)
     # The export is not packaged with the wheel: it is resolved from the checkout (or MODELCOMPARE_WEB_OUT).
     out = web_out or Path(os.getenv("MODELCOMPARE_WEB_OUT", WEB_OUT))

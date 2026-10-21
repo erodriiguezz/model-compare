@@ -27,3 +27,9 @@ targets:
         pens-bulk: "provider unavailable"
         train-minutes: "provider unavailable"
         age-ratio: "provider unavailable"
+  # Answers any draft request with a small valid project (AC-8.3, AC-9.6).
+  - name: mock-drafter
+    kind: mock
+    model: mock/drafter
+    extra:
+      default: '{"name":"qa-drafted","dimension":"custom","description":"Drafted by the mock model","scorers":[{"type":"contains"}],"cases":[{"id":"c1","input":"Name the capital of France.","expected":"Paris"},{"id":"c2","input":"Name the capital of Spain.","expected":"Madrid"},{"id":"c3","input":"Name the capital of Italy.","expected":"Rome"}]}'
