@@ -11,12 +11,13 @@ const ROUTES = [
   { path: '/projects/', active: 'Projects' },
   { path: '/settings/', active: 'Settings' },
 ];
-const job = (id: string, status: string, targets: string[], cost = 0.5) => ({
+const job = (id: string, status: string, targets: string[]) => ({
   id, targets, baseline: targets[0], status, error: status === 'failed' ? 'OPENAI_API_KEY missing' : null, started_at: '2026-10-19T10:00:00',
-  benchmarks: ['std-reasoning-math'], total_calls: 10, done_calls: 10, run_ids: [], live: [],
-  runs: [{ run_id: 1, status: 'done', cost_usd: cost, target: targets[0], benchmark: 'std-reasoning-math', passed: 1, n_results: 1, n_errors: 0, first_error: null }],
+  benchmarks: ['std-reasoning-math'], total_calls: 10, done_calls: 10, run_ids: [RUN_ID[id]], live: [],
 });
-const JOBS = [job('j-done', 'done', ['claude-sonnet-5-5', 'gpt-6-sol'], 1.25), job('j-cancel', 'cancelled', ['gemini-3-flash', 'mock-b']), job('j-fail', 'failed', ['mock-a', 'mock-b'], 0)];
+const RUN_ID: Record<string, number> = { 'j-done': 1, 'j-cancel': 2, 'j-fail': 3 };
+const RUNS = [1.25, 0.5, 0].map((cost_usd, i) => ({ id: i + 1, target_name: 'mock-a', benchmark_name: 'std-reasoning-math', status: 'done', n_results: 1, passed: 1, n_errors: 0, cost_usd }));
+const JOBS = [job('j-done', 'done', ['claude-sonnet-5-5', 'gpt-6-sol']), job('j-cancel', 'cancelled', ['gemini-3-flash', 'mock-b']), job('j-fail', 'failed', ['mock-a', 'mock-b'])];
 
 for (const width of [1280, 390]) {
   for (const { path, active } of ROUTES) {
@@ -35,7 +36,7 @@ for (const width of [1280, 390]) {
 
 test('[AC-34.12] history lists models, outcome, spend and status; filter chips change the rows', async ({ page }) => {
   await page.route('**/api/jobs', (route) => route.fulfill({ json: JOBS }));
-  await page.route('**/api/runs', (route) => route.fulfill({ json: [] }));
+  await page.route('**/api/runs', (route) => route.fulfill({ json: RUNS }));
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/history/');
   const rows = page.getByRole('region', { name: 'Comparisons' }).locator('tbody tr');
@@ -81,7 +82,7 @@ test('[AC-34.15] history shows loading, then error with retry that refetches', a
   await page.goto('/history/');
   await expect(page.getByRole('status')).toContainText('Loading history');
   release();
-  const err = page.getByRole('alert');
+  const err = page.locator('[data-state="error"]');
   await expect(err).toContainText('Could not load history');
   await shot(page, 'history-error');
   down = false;

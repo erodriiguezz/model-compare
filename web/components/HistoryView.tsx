@@ -24,7 +24,8 @@ const OUTCOME: Record<string, { label: string; tone: "better" | "worse" | "neutr
   failed: { label: "No report", tone: "worse" },
 };
 const outcome = (status: string) => OUTCOME[status] ?? { label: "In progress", tone: "neutral" as const };
-const spend = (j: Job) => j.runs.reduce((sum, r) => sum + r.cost_usd, 0);
+/** The jobs list carries run ids only, so spend is summed from the runs list. */
+const spend = (j: Job, cost: Map<number, number>) => j.run_ids.reduce((sum, id) => sum + (cost.get(id) ?? 0), 0);
 
 function Past() {
   const [state, setState] = useState<State>({ status: "loading" });
@@ -51,6 +52,7 @@ function Past() {
   if (state.status === "loading") return <Loading label="Loading history" />;
   if (state.status === "error") return <ErrorState message={`Could not load history (${state.message}).`} onRetry={retry} />;
   const { runs } = state;
+  const cost = new Map(runs.map((r) => [r.id, r.cost_usd]));
   if (!state.jobs.length && !runs.length) {
     return <Empty title="No comparisons yet" action={<Link href="/compare/" className="btn" prefetch={false}>Start a comparison</Link>}>Your first comparison shows up here, with its status and what it cost.</Empty>;
   }
@@ -76,7 +78,7 @@ function Past() {
                   <td><div className="models-cell">{j.targets.map((t) => <span key={t}><span className="dot" style={{ background: vendorColor(t) }} />{t}</span>)}</div></td>
                   <td className="hide-sm">{j.benchmarks.length} {j.benchmarks.length === 1 ? "benchmark" : "benchmarks"}</td>
                   <td><VerdictChip tone={o.tone}>{o.label}</VerdictChip><div className="cell-note">{j.error ?? (j.baseline ? `Baseline ${j.baseline}` : "")}</div></td>
-                  <td className="num hide-sm">{usd(spend(j))}</td>
+                  <td className="num hide-sm">{usd(spend(j, cost))}</td>
                   <td className="hide-sm"><span className={`status status-${st.tone}`}>{st.label}</span></td>
                 </tr>
               );

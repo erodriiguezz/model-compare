@@ -66,7 +66,7 @@ test('[AC-3.3] past jobs are listed and opening one shows its report', async ({ 
   await page.goto('/history/');
   await expect(page.getByRole('navigation', { name: 'Main' }).locator('[aria-current="page"]')).toHaveText('Compare');
   await expect(page.getByRole('navigation', { name: 'Compare sections' }).locator('[aria-current="page"]')).toHaveText('History');
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
   await page.locator(`a[href="/compare/?job=${job_id}"]`).click();
   await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
   await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toBeVisible();
@@ -98,7 +98,7 @@ test('[AC-3.5] history shows an error with retry when the API fails', async ({ p
   await expect(page.locator('[data-state="error"]')).toContainText('Could not load history');
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
 });
 
 test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
