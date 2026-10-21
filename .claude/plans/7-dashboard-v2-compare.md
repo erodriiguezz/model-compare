@@ -47,6 +47,13 @@ touches_api: true
 
 **Size** L · ~400 lines · ~350k tokens
 
+**PR split** (lead decision before the build: ~400 lines leaves no room for review fixes, so the same scope ships as stacked PRs, each ≤400; the full AC gate runs on the top part)
+| Part | Branch | Content | Criteria |
+| --- | --- | --- | --- |
+| 7a | `feat/dashboard-v2-redesign-p7a-suggest` | `suggestions()`, per-capability CI data in the report, QA seed script | AC-7.4 |
+| 7b | `feat/dashboard-v2-redesign-p7b-charts` | ranked bars with CI whiskers, quality-vs-cost scatter with Pareto front | AC-7.1, AC-7.3 |
+| 7c | `feat/dashboard-v2-redesign-p7c-panels` | verdict matrix, suggestions panel, regressions, page states | AC-7.2, AC-7.4, AC-7.5 |
+
 **Out of scope:** exporting charts, dark mode.
 
 **Context:** `product.md` — dashboard row — the Compare page shows the verdict matrix + suggestions.

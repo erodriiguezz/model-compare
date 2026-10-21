@@ -223,3 +223,26 @@ def test_estimate_lists_targets_with_unknown_price(client, monkeypatch, tmp_path
     assert out["unpriced"] == ["groq/zz-unknown-model"]  # the mock target is free, not unpriced
     assert client.post("/runs/estimate", json={**base, "targets": ["good"]}).json()["unpriced"] == []
     catalog._cache.clear()
+
+
+async def test_runs_limit_returns_the_newest_rows_cheaply(client):
+    from modelcompare.runner import run_benchmark
+
+    assert client.get("/runs", params={"limit": 1}).json() == []
+    for name in ("good", "bad"):
+        await run_benchmark(mock(name, set(range(N))), bench(), db_url=None)
+    one = client.get("/runs", params={"limit": 1}).json()
+    assert len(one) == 1 and one[0]["target_name"] == "bad" and "n_results" in one[0]
+    assert len(client.get("/runs").json()) == 2
+    assert client.get("/runs", params={"limit": 0}).status_code == 422
+
+
+def test_server_start_warms_litellm_in_the_background(tmp_path, monkeypatch):
+    import threading
+
+    from modelcompare import api
+
+    done = threading.Event()
+    monkeypatch.setattr(api, "_warm_litellm", done.set)
+    with TestClient(create_app(tmp_path / "no-web-out")):
+        assert done.wait(2)
