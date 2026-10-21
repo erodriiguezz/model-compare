@@ -8,7 +8,7 @@ const noPageScroll = (page: Page) => page.evaluate(() => document.documentElemen
 test('[AC-7.1] one ranked bar chart per capability, sorted, with CI whiskers in provider colours', async ({ page }) => {
   await page.goto(JOB);
   const charts = page.locator('[data-chart="ranked-bars"]');
-  await expect(charts).toHaveCount(5);
+  await expect(charts).toHaveCount(6);
   const first = charts.first();
   await expect(first.getByRole('img')).toHaveAttribute('aria-label', /qa-better .*%/);
   await expect(first.locator('.recharts-errorBar').first()).toBeAttached();
@@ -30,7 +30,7 @@ test('[AC-7.1] one ranked bar chart per capability, sorted, with CI whiskers in 
 test('[AC-7.1] bar charts fit a 390px screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(JOB);
-  await expect(page.locator('[data-chart="ranked-bars"]')).toHaveCount(5);
+  await expect(page.locator('[data-chart="ranked-bars"]')).toHaveCount(6);
   expect(await noPageScroll(page)).toBe(true);
   const box = await page.locator('[data-chart="ranked-bars"]').first().boundingBox();
   expect(box!.width).toBeLessThanOrEqual(390);
@@ -67,7 +67,7 @@ test('[AC-7.3] an incomplete model is never on the Pareto front and is marked in
   await expect(flaky).toHaveAttribute('data-incomplete', 'true');
   await expect(flaky).toContainText('Incomplete');
   await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /qa-flaky .*incomplete/);
-  await expect(scatter.locator('.recharts-wrapper')).toContainText('qa-flaky (incomplete)');
+  await expect(scatter.locator('.recharts-wrapper')).toContainText(/qa-flaky\s*\(incomplete\)/);
 });
 
 test('[AC-7.1] an incomplete bar is flagged and has no whisker', async ({ page }) => {
@@ -75,6 +75,6 @@ test('[AC-7.1] an incomplete bar is flagged and has no whisker', async ({ page }
   const chart = page.locator('[data-chart="ranked-bars"]');
   await expect(chart).toHaveCount(1);
   await expect(chart.locator('.sr-only tbody tr', { hasText: 'qa-flaky' })).toContainText('Incomplete');
-  await expect(chart.locator('.recharts-wrapper')).toContainText('qa-flaky (incomplete)');
+  await expect(chart.locator('.recharts-wrapper')).toContainText(/qa-flaky\s*\(incomplete\)/);
   await expect(chart.locator('.recharts-errorBar')).toHaveCount(1); // the baseline only
 });
