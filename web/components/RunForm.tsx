@@ -5,6 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { getJSON, postJSON, usd, vendor, type Benchmark, type Catalog, type Estimate, type Target } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "./States";
 
+type Judge = { name: string; group: string; vendor: string };
+const NAMES: Record<string, string> = { openai: "OpenAI", anthropic: "Anthropic", gemini: "Gemini", togetherai: "Together AI", groq: "Groq", openrouter: "OpenRouter" };
+const LITELLM_PREFIX: Record<string, string> = { togetherai: "together_ai" }; // same mapping as the backend's keys.LITELLM_PREFIX
+type JudgeCatalog = { status: "loading" } | { status: "error" } | { status: "ready"; catalog: Catalog };
+
 type Data = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; targets: Target[]; benches: Benchmark[]; catalog: Catalog | null };
 
 export default function RunForm({ onStart }: { onStart: (jobId: string) => void }) {
@@ -22,11 +27,14 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const [estimate, setEstimate] = useState<{ key: string; value: Estimate | { error: string } } | null>(null);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
+  const [judgeCatalog, setJudgeCatalog] = useState<JudgeCatalog>({ status: "loading" });
 
   useEffect(() => {
     let live = true;
-    // The catalog is only needed to label ids that arrive from the Models page.
-    Promise.all([getJSON<Target[]>("/targets/status"), getJSON<Benchmark[]>("/benchmarks"), fromUrl ? getJSON<Catalog>("/models").catch(() => null) : null])
+    // One catalog fetch serves both the ids that arrive from the Models page and the judge options.
+    const catalogP = getJSON<Catalog>("/models").catch(() => null);
+    void catalogP.then((c) => live && setJudgeCatalog(c ? { status: "ready", catalog: c } : { status: "error" }));
+    Promise.all([getJSON<Target[]>("/targets/status"), getJSON<Benchmark[]>("/benchmarks"), fromUrl ? catalogP : null])
       .then(([t, b, catalog]) => {
         if (!live) return;
         const noKey = new Set(catalog?.providers.filter((p) => p.reason === "no key").map((p) => p.provider));
@@ -39,14 +47,34 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
       .catch((e: Error) => live && setData({ status: "error", message: `Could not load targets and benchmarks (${e.message}).` }));
     return () => { live = false; };
   }, [attempt, fromUrl]);
-  const retry = useCallback(() => { setData({ status: "loading" }); setAttempt((n) => n + 1); }, []);
+  const retry = useCallback(() => { setData({ status: "loading" }); setJudgeCatalog({ status: "loading" }); setAttempt((n) => n + 1); }, []);
 
   const base = targets.includes(baseline) ? baseline : targets[0] ?? "";
   const needsJudge = data.status === "ready" && data.benches.some((b) => benches.includes(b.name) && b.needs_judge);
-  // Judges: real models not under test, from a vendor not being compared when possible.
-  const judges = data.status === "ready" ? data.targets.filter((t) => t.kind !== "mock" && t.keys_ok && !targets.includes(t.name)) : [];
+  // Judges: real models not under test, from a vendor not being compared when possible. Configured targets come
+  // first; catalog models fill in for users without a targets.yaml (a catalog id resolves as the judge server-side).
+  const judges: Judge[] = [];
+  if (data.status === "ready") {
+    const under = new Set(targets.flatMap((n) => [n, data.targets.find((t) => t.name === n)?.model ?? ""]));
+    const seen = new Set<string>();
+    for (const t of data.targets) {
+      if (t.kind === "mock" || !t.keys_ok || under.has(t.name)) continue;
+      judges.push({ name: t.name, group: "Configured", vendor: vendor(t.model) });
+      seen.add(t.model ?? t.name);
+    }
+    if (judgeCatalog.status === "ready") {
+      for (const p of judgeCatalog.catalog.providers.filter((x) => x.key_ok)) {
+        for (const m of p.models) {
+          const litellm = `${LITELLM_PREFIX[p.provider] ?? p.provider}/${m.id}`;
+          if (under.has(m.target) || under.has(litellm) || seen.has(litellm) || seen.has(m.target)) continue;
+          judges.push({ name: m.target, group: NAMES[p.provider] ?? p.provider, vendor: p.provider });
+        }
+      }
+    }
+  }
+  const judgesLoading = judgeCatalog.status === "loading";
   const used = new Set(data.status === "ready" ? targets.map((n) => vendor(data.targets.find((t) => t.name === n)?.model ?? n)) : []);
-  const judgeName = judges.some((t) => t.name === judge) ? judge : (judges.find((t) => !used.has(vendor(t.model))) ?? judges[0])?.name ?? "";
+  const judgeName = judges.some((t) => t.name === judge) ? judge : (judges.find((t) => !used.has(t.vendor)) ?? judges[0])?.name ?? "";
   const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined,
     repeats: opts.repeats === "" ? undefined : Number(opts.repeats), budget_usd: opts.budget === "" ? undefined : Number(opts.budget), concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
   const ready = targets.length >= 1 && benches.length > 0 && (!needsJudge || !!judgeName);
@@ -132,9 +160,14 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
         {needsJudge && (
           <label>Judge
             <select value={judgeName} onChange={(e) => setJudge(e.target.value)}>
-              {!judges.length && <option value="">No judge available</option>}
-              {judges.map((t) => <option key={t.name} value={t.name}>{t.name}{used.has(vendor(t.model)) ? " (same vendor as a model under test)" : ""}</option>)}
+              {!judges.length && <option value="">{judgesLoading ? "Loading judges…" : "No judge available"}</option>}
+              {[...new Set(judges.map((j) => j.group))].map((g) => (
+                <optgroup key={g} label={g}>
+                  {judges.filter((j) => j.group === g).map((j) => <option key={j.name} value={j.name}>{j.name}{used.has(j.vendor) ? " (same vendor as a model under test)" : ""}</option>)}
+                </optgroup>
+              ))}
             </select>
+            {judgeCatalog.status === "error" && <span className="muted">Model catalog unavailable; showing configured judges only.</span>}
           </label>
         )}
       </div>
@@ -145,7 +178,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
         <label className="check"><input type="checkbox" checked={opts.cache} onChange={(e) => setOpts({ ...opts, cache: e.target.checked })} />Reuse cached answers</label>
       </div>
       <p className="muted" aria-live="polite" data-testid="estimate">
-        {!ready && (needsJudge && !judgeName ? "These benchmarks need a judge model that is not under test." : "Pick a model and a benchmark to see an estimate.")}
+        {!ready && (needsJudge && !judgeName ? (judgesLoading ? "Loading judges…" : "These benchmarks need a judge model that is not under test.") : "Pick a model and a benchmark to see an estimate.")}
         {ready && estimate?.key !== key && "Estimating…"}
         {ready && estimate?.key === key && ("error" in estimate.value ? estimate.value.error
           : `Estimate: ${estimate.value.total_calls} calls (${estimate.value.cached_calls} cached) · up to ${usd(estimate.value.usd)} · ~${Math.max(1, Math.round(estimate.value.minutes))} min`)}
