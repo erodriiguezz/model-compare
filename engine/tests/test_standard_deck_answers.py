@@ -149,7 +149,7 @@ TOOL_REFERENCE = {
 
 async def _score(bench_name, case, completion):
     b = BENCH[bench_name]
-    _, s = await score_case(completion, case, b, ScoreContext())
+    _, s, _ = await score_case(completion, case, b, ScoreContext())
     return s
 
 

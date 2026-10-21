@@ -9,6 +9,10 @@ from modelcompare.schema import Case, Completion, ScoreDetail
 from modelcompare.targets.base import Target
 
 
+class ScorerError(Exception):
+    """The scorer could not grade this answer (e.g. the judge failed). The case is unscored, not zero."""
+
+
 @dataclass
 class ScoreContext:
     judge: Target | None = None

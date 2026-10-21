@@ -244,7 +244,7 @@ def start_runs(req: RunRequest, bg: BackgroundTasks):
         def on_result(cr) -> None:
             live["done"] += 1
             live["passed"] += cr.passed
-            live["errors"] += bool(cr.completion.error)
+            live["errors"] += bool(cr.error)
             job.done_calls += 1
 
         out = await run_benchmark(all_t[t], b, judge, concurrency=req.concurrency, budget_usd=req.budget_usd,

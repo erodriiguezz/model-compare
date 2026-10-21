@@ -11,7 +11,7 @@ from typing import Callable
 
 from modelcompare import db
 from modelcompare.schema import Benchmark, Case, CaseResult, Completion, ScoreDetail, TargetConfig
-from modelcompare.scorers import ScoreContext, run_scorer
+from modelcompare.scorers import ScoreContext, ScorerError, run_scorer
 from modelcompare.targets import Target, build_target
 
 ASSUMED_OUTPUT_TOKENS = 400
@@ -39,15 +39,20 @@ def cache_key(target: TargetConfig, messages: list[dict], tools: list[dict], rep
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
 
-async def score_case(completion: Completion, case: Case, bench: Benchmark, ctx: ScoreContext) -> tuple[list[ScoreDetail], float]:
+async def score_case(completion: Completion, case: Case, bench: Benchmark, ctx: ScoreContext) -> tuple[list[ScoreDetail], float, str | None]:
+    """Weighted score plus a scoring error. If any scorer cannot grade (e.g. the judge failed) the whole case is
+    unscored: averaging the remaining scorers would silently reward or punish the model for a grader failure."""
     specs = case.scorers or bench.scorers
     details = []
     for spec in specs:
-        d = await run_scorer(spec.type, completion, case, spec.params, ctx)
+        try:
+            d = await run_scorer(spec.type, completion, case, spec.params, ctx)
+        except ScorerError as e:
+            return details, 0.0, str(e)
         d.weight = spec.weight
         details.append(d)
     total_w = sum(d.weight for d in details) or 1.0
-    return details, sum(d.score * d.weight for d in details) / total_w
+    return details, sum(d.score * d.weight for d in details) / total_w, None
 
 
 def benchmarks_needing_judge(benches: list[Benchmark]) -> list[str]:
@@ -155,10 +160,11 @@ async def run_benchmark(
                     completion = Completion.model_validate({**cached, "cached": True})
                 else:
                     completion = await target.complete(msgs, tools or None, case_id=case.id)
-                details, score = await score_case(completion, case, bench, ctx)
+                details, score, score_error = await score_case(completion, case, bench, ctx)
+                error = completion.error or score_error
                 cr = CaseResult(
                     case_id=case.id, repeat=repeat, completion=completion, scores=details,
-                    score=score, passed=score >= bench.pass_threshold,
+                    score=score, passed=not error and score >= bench.pass_threshold, error=error,
                 )
                 async with lock:
                     if use_cache and not cached and not completion.error:
@@ -169,7 +175,7 @@ async def run_benchmark(
                         scores=[d.model_dump() for d in details],
                         input_tokens=completion.input_tokens, output_tokens=completion.output_tokens,
                         latency_s=completion.latency_s, cost_usd=0.0 if cached else completion.cost_usd,
-                        error=completion.error, cached=bool(cached),
+                        error=error, cached=bool(cached),
                     ))
                     s.commit()
                     results.append(cr)
