@@ -130,7 +130,7 @@ export default function ProjectEditor() {
 
   return (
     <main className="page">
-      <Link href="/projects/" prefetch={false}>← Projects</Link>
+      <Link href="/projects/" prefetch={false} className="back">← Projects</Link>
       <h1>{state.status === "ready" && state.slug ? state.project.name : "New project"}</h1>
       {state.status === "loading" && <Loading label="Loading project" />}
       {state.status === "error" && <ErrorState message={`Could not load the project (${state.message}).`} onRetry={retry} />}

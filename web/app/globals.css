@@ -215,3 +215,4 @@ textarea { resize: vertical; }
 .scorers .check .muted { flex: 1 0 100%; margin: 0 0 0 calc(var(--tap) + var(--space-2)); text-align: left; }
 .name-cell { overflow-wrap: anywhere; }
 .btn.destructive-text { color: var(--danger); }
+.back { display: block; width: fit-content; min-height: var(--tap); line-height: var(--tap); }
