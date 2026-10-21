@@ -58,7 +58,7 @@ touches_api: true
 
 **Delivery notes**
 - `bench_loader` gains `MODELCOMPARE_CUSTOM_DIR` (custom dir override, so tests and QA never write into the repo); default unchanged.
-- Security (lead decision): drafts never offer or return the `code_exec` scorer (it runs Python locally; pasted examples are untrusted). Users can still add it by hand in the editor.
+- Security (lead decision): drafts never offer or return a code-running scorer (`code_exec`, `test_quality`; they run Python locally and pasted examples are untrusted). Users can still add them by hand in the editor.
 
 **Out of scope:** the Projects UI (M6b).
 

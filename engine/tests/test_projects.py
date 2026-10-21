@@ -2,6 +2,8 @@
 
 import json
 
+from fastapi import HTTPException
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -145,6 +147,16 @@ def test_draft_code_exec_is_never_offered_and_never_accepted(client):
     for t in ("codey", "codecase"):
         res = draft(client, t)
         assert res.status_code == 422 and "drafts can't use code_exec" in json.dumps(res.json()["detail"])
+
+
+def test_draft_never_offers_or_accepts_any_code_running_scorer():
+    names = {s["name"] for s in projects._draftable()}
+    assert not names & {"code_exec", "test_quality"}
+    bad = {"name": "x", "scorers": [{"type": "contains"}], "cases": [{"id": "1", "input": "i", "scorers": [{"type": "test_quality"}]}]}
+    with pytest.raises(HTTPException) as e:
+        projects._reject_code_scorers(bad)
+    assert e.value.status_code == 422 and "test_quality" in json.dumps(e.value.detail)
+    projects._reject_code_scorers({"name": "x", "cases": [{"id": "1", "input": "write code_exec docs"}]})  # a mention is fine
 
 
 def test_draft_user_text_cannot_close_the_data_block():

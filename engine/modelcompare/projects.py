@@ -211,8 +211,22 @@ def draft_schema(scorers: list[str]) -> dict[str, Any]:
         "scorers": {"type": "array", "items": spec}, "cases": {"type": "array", "items": case}}}
 
 
+# Scorers that execute code on this machine: never offered to, or accepted from, a model-written draft.
+CODE_RUNNING = frozenset({"code_exec", "test_quality"})
+
+
 def _draftable() -> list[dict[str, str]]:
-    return [s for s in scorer_list() if s["name"] != "code_exec"]  # runs Python locally: never model-written
+    return [s for s in scorer_list() if s["name"] not in CODE_RUNNING]
+
+
+def _reject_code_scorers(data: dict) -> None:
+    specs = list(data.get("scorers") or [])
+    for c in data.get("cases") or []:
+        if isinstance(c, dict):
+            specs += c.get("scorers") or []
+    used = sorted({s.get("type") for s in specs if isinstance(s, dict)} & CODE_RUNNING)
+    if used:
+        raise HTTPException(422, [{"loc": ["model_output"], "msg": f"drafts can't use {', '.join(used)}; add it by hand if you trust the code"}])
 
 
 def _data(text: str) -> str:
@@ -282,8 +296,7 @@ async def draft(req: DraftRequest, cfg: TargetConfig) -> dict[str, Any]:
             raise ValueError
     except ValueError:
         raise HTTPException(422, [{"loc": ["model_output"], "msg": "The model did not return a JSON object."}])
-    if "code_exec" in json.dumps(data):
-        raise HTTPException(422, [{"loc": ["model_output"], "msg": "drafts can't use code_exec; add it by hand if you trust the code"}])
+    _reject_code_scorers(data)
     cases = data.get("cases")
     if isinstance(cases, list):
         cases = [{k: v for k, v in c.items() if k in ("id", "input", "expected", "scorers", "tags")} if isinstance(c, dict) else c
