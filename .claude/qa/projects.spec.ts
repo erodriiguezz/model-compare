@@ -300,4 +300,97 @@ test('[AC-9.2] twelve or more cases stay scannable: a compact table, one expande
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'editor-many-390');
+const draftWith = async (page: Page) => {
+  await page.getByRole('button', { name: 'Draft with AI' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Model').selectOption('mock-drafter');
+  await dialog.getByLabel('Describe the project').fill('Capital cities of Europe');
+  await dialog.getByLabel('Examples').fill('Capital of Spain? => Madrid\nCapital of Italy? => Rome');
+  return dialog;
+};
+
+test('[AC-9.3] Draft fills the editor unsaved with a cost banner, and every field is editable before saving', async ({ page, request }) => {
+  made.push('qa-drafted');
+  page.on('dialog', (d) => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+  await page.goto('/projects/edit/?new=1');
+  const dialog = await draftWith(page);
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('status').filter({ hasText: /Unsaved draft · cost \$/ })).toBeVisible();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('qa-drafted');
+  await expect(page.getByLabel('Case 3 id')).toHaveValue('c3');
+  await expect(page.getByRole('checkbox', { name: /^contains/ })).toBeChecked();
+  expect((await request.get('/api/projects/qa-drafted')).status()).toBe(404); // nothing saved yet
+  await shot(page, 'editor-draft');
+  await page.getByLabel('Case 1 expected').fill('Paris, France');
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await expect(page.getByText('Unsaved draft')).toHaveCount(0);
+  expect((await (await request.get('/api/projects/qa-drafted')).json()).cases[0].expected).toBe('Paris, France');
+});
+
+test('[AC-9.3] the dialog traps focus, Esc closes it and returns focus, and draft errors stay inside it', async ({ page }) => {
+  await page.goto('/projects/edit/?new=1');
+  const trigger = page.getByRole('button', { name: 'Draft with AI' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
+  }
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+
+  await page.route('**/api/projects/draft', (r) => r.fulfill({ status: 422, json: { detail: [{ loc: ['scorers'], msg: 'Drafts cannot use code-running scorers (code_exec).' }] } }));
+  await draftWith(page);
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('code-running scorers');
+  await shot(page, 'draft-dialog-error');
+  await page.unroute('**/api/projects/draft');
+  await page.route('**/api/projects/draft', (r) => r.fulfill({ status: 502, json: { detail: 'The model call failed: boom' } }));
+  await dialog.getByRole('button', { name: 'Draft', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('The model call failed');
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('');
+});
+
+test('[AC-9.3] leaving with unsaved changes asks in an in-page dialog; saved or untouched forms leave freely', async ({ page }) => {
+  page.on('dialog', (d) => { throw new Error(`native ${d.type()} dialog: ${d.message()}`); });
+  await page.goto('/projects/edit/?new=1');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Models' }).click();
+  await expect(page).toHaveURL(/\/models\/$/); // untouched: no prompt
+  await page.goBack();
+  await page.getByLabel('Name', { exact: true }).fill('half-written');
+  await page.getByRole('link', { name: '← Projects' }).click();
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' });
+  await expect(ask).toBeVisible();
+  await expect(page).toHaveURL(/\/projects\/edit\//);
+  await shot(page, 'leave-dialog');
+  await ask.getByRole('button', { name: 'Stay' }).click();
+  await expect(ask).toBeHidden();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('half-written');
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' }).click();
+  await ask.getByRole('button', { name: 'Discard and leave' }).click();
+  await expect(page).toHaveURL(/\/settings\/$/);
+});
+
+test('[AC-9.4] Run on selected models opens Compare with the project and models preselected, and the run completes', async ({ page, request }) => {
+  await create(request, 'qa-nine-run');
+  await page.goto('/projects/edit/?slug=qa-nine-run');
+  await page.getByRole('button', { name: 'Run on selected models' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Run on selected models' });
+  await expect(dialog.getByRole('button', { name: 'Open Compare' })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await dialog.getByRole('checkbox', { name: /^mock-b\b/ }).check();
+  await shot(page, 'run-dialog');
+  await dialog.getByRole('button', { name: 'Open Compare' }).click();
+  await expect(page).toHaveURL(/\/compare\/\?targets=mock-a%2Cmock-b&benchmarks=qa-nine-run$/);
+  await expect(page.getByRole('checkbox', { name: /^mock-a\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^qa-nine-run\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).not.toBeChecked();
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 });
+  await expect(page.getByText('qa-nine-run').first()).toBeVisible();
 });
