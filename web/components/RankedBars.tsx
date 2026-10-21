@@ -42,7 +42,7 @@ export default function RankedBars({ dimensions, baseline }: { dimensions: Recor
                       <YAxis type="category" dataKey="label" width={108} tick={{ fill: colors.text, fontSize: 12 }} stroke={colors.border} interval={0} />
                       <Bar dataKey="score" isAnimationActive={false}>
                         {rows.map((r) => <Cell key={r.name} fill={r.incomplete ? `url(#${hatch})` : colors.provider(r.vendor)} stroke={r.incomplete ? colors.muted : undefined} />)}
-                        <ErrorBar dataKey="err" direction="x" width={6} stroke={colors.text} strokeWidth={1.5} />
+                        <ErrorBar dataKey="err" direction="x" width={6} isAnimationActive={false} stroke={colors.text} strokeWidth={1.5} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>

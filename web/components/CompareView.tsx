@@ -17,7 +17,7 @@ export default function CompareView() {
   useEffect(() => {
     let live = true;
     // Best effort: if the check fails the form is still usable, so a failure shows nothing.
-    getJSON<unknown[]>("/runs").then((r) => live && setNoRuns(r.length === 0)).catch(() => {});
+    getJSON<unknown[]>("/runs?limit=1").then((r) => live && setNoRuns(r.length === 0)).catch(() => {});
     return () => { live = false; };
   }, []);
   return (

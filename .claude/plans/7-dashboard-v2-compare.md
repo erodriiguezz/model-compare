@@ -54,6 +54,15 @@ touches_api: true
 | 7b | `feat/dashboard-v2-redesign-p7b-charts` | ranked bars with CI whiskers, quality-vs-cost scatter with Pareto front | AC-7.1, AC-7.3 |
 | 7c | `feat/dashboard-v2-redesign-p7c-panels` | verdict matrix, suggestions panel, regressions, page states | AC-7.2, AC-7.4, AC-7.5 |
 
+**Delivery notes**
+- The report composer is `web/components/ReportTable.tsx` (it fetches the report and lays out the panels); `JobView` shows it for `/compare/?job=` and `/history/?job=`.
+- The old per-benchmark tables are kept, collapsed under "Details"; flows that read them open Details first.
+- Suggestion kinds beyond the plan: `tradeoff` (better somewhere, worse elsewhere) and `too_small` (needed cases above 500).
+- `insufficient_data` is shown as "Inconclusive" in the matrix, with "n<10" instead of a point change.
+- Incomplete models (error rate above 10%) are hatched in the bars and kept off the Pareto front.
+- A finished job collapses its progress table to a one-line summary ("Show progress" opens it).
+- The empty state shows on `/compare/` (no `?job`) when `GET /api/runs?limit=1` returns no run.
+
 **Out of scope:** exporting charts, dark mode.
 
 **Context:** `product.md` — dashboard row — the Compare page shows the verdict matrix + suggestions.

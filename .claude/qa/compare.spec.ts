@@ -95,6 +95,29 @@ test('[AC-7.2] the verdict matrix shows all five verdict labels and marks the ba
   for (const label of LABELS) await expect(matrix.locator('.legend')).toContainText(label);
 });
 
+test('[AC-7.2] insufficient data reads n<10 in the matrix instead of a point change', async ({ page }) => {
+  await page.goto(JOB);
+  const cell = page.getByRole('region', { name: 'Verdict matrix' }).locator('td[data-verdict="insufficient_data"]');
+  await expect(cell).toHaveCount(1);
+  await expect(cell).toContainText('Inconclusive');
+  await expect(cell).toContainText('n<10');
+  await expect(cell).not.toContainText('pts');
+});
+
+test('[AC-7.5] a finished job collapses its progress so the decision is the first thing on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(JOB);
+  const summary = page.locator('[data-job-summary]');
+  await expect(summary).toContainText(/done · \d+\/\d+ calls · 5 models · 6 capabilities/);
+  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
+  const top = (await page.getByRole('region', { name: 'Suggestions' }).boundingBox())!.y;
+  expect(top).toBeLessThan(800);
+  await page.getByRole('button', { name: 'Show progress' }).click();
+  await expect(page.getByRole('columnheader', { name: 'Progress' })).toBeVisible();
+  await page.getByRole('button', { name: 'Hide progress' }).click();
+  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
+});
+
 test('[AC-7.4] the suggestions panel lists errors first, then decisions, then data advice', async ({ page }) => {
   await page.goto(JOB);
   const panel = page.getByRole('region', { name: 'Suggestions' });
@@ -152,10 +175,12 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
 });
 
 test('[AC-7.5] with no runs yet, Compare points to Models', async ({ page }) => {
-  await page.route('**/api/runs', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: [] }) : route.continue()));
+  const asked: string[] = [];
+  await page.route('**/api/runs?*', (route) => { asked.push(route.request().url()); return route.fulfill({ json: [] }); });
   await page.goto('/compare/');
   const empty = page.locator('[data-state="empty"]');
   await expect(empty).toContainText('No comparisons yet');
+  expect(new URL(asked[0]).searchParams.get('limit')).toBe('1'); // a cheap existence check, not the full run list
   await empty.getByRole('link', { name: 'Choose models' }).click();
   await expect(page).toHaveURL(/\/models\/$/);
 });
@@ -172,9 +197,17 @@ for (const [name, width] of [['1280', 1280], ['390', 390]] as const) {
     await page.goto('/compare/?job=qa-incomplete');
     await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `incomplete-${name}.png`), fullPage: true });
-    await page.route('**/api/runs', (route) => (route.request().method() === 'GET' ? route.fulfill({ json: [] }) : route.continue()));
+    await page.route('**/api/runs?*', (route) => route.fulfill({ json: [] }));
     await page.goto('/compare/');
     await expect(page.locator('[data-state="empty"]')).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `empty-${name}.png`), fullPage: true });
   });
 }
+
+test('[AC-7.5] the real /api/runs?limit=1 answers with at most one run for the empty check', async ({ request }) => {
+  const res = await request.get('/api/runs?limit=1');
+  expect(res.ok()).toBe(true);
+  const rows = await res.json();
+  expect(Array.isArray(rows) && rows.length === 1).toBe(true); // the QA seed guarantees runs exist
+  expect(rows[0]).toHaveProperty('target_name');
+});

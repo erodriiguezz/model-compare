@@ -36,7 +36,7 @@ export default function VerdictMatrix({ baseline, decisions }: { baseline: strin
                   return (
                     <td key={d} data-verdict={c.verdict}>
                       <span className={`chip ${tone}`}>{label}</span>
-                      <span className="muted small"> {c.delta_points >= 0 ? "+" : ""}{c.delta_points.toFixed(0)} pts</span>
+                      <span className="muted small"> {c.verdict === "insufficient_data" ? "n<10" : `${c.delta_points >= 0 ? "+" : ""}${c.delta_points.toFixed(0)} pts`}</span>
                     </td>
                   );
                 })}
