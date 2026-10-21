@@ -69,6 +69,7 @@ class LiteLLMTarget(Target):
             output_tokens=out_tok,
             latency_s=latency,
             cost_usd=cost,
+            finish_reason=getattr(resp.choices[0], "finish_reason", None),
             temperature_fallback=fallback,
         )
 

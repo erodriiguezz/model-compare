@@ -7,5 +7,7 @@
     {"name":"settings rejects a cross-site Origin","method":"PUT","url":"/api/settings/keys/openai","body":{"value":"sk-test-000000000000a1b2"},"headers":{"origin":"https://evil.example"},"expectStatus":403,"ac":"AC-4.3"},
     {"name":"settings unknown provider is 404","method":"PUT","url":"/api/settings/keys/nope","body":{"value":"sk-test-000000000000a1b2"},"expectStatus":404,"ac":"AC-4.3"}
     ,{"name":"models catalog lists providers","method":"GET","url":"/api/models","expectStatus":200,"expectBodyIncludes":"\"providers\"","ac":"AC-5.1"}
+    ,{"name":"projects list","method":"GET","url":"/api/projects","expectStatus":200,"ac":"AC-8.1"}
+    ,{"name":"scorers list","method":"GET","url":"/api/scorers","expectStatus":200,"expectBodyIncludes":"contains","ac":"AC-8.4"}
   ]
 }

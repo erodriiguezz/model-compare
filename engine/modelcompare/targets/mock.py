@@ -38,5 +38,6 @@ class MockTarget(Target):
             output_tokens=out_tok,
             latency_s=latency,
             cost_usd=self.estimate_cost(in_tok, out_tok),
+            finish_reason=extra.get("finish_reason"),
             temperature_fallback=bool(extra.get("temperature_fallback", False)),
         )

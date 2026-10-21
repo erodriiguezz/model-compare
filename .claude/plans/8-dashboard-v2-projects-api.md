@@ -2,7 +2,7 @@
 issue: 8
 title: Projects API and AI draft
 branch: feat/dashboard-v2-redesign-p8-projects-api
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -50,6 +50,16 @@ touches_api: true
 
 **Size** M · ~300 lines · ~280k tokens
 
+**PR split** (lead decision during delivery, used only if review fixes take the PR over 400 counted lines; otherwise it ships as one PR on `branch`)
+| Part | Branch | Content | Criteria |
+| --- | --- | --- | --- |
+| 8a | `feat/dashboard-v2-redesign-p8a-crud` | projects CRUD, slug/path guard, validation, custom-dir override, `/api/scorers` | AC-8.1, AC-8.2, AC-8.4 |
+| 8b | `feat/dashboard-v2-redesign-p8b-draft` | AI draft endpoint | AC-8.3 |
+
+**Delivery notes**
+- `bench_loader` gains `MODELCOMPARE_CUSTOM_DIR` (custom dir override, so tests and QA never write into the repo); default unchanged.
+- Security (lead decision): drafts never offer or return a code-running scorer (`code_exec`, `test_quality`; they run Python locally and pasted examples are untrusted). Users can still add them by hand in the editor.
+
 **Out of scope:** the Projects UI (M6b).
 
 **Context:** `architecture.md` — add a `projects.py` module row.
@@ -63,5 +73,13 @@ See `mvp-dashboard-v2.md` §2.
 - API smoke: `GET /api/projects`, `GET /api/scorers`
 
 ## 5. Evidence
+- QA: passed on `68f53ae` (verify: 893 pytest tests plus web lint and build; API smoke; 73 browser tests; AC-8.1–8.4 covered). Diff coverage: not measured. The PR split wasn't needed.
+- AC table: `docs/reviews/8.md`.
+- Reviewer: round 1 Request changes (2 High), all fixed. The lead also blocked `test_quality`.
+- Lines: 389 counted (320 test lines not counted).
+
 ## 6. Retro
+- The plan's Security section didn't consider that drafted scorers can run code. Plans that let a model write config should list every config field with side effects.
+- Red-first was skipped again in round 1 despite the brief. It only happened when the lead asked for pasted red lines plus mutation proofs. Make "paste the red line" a required report field in every builder brief.
+- The `max_tokens`/`response_format` defaults came from one provider's limits. Draft or structured-output features need per-model capability checks.
 ## 7. Hand-off
