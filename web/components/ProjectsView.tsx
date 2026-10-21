@@ -40,15 +40,17 @@ export default function ProjectsView() {
             <thead><tr><th>Name</th><th className="hide-sm">Dimension</th><th className="num">Cases</th><th className="hide-sm">Last run</th></tr></thead>
             <tbody>{state.rows.map((p) => {
               const last = state.runs.find((r) => r.benchmark_name === p.name);
+              const lastText = last ? `${last.started_at ? `${fmtTime(last.started_at)} · ` : ""}${last.target_name}` : "Never run";
               return (
                 <tr key={p.slug}>
                   <td className="name-cell">
                     <Link href={`/projects/edit/?slug=${p.slug}`} prefetch={false}>{p.name}</Link>
+                    <div className="show-sm muted small">{p.dimension ?? "—"} · {lastText}</div>
                     {!p.valid && <> <span className="chip bad">invalid</span><div className="danger small">{p.error}</div></>}
                   </td>
                   <td className="hide-sm">{p.dimension ?? "—"}</td>
                   <td className="num">{p.n_cases}</td>
-                  <td className="hide-sm">{last ? `${last.started_at ? `${fmtTime(last.started_at)} · ` : ""}${last.target_name}` : <span className="muted">Never run</span>}</td>
+                  <td className="hide-sm">{last ? lastText : <span className="muted">Never run</span>}</td>
                 </tr>
               );
             })}</tbody>

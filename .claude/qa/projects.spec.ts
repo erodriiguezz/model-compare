@@ -42,6 +42,8 @@ test('[AC-9.1] the list shows name, dimension, case count and last run; a broken
   await expect(broken.locator('.chip')).toHaveText('invalid');
   await shot(page, 'projects-list');
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect(row.locator('.show-sm')).toBeVisible(); // narrow screens keep dimension and last run under the name
+  await expect(row.locator('.show-sm')).toContainText('mock-b');
   await shot(page, 'projects-list-390');
 });
 

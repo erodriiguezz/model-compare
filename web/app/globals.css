@@ -216,3 +216,4 @@ textarea { resize: vertical; }
 .name-cell { overflow-wrap: anywhere; }
 .btn.destructive-text { color: var(--danger); }
 .back { display: block; width: fit-content; min-height: var(--tap); line-height: var(--tap); }
+.card p a.btn { text-decoration: none; }
