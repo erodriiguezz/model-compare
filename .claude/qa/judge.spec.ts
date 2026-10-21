@@ -31,7 +31,10 @@ test('[AC-3.1] catalog models are offered as judges, a vendor not under test is 
   expect(bodies.at(-1)).toMatchObject({ judge: 'anthropic/claude-x' });
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page.getByRole('group', { name: 'Confirm cost' })).toContainText('cost unknown for anthropic/claude-x');
-  await page.screenshot({ path: '.claude/artifacts/judge-select.png', fullPage: true });
+  await page.screenshot({ path: '.claude/artifacts/judge-select-1280.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: '.claude/artifacts/judge-select-390.png', fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test('[AC-3.1] when the catalog fails, Run stays disabled with a muted note', async ({ page }) => {
