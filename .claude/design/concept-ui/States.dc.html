@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Empty, loading and error states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.lbl{font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#5C5C66;margin:0 0 8px}
+.pane{background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:28px;min-height:300px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.btn{display:inline-flex;align-items:center;min-height:40px;padding:0 16px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A;align-self:flex-start}
+.btn.pri{background:#17171A;border-color:#17171A;color:#FFFFFF}
+.sk{background:#EEEEF1;border-radius:6px}
+@keyframes sh{0%,100%{opacity:1}50%{opacity:.5}}
+.sk{animation:sh 1.6s infinite}
+h3{margin:0;font-size:18px;font-weight:600;letter-spacing:-0.01em}
+p{margin:0;font-size:14px;color:#45454D;line-height:1.55}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; padding: 48px; font-size: 15px; line-height: 1.5; box-sizing: border-box; width: 1440px; min-height: 1700px">
+  <h1 style="margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Empty, loading and error states</h1>
+  <p style="margin-bottom: 32px">Each state says what happened and gives one next step.</p>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px 24px">
+
+    <div>
+      <div class="lbl">Choose · no targets file</div>
+      <div class="pane" style="align-items: flex-start">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#5C5C66" stroke-width="1.8" aria-hidden="true"><rect x="8" y="6" width="24" height="28" rx="3"></rect><path d="M14 14h12M14 20h12M14 26h7" stroke-linecap="round"></path></svg>
+        <h3>No models set up yet</h3>
+        <p>ModelCompare reads your models from <span class="mono">targets.yaml</span> in the folder you ran <span class="mono">serve</span> from.</p>
+        <pre class="mono" style="margin: 0; padding: 12px 14px; background: #F6F6F7; border-radius: 8px; font-size: 12.5px; align-self: stretch">cp targets.example.yaml targets.yaml</pre>
+        <a class="btn pri" href="#">Check again</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Choose · API key missing</div>
+      <div class="pane">
+        <div style="display: flex; gap: 12px; padding: 14px; border: 1px solid #E4E4E8; border-radius: 10px; background: #FAFAFB; opacity: .85">
+          <span style="flex: none; width: 20px; height: 20px; border-radius: 6px; border: 1px solid #C9C9D1; background: #FFFFFF"></span>
+          <div><div style="font-weight: 600">llama-5-70b</div><div class="mono" style="font-size: 12px; color: #5C5C66">together_ai/llama-5-70b</div><div style="font-size: 12px; font-weight: 500; color: #A1271C">TOGETHERAI_API_KEY missing</div></div>
+        </div>
+        <p>A model whose key is missing can't be selected. Add the variable to your environment or <span class="mono">.env</span>, then restart <span class="mono">serve</span>.</p>
+        <a class="btn" href="#">How keys are read</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Report · loading</div>
+      <div class="pane" aria-busy="true" aria-label="Loading report">
+        <div class="sk" style="height: 14px; width: 40%"></div>
+        <div class="sk" style="height: 28px; width: 85%"></div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <div class="sk" style="height: 64px"></div><div class="sk" style="height: 64px"></div><div class="sk" style="height: 64px"></div>
+        </div>
+        <div class="sk" style="height: 96px"></div>
+        <div class="sk" style="height: 14px; width: 60%"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Report · only one model</div>
+      <div class="pane" style="align-items: flex-start">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#5C5C66" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="14" cy="20" r="7"></circle><circle cx="28" cy="20" r="7" stroke-dasharray="3 3"></circle></svg>
+        <h3>Add a second model to get a verdict</h3>
+        <p>This report has scores for claude-sonnet-5-5 only. Comparing needs a baseline and at least one candidate. Cached answers mean the baseline is not billed again.</p>
+        <a class="btn pri" href="Choose.dc.html">Add a model</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Report · not enough shared cases</div>
+      <div class="pane">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #FFF1D6; color: #7A4A00">Not enough tests to tell</span><span style="font-size: 14px; font-weight: 600">gpt-6.1-sol vs claude-sonnet-5-5</span></div>
+        <p>Only 8 cases ran on both models. A verdict needs at least 10 shared cases, so none is shown rather than a misleading one.</p>
+        <p style="color: #5C5C66">Usually a run hit its budget or was cancelled before both models finished the same cases.</p>
+        <a class="btn" href="Choose.dc.html">Run the missing cases</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Run · budget reached</div>
+      <div class="pane">
+        <div style="display: flex; gap: 12px; align-items: flex-start; background: #FFF7E6; border-radius: 10px; padding: 14px; color: #5A3B00">
+          <svg width="20" height="20" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex: none; margin-top: 1px"><path d="M9 2l7.5 13h-15z" stroke-linejoin="round"></path><path d="M9 7.5v3.5M9 13.2v.1" stroke-linecap="round"></path></svg>
+          <div><div style="font-weight: 600">Stopped at your $10.00 budget</div><div style="font-size: 14px">gemini-3-pro finished 71% of the deck. Completed cases are saved and cached.</div></div>
+        </div>
+        <p>The partial report only compares cases both models finished, so it may show fewer verdicts.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px"><a class="btn pri" href="Main.dc.html">Open partial report</a><a class="btn" href="Choose.dc.html">Resume with a higher budget</a></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Run · failed</div>
+      <div class="pane">
+        <div style="display: flex; gap: 12px; align-items: flex-start; background: #FBE7E5; border-radius: 10px; padding: 14px; color: #7A1D15">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true" style="flex: none; margin-top: 1px"><circle cx="10" cy="10" r="8"></circle><path d="M7 7l6 6M13 7l-6 6"></path></svg>
+          <div><div style="font-weight: 600">llama-5-70b failed on every call</div><div style="font-size: 14px">The provider returned 401 Unauthorized. The other models kept running.</div></div>
+        </div>
+        <pre class="mono" style="margin: 0; padding: 12px 14px; background: #F6F6F7; border-radius: 8px; font-size: 12px; white-space: pre-wrap; color: #45454D">litellm.AuthenticationError: TogetherAIException - Invalid API key</pre>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px"><a class="btn pri" href="#">Retry llama-5-70b</a><a class="btn" href="Main.dc.html">Report without it</a></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">Any screen · server unreachable</div>
+      <div class="pane" style="align-items: flex-start">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#A1271C" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 16a17 17 0 0124 0M12 21a11 11 0 0116 0M17 26a4 4 0 016 0"></path><path d="M8 8l24 24"></path></svg>
+        <h3>Can't reach the ModelCompare server</h3>
+        <p>The page lost its connection to <span class="mono">127.0.0.1:8000</span>. A run in progress keeps going on the server.</p>
+        <a class="btn pri" href="#">Reconnect</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="lbl">History · empty</div>
+      <div class="pane" style="align-items: flex-start">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" stroke="#5C5C66" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="7" y="22" width="6" height="11" rx="1.5"></rect><rect x="17" y="12" width="6" height="21" rx="1.5"></rect><rect x="27" y="17" width="6" height="16" rx="1.5"></rect></svg>
+        <h3>No comparisons yet</h3>
+        <p>Your first comparison shows up here, with its recommendation and what it cost.</p>
+        <a class="btn pri" href="Choose.dc.html">Start a comparison</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
