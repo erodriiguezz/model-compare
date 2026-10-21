@@ -1,0 +1,75 @@
+{
+  "issue": 9,
+  "title": "Projects UI and end-to-end journeys",
+  "branch": "feat/dashboard-v2-redesign-p9c-e2e",
+  "commit": "b7ac360da1e8270e22bf4e30c743f4478e597af7",
+  "plan": ".claude/plans/9-dashboard-v2-projects-ui.md",
+  "size": "M",
+  "touchesApi": false,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "b7ac360da1e8270e22bf4e30c743f4478e597af7",
+    "at": "2026-10-21T12:59:42.470Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-9.1",
+        "tests": 3
+      },
+      {
+        "id": "AC-9.2",
+        "tests": 11
+      },
+      {
+        "id": "AC-9.3",
+        "tests": 6
+      },
+      {
+        "id": "AC-9.4",
+        "tests": 2
+      },
+      {
+        "id": "AC-9.5",
+        "tests": 1
+      },
+      {
+        "id": "AC-9.6",
+        "tests": 1
+      },
+      {
+        "id": "AC-9.7",
+        "tests": 1
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (1 High) → all fixed; approve",
+    "document": "docs/reviews/9.md"
+  },
+  "cost": {
+    "estTokens": 350000,
+    "actualTokens": 139899019,
+    "toolCalls": 75,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-21T13:00:41.032Z"
+}

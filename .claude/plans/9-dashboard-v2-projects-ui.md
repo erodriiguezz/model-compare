@@ -2,7 +2,7 @@
 issue: 9
 title: Projects UI and end-to-end journeys
 branch: feat/dashboard-v2-redesign-p9-projects-ui
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -79,5 +79,13 @@ See `mvp-dashboard-v2.md` §2.
 - AC-9.5–AC-9.7 `.claude/qa/e2e.spec.ts`
 
 ## 5. Evidence
+- QA (top of the stack, 9c): passed on `b7ac360`. Verify, app, API smoke, 153 browser tests, screenshots, UI audit 0 serious on every Screens route. AC-9.1–9.7 covered. 9a and 9b green except the later-part ACs.
+- AC table and screens: `docs/reviews/9.md`.
+- Reviewer: round 1 Request changes (1 High), all fixed in round 2.
+- Lines: 382 + 311 + 121 counted across 3 PRs.
+
 ## 6. Retro
+- The editor's first pass rebuilt the benchmark from form state and silently changed data. Editors over a schema with more fields than the UI shows need a round-trip test from day one.
+- Native `<dialog>` inside a `<form>` still submits that form. Worth a design-skill note.
+- Two rate-limit interruptions mid-part were recoverable because work was committed often; one round left changes uncommitted, which nearly hid whether 9a was done. Builders should commit before any long step.
 ## 7. Hand-off
