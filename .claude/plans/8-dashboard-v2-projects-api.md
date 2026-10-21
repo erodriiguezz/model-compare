@@ -50,6 +50,16 @@ touches_api: true
 
 **Size** M · ~300 lines · ~280k tokens
 
+**PR split** (lead decision during delivery, used only if review fixes take the PR over 400 counted lines; otherwise it ships as one PR on `branch`)
+| Part | Branch | Content | Criteria |
+| --- | --- | --- | --- |
+| 8a | `feat/dashboard-v2-redesign-p8a-crud` | projects CRUD, slug/path guard, validation, custom-dir override, `/api/scorers` | AC-8.1, AC-8.2, AC-8.4 |
+| 8b | `feat/dashboard-v2-redesign-p8b-draft` | AI draft endpoint | AC-8.3 |
+
+**Delivery notes**
+- `bench_loader` gains `MODELCOMPARE_CUSTOM_DIR` (custom dir override, so tests and QA never write into the repo); default unchanged.
+- Security (lead decision): drafts never offer or return the `code_exec` scorer (it runs Python locally; pasted examples are untrusted). Users can still add it by hand in the editor.
+
 **Out of scope:** the Projects UI (M6b).
 
 **Context:** `architecture.md` — add a `projects.py` module row.
