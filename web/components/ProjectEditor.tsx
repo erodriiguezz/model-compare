@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DIMENSIONS, deleteJSON, getJSON, postJSON, putJSON, type ApiError, type FieldError, type Project, type ScorerInfo, type ScorerSpec } from "@/lib/api";
+import { DIMENSIONS, deleteJSON, getJSON, postJSON, putJSON, usd, type ApiError, type FieldError, type Project, type ScorerInfo, type ScorerSpec } from "@/lib/api";
 import CaseTable, { Err, fromRow, idProblems, toRow, type Row } from "./CaseTable";
+import DraftDialog, { type Draft } from "./DraftDialog";
+import LeaveGuard from "./LeaveGuard";
+import RunDialog from "./RunDialog";
 import { Empty, ErrorState, Loading } from "./States";
 
 type Loaded = { project: Project; scorers: ScorerInfo[] };
@@ -18,7 +21,7 @@ const SLUG = /^[a-z0-9-]{1,64}$/;
 const CODE_SCORERS = ["code_exec", "test_quality"];
 const badRows = (found: FieldError[]) => found.flatMap((f) => (f.loc[0] === "cases" && /^\d+$/.test(f.loc[1] ?? "") ? [Number(f.loc[1])] : []));
 
-function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: string | null; scorers: ScorerInfo[]; onSaved: (slug: string) => void }) {
+function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: string | null; scorers: ScorerInfo[]; onSaved: (slug: string, name: string) => void }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
   const [rows, setRows] = useState<Row[]>(() => initial.cases.map(toRow));
@@ -28,6 +31,11 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [dialog, setDialog] = useState<"draft" | "run" | null>(null);
+  const [cost, setCost] = useState<number | null>(null); // set while the form holds an unsaved draft
+  const snap = JSON.stringify([form, rows, params]);
+  const [clean, setClean] = useState(snap);
+  const dirty = snap !== clean;
   const set = (patch: Partial<Project>) => { setForm((f) => ({ ...f, ...patch })); setSaved(false); };
   const errs = (key: string, exact = false) => Object.entries(errors).filter(([k]) => k === key || (!exact && k.startsWith(`${key}.`))).flatMap(([, m]) => m);
   const ctl = (key: string) => ({ "aria-invalid": errs(key).length > 0 || undefined, "aria-describedby": errs(key).length ? `e-${key}` : undefined });
@@ -39,6 +47,13 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
     set({ scorers: on ? keep.map((i) => form.scorers[i]) : [...form.scorers, { type: name }] });
     setParams(on ? keep.map((i) => params[i]) : [...params, ""]);
   };
+
+  function fill({ benchmark: d, cost_usd }: Draft) {
+    setForm((f) => ({ ...f, name: f.name || d.name, description: f.description || d.description, system_prompt: f.system_prompt || d.system_prompt, dimension: d.dimension, scorers: d.scorers }));
+    setParams(d.scorers.map((x) => (x.params && Object.keys(x.params).length ? JSON.stringify(x.params) : "")));
+    setRows(d.cases.map((c, i) => toRow(c, i + 1)));
+    setOpen(null); setCost(cost_usd); setSaved(false); setErrors({});
+  }
 
   async function save() {
     const found: FieldError[] = [];
@@ -59,7 +74,7 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
     const body = { ...form, name: form.name.trim(), system_prompt: form.system_prompt || null, scorers: specs, cases: rows.map(fromRow) };
     try {
       const out = slug ? await putJSON<{ slug: string }>(`/projects/${encodeURIComponent(slug)}`, body) : await postJSON<{ slug: string }>("/projects", body);
-      setSaved(true); onSaved(out.slug);
+      setSaved(true); setCost(null); setClean(snap); onSaved(out.slug, body.name);
     } catch (e) {
       const a = e as ApiError;
       if (a.fields) show(a.fields); else setErrors({ [a.status === 409 ? "name" : "body"]: [a.message] });
@@ -70,7 +85,9 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
   }
 
   return (
+    <>
     <form className="form" noValidate onSubmit={(e) => { e.preventDefault(); void save(); }}>
+      {cost !== null && <p className="note" role="status">Unsaved draft · cost {usd(cost)}. Review and edit it, then save.</p>}
       {stray.length > 0 && <p className="note" role="alert">{stray.join(" ")}</p>}
       <section className="card form" aria-label="Project details">
         <label>Name<input value={form.name} onChange={(e) => set({ name: e.target.value })} {...ctl("name")} /></label>
@@ -112,18 +129,24 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
       <div className="between">
         <div className="bar-actions">
           <button type="submit" className="btn" disabled={busy}>{busy ? "Saving…" : "Save project"}</button>
-          <span role="status" className="muted">{saved ? "Saved" : ""}</span>
+          <button type="button" className="btn secondary" onClick={() => setDialog("draft")}>Draft with AI</button>
+          {slug && <button type="button" className="btn secondary" disabled={dirty} onClick={() => setDialog("run")}>Run on selected models</button>}
+          <span role="status" className="muted">{saved ? "Saved" : slug && dirty ? "Save your changes to run them." : ""}</span>
         </div>
         {slug && !confirming && <button type="button" className="btn secondary destructive-text" onClick={() => setConfirming(true)}>Delete project</button>}
       </div>
       {confirming && (
         <div className="confirm">
-          <p>Delete “{initial.name}”? This removes its file and cannot be undone. Past runs stay in History.</p>
+          <p>Delete “{form.name.trim()}”? This removes its file and cannot be undone. Past runs stay in History.</p>
           <button type="button" className="btn destructive" onClick={() => void remove()}>Confirm delete</button>
           <button type="button" className="btn secondary" onClick={() => setConfirming(false)}>Cancel</button>
         </div>
       )}
     </form>
+    <DraftDialog open={dialog === "draft"} onClose={() => setDialog(null)} onDraft={fill} />
+    <RunDialog open={dialog === "run"} project={form.name.trim()} onClose={() => setDialog(null)} />
+    <LeaveGuard dirty={dirty} />
+    </>
   );
 }
 
@@ -144,9 +167,9 @@ export default function ProjectEditor() {
     return () => { live = false; };
   }, [slug, attempt]);
   const retry = useCallback(() => { setState({ status: "loading" }); setAttempt((n) => n + 1); }, []);
-  const saved = (s: string) => {
+  const saved = (s: string, name: string) => {
     known.current = s;
-    setState((st) => (st.status === "ready" ? { ...st, slug: s } : st));
+    setState((st) => (st.status === "ready" ? { ...st, slug: s, project: { ...st.project, name } } : st));
     window.history.replaceState(null, "", `/projects/edit/?slug=${s}`);
   };
 
