@@ -73,10 +73,11 @@ test('[AC-9.2] create a project with cases and a scorer, edit and delete cases, 
   await page.getByLabel('System prompt').fill('Answer briefly.');
   await page.getByRole('checkbox', { name: /^contains/ }).check();
   await page.getByRole('button', { name: 'Add case' }).click();
-  await page.getByRole('button', { name: 'Add case' }).click();
   await page.getByLabel('Case 1 id').fill('capital');
   await page.getByLabel('Case 1 input').fill('Capital of France?');
   await page.getByLabel('Case 1 expected').fill('Paris');
+  await page.getByRole('button', { name: 'Add case' }).click(); // a new case opens expanded, the previous one folds
+  await expect(page.getByLabel('Case 1 id')).toHaveCount(0);
   await page.getByLabel('Case 2 id').fill('doomed');
   await page.getByRole('button', { name: 'Delete case 2' }).click();
   await expect(page.getByLabel('Case 2 id')).toHaveCount(0);
@@ -100,6 +101,7 @@ test('[AC-9.2] create a project with cases and a scorer, edit and delete cases, 
   // Edit an existing project: a changed expected value is written back with PUT.
   await page.reload();
   await expect(page.getByLabel('Name', { exact: true })).toHaveValue('qa-nine-new');
+  await page.getByRole('button', { name: 'Edit case 1' }).click();
   await page.getByLabel('Case 1 expected').fill('Paris, France');
   await page.getByRole('button', { name: 'Save project' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
@@ -132,14 +134,14 @@ test('[AC-9.2] validation errors from the API appear inline on the field or case
   await page.getByLabel('Case 1 id').fill('c1');
   await page.getByLabel('Case 1 input').fill('Hello?');
   await page.getByRole('button', { name: 'Save project' }).click();
-  const row = page.getByRole('listitem').filter({ has: page.getByLabel('Case 1 id') });
-  await expect(row).toContainText(/has no scorers/);
+  await expect(page.getByLabel('Case 1 scorer')).toHaveAccessibleDescription(/has no scorers/); // under the field it belongs to
+  await expect(page.getByLabel('Case 1 expected')).not.toHaveAttribute('aria-invalid', 'true');
   await shot(page, 'editor-errors');
 
   // A field-level loc lands next to its input.
   await page.route('**/api/projects', (r) => r.fulfill({ status: 422, json: { detail: [{ loc: ['cases', '0', 'input'], msg: 'Input is too long.' }, { loc: ['pass_threshold'], msg: 'Must be at most 1.' }] } }));
   await page.getByRole('button', { name: 'Save project' }).click();
-  await expect(row).toContainText('Input is too long.');
+  await expect(page.getByLabel('Case 1 input')).toHaveAccessibleDescription('Input is too long.');
   await expect(page.getByLabel('Pass threshold')).toHaveAccessibleDescription(/Must be at most 1/);
   await expect(page.getByLabel('Case 1 input')).toHaveAttribute('aria-invalid', 'true');
 });
@@ -167,7 +169,135 @@ test('[AC-9.2] the editor is usable at 390px with no sideways scroll', async ({ 
   await create(request, 'qa-nine-mobile');
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/projects/edit/?slug=qa-nine-mobile');
+  await expect(page.getByRole('button', { name: 'Edit case 1' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Edit case 1' }).click();
   await expect(page.getByLabel('Case 1 id')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, 'editor-390');
+});
+
+const editCase = (page: Page, n: number) => page.getByRole('button', { name: `Edit case ${n}` });
+const many = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `q${i + 1}`, input: `Question number ${i + 1} with a rather long text that must be cut in the table row`, expected: `Answer ${i + 1}` }));
+async function createFull(request: APIRequestContext, body: object) {
+  const res = await request.post('/api/projects', { data: body });
+  expect(res.status(), await res.text()).toBe(201);
+  const slug = (await res.json()).slug as string;
+  made.push(slug);
+  return slug;
+}
+
+test('[AC-9.2] a project round-trips untouched: vars, documents, tools, repeats, typed expected values and scorer params survive a save', async ({ page, request }) => {
+  const slug = await createFull(request, {
+    name: 'qa-nine-round', version: '2', dimension: 'knowledge', description: 'before', system_prompt: 'Be brief.', repeats: 3, pass_threshold: 0.5,
+    tools: [{ name: 'lookup', description: 'Look up', parameters: { type: 'object', properties: { q: { type: 'string' } } } }],
+    documents: { doc1: 'A long document.' },
+    scorers: [{ type: 'contains', params: { values: ['a'] } }, { type: 'contains', weight: 2, params: { values: ['b'] } }],
+    cases: [
+      { id: 'n1', input: 'Q1', expected: 42, vars: { must_include: ['x'] }, tags: ['t1', 't2'], document: 'doc1' },
+      { id: 'n2', input: 'Q2', expected: { a: [1, 2] }, scorers: [{ type: 'regex', params: { pattern: '^a' } }] },
+      { id: 'n3', input: 'Q3', expected: '[1, 2]', scorers: [{ type: 'exact' }, { type: 'contains', weight: 0.5, params: { values: ['x'] } }] },
+      { id: 'n4', input: 'Q4', expected: ['p', 'q'] },
+    ],
+  });
+  const before = await (await request.get(`/api/projects/${slug}`)).json();
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  // Two scorers of one type each keep their own parameters.
+  await expect(page.getByLabel('contains parameters 1')).toHaveValue('{"values":["a"]}');
+  await expect(page.getByLabel('contains parameters 2')).toHaveValue('{"values":["b"]}');
+  await page.getByLabel('Description').fill('after');
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  const after = await (await request.get(`/api/projects/${slug}`)).json();
+  expect(after).toEqual({ ...before, description: 'after' });
+});
+
+test('[AC-9.2] expected values keep their type: text stays text, numbers and objects stay JSON', async ({ page, request }) => {
+  const slug = await createFull(request, { name: 'qa-nine-types', dimension: 'knowledge', scorers: [{ type: 'contains' }], cases: [
+    { id: 'str', input: 'A', expected: 'x' }, { id: 'num', input: 'B', expected: 42 }, { id: 'obj', input: 'C', expected: { a: 1 } }, { id: 'bad', input: 'D', expected: [1] },
+  ] });
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  const set = async (n: number, text: string) => { await editCase(page, n).click(); await page.getByLabel(`Case ${n} expected`).fill(text); };
+  await set(1, '[3]'); // a string stays a string, even when it looks like JSON
+  await set(2, '43');
+  await set(3, '{"a": 2}');
+  await set(4, '[1,'); // not JSON: falls back to the text
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  const cases = (await (await request.get(`/api/projects/${slug}`)).json()).cases;
+  expect(cases.map((c: { expected: unknown }) => c.expected)).toEqual(['[3]', 43, { a: 2 }, '[1,']);
+});
+
+test('[AC-9.2] a new case gets the first unused case-N id, and duplicate ids are flagged on the row before saving', async ({ page }) => {
+  let writes = 0;
+  await page.route('**/api/projects', (r) => { if (r.request().method() !== 'GET') writes++; return r.continue(); });
+  await page.goto('/projects/edit/?new=1');
+  await page.getByLabel('Name', { exact: true }).fill('qa-nine-dup');
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await expect(page.getByLabel('Case 2 id')).toHaveValue('case-2');
+  await editCase(page, 1).click();
+  await page.getByRole('button', { name: 'Delete case 1' }).click();
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await expect(page.getByLabel('Case 2 id')).toHaveValue('case-1'); // case-1 was free again
+  await page.getByLabel('Case 2 id').fill('case-2');
+  await expect(page.getByLabel('Case 2 id')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByLabel('Case 2 id')).toHaveAccessibleDescription(/Duplicate id/);
+  await page.getByRole('checkbox', { name: /^contains/ }).check();
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByLabel('Case 2 id')).toHaveAccessibleDescription(/Duplicate id/);
+  expect(writes).toBe(0);
+});
+
+test('[AC-9.2] the slug in the URL is validated before anything is fetched', async ({ page }) => {
+  const seen: string[] = [];
+  page.on('request', (r) => { if (/\/api\/projects\//.test(r.url())) seen.push(r.url()); });
+  for (const bad of ['..%2Fetc', 'A%20B', 'x'.repeat(65)]) {
+    await page.goto(`/projects/edit/?slug=${bad}`);
+    await expect(page.getByText('Project not found')).toBeVisible();
+  }
+  expect(seen).toEqual([]);
+});
+
+test('[AC-9.2] the scorer picker shows every scorer unclipped in a grid, and warns on code-running ones', async ({ page }) => {
+  await page.goto('/projects/edit/?new=1');
+  const grid = page.getByTestId('scorer-grid');
+  await expect(grid).toBeVisible();
+  expect(await grid.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true); // no inner scroll box, no half-cut row
+  const items = grid.locator('.scorer');
+  const [a, b] = [await items.nth(0).boundingBox(), await items.nth(1).boundingBox()];
+  expect(b!.x).toBeGreaterThan(a!.x); // two columns at 1280
+  await expect(page.getByText(/runs Python on this machine/)).toHaveCount(0);
+  await page.getByRole('checkbox', { name: /^code_exec/ }).check();
+  await expect(page.getByText('Runs Python on this machine — only use with code you trust.')).toBeVisible();
+  await page.getByRole('checkbox', { name: /^test_quality/ }).check();
+  await expect(page.getByText(/only use with code you trust/)).toHaveCount(2);
+  await shot(page, 'scorer-grid');
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [c, d] = [await items.nth(0).boundingBox(), await items.nth(1).boundingBox()];
+  expect(d!.x).toBe(c!.x); // one column at 390
+  await shot(page, 'scorer-grid-390');
+});
+
+test('[AC-9.2] twelve or more cases stay scannable: a compact table, one expanded case at a time', async ({ page, request }) => {
+  const slug = await createFull(request, { name: 'qa-nine-many', dimension: 'knowledge', scorers: [{ type: 'contains' }], cases: many(14) });
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  const table = page.getByRole('table', { name: 'Cases' });
+  await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(14);
+  await expect(page.getByLabel('Case 1 id')).toHaveCount(0);
+  const rowH = (await table.getByRole('row').nth(1).boundingBox())!.height;
+  expect(rowH).toBeLessThan(80); // a row is one or two lines, not a form
+  await shot(page, 'editor-many');
+  await editCase(page, 3).click();
+  await expect(editCase(page, 3)).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByLabel('Case 3 input')).toBeVisible();
+  await shot(page, 'editor-case-open');
+  await editCase(page, 5).focus();
+  await page.keyboard.press('Enter');
+  await expect(editCase(page, 5)).toHaveAttribute('aria-expanded', 'true');
+  await expect(editCase(page, 3)).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByLabel('Case 3 id')).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await shot(page, 'editor-many-390');
 });
