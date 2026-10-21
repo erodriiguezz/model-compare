@@ -410,9 +410,18 @@ def keys_test(provider: str):
 
 
 async def _json_body(request: Request) -> dict:
-    if int(request.headers.get("content-length") or 0) > projects.MAX_BODY:
-        raise HTTPException(413, "Body is over 1 MB.")
-    return projects.parse_body(await request.body())
+    cl = request.headers.get("content-length")
+    if cl is not None:
+        if not cl.isdigit():
+            raise HTTPException(400, "Content-Length must be an integer.")
+        if int(cl) > projects.MAX_BODY:
+            raise HTTPException(413, "Body is over 1 MB.")
+    raw = bytearray()
+    async for chunk in request.stream():
+        raw += chunk
+        if len(raw) > projects.MAX_BODY:
+            raise HTTPException(413, "Body is over 1 MB.")
+    return projects.parse_body(bytes(raw))
 
 
 projects_api = APIRouter(prefix="/projects", dependencies=[Depends(_local_only)])
