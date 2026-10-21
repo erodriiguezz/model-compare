@@ -25,7 +25,14 @@ export default function RankedBars({ dimensions, baseline }: { dimensions: Recor
               err: t.incomplete ? undefined : [pct(q) - pct(ci[0]), pct(ci[1]) - pct(q)],
             }))
             .sort((a, b) => b.raw - a.raw || a.name.localeCompare(b.name));
-          if (!rows.length) return null;
+          if (!rows.length) {
+            return (
+              <figure key={dim} className="chart" data-chart="ranked-bars" data-dimension={dim}>
+                <figcaption><strong>{info.label}</strong> <span className="muted small">0 shared cases</span></figcaption>
+                <p className="muted">No scored cases — every call errored. Fix the errors and re-run.</p>
+              </figure>
+            );
+          }
           const hatch = `hatch-${dim}`;
           const summary = `${info.label}: ${rows.map((r) => `${r.name} ${r.score}%${r.incomplete ? " incomplete, too many errors" : ` (${r.lo} to ${r.hi})`}`).join(", ")}`;
           return (

@@ -159,6 +159,11 @@ test('every call errored on a benchmark: the report renders "No paired cases" an
   await page.goto('/compare/?job=qa-all-errors');
   await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors');
   await page.getByText('Details', { exact: true }).click();
+  await expect(page.getByText('2 capabilities')).toBeVisible();
+  const matrix = page.getByRole('region', { name: 'Verdict matrix' });
+  await expect(matrix.getByRole('columnheader', { name: /tool/i })).toBeVisible();
+  await expect(matrix.locator('td', { hasText: /^Incomplete/ })).toBeVisible();
+  await expect(page.locator('[data-chart="ranked-bars"][data-dimension="tool_calling"]')).toContainText('No scored cases');
   const bench = page.getByRole('region', { name: 'qa-allerr-tools' });
   await expect(bench).toContainText('No paired cases');
   await expect(bench).toContainText('Incomplete');

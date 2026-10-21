@@ -270,6 +270,15 @@ def test_all_errored_benchmark_reports_without_nan(client, tmp_path, monkeypatch
     fix = [s for s in res.json()["suggestions"] if s["kind"] == "fix_errors"]
     assert fix and "No module named 'mcp'" in fix[0]["text"]
     assert "—" in client.get(f"/jobs/{job_id}/report.html").text
+    rep = res.json()
+    dead_dim = rep["dimensions"]["tool_calling"]  # a capability where every call errored must not vanish
+    assert dead_dim["n_cases"] == 0
+    assert all(t["quality"] is None and t["quality_ci"] is None and t["incomplete"] for t in dead_dim["targets"].values())
+    assert rep["dimension_comparisons"]["tool_calling"]["e-cand"]["verdict"] == "incomplete"
+    assert rep["dimension_comparisons"]["tool_calling"]["e-cand"]["delta"] is None
+    assert not any(r["dimension"] == "tool_calling" for r in rep["recommendations"])
+    caps = {c["dimension"]: c for c in rep["summary"]["decisions"][0]["capabilities"]}
+    assert caps["tool_calling"]["verdict"] == "incomplete" and caps["tool_calling"]["delta_points"] is None
 
     res = client.post("/compare", json={"targets": ["e-base", "e-cand"], "baseline": "e-base"})
     assert res.status_code == 200
