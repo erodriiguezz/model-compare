@@ -327,7 +327,15 @@ test('[AC-9.3] Draft fills the editor unsaved with a cost banner, and every fiel
   await page.getByRole('button', { name: 'Save project' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   await expect(page.getByText('Unsaved draft')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('qa-drafted');
   expect((await (await request.get('/api/projects/qa-drafted')).json()).cases[0].expected).toBe('Paris, France');
+
+  // A project created in this session runs under the name it was saved with.
+  await page.getByRole('button', { name: 'Run on selected models' }).click();
+  await page.getByRole('dialog', { name: 'Run on selected models' }).getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await page.getByRole('button', { name: 'Open Compare' }).click();
+  await expect(page).toHaveURL(/benchmarks=qa-drafted$/);
+  await expect(page.getByRole('checkbox', { name: /^qa-drafted\b/ })).toBeChecked();
 });
 
 test('[AC-9.3] the dialog traps focus, Esc closes it and returns focus, and draft errors stay inside it', async ({ page }) => {
