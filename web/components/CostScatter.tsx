@@ -13,10 +13,10 @@ type Shape = { cx?: number; cy?: number; payload?: { vendor: string } };
  */
 export default function CostScatter({ markers, vendors }: { markers: Record<string, Marker>; vendors: Record<string, string> }) {
   const colors = useChartColors();
-  const points = Object.entries(markers).map(([name, m]) => ({
+  const points = Object.entries(markers).flatMap(([name, m]) => (m.task_success == null || m.cost_per_1k_tasks == null ? [] : [{
     name, vendor: vendors[name] ?? "", quality: 100 * m.task_success, cost: m.cost_per_1k_tasks, incomplete: m.incomplete,
     label: m.incomplete ? `${name} (incomplete)` : name,
-  }));
+  }]));
   if (points.length < 2) return null;
   const front = paretoFront(points);
   const onFront = new Set(front.map((p) => p.name));

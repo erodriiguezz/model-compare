@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from statistics import mean, pstdev
@@ -146,6 +147,34 @@ def _per_case(results: list[db.Result]) -> dict[str, dict[str, Any]]:
     return out
 
 
+def finite(x: Any) -> Any:
+    """Replace NaN/inf with None, recursively. Stats are NaN when nothing was paired (every call errored),
+    and JSON has no NaN, so this runs once on the finished report: every consumer (API, HTML, CLI) gets clean data."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
+
+
+def _unscored_dimension(dim: str, per_t: dict, ops: dict, baseline: str) -> tuple[dict, dict]:
+    """A capability with no case scored for every target (typically every call errored): keep it in the report
+    with no numbers, so it shows as incomplete (too many errors) or not-enough-data rather than disappearing."""
+    stats = {t: {
+        "quality": None, "quality_ci": None, "vendor": _vendor(next(iter(ops[t]))["model"] or t),
+        "cost_per_case": 0.0, "latency_p50": 0.0, "latency_p95": 0.0,
+        "error_rate": _err_rate(ops[t]), "incomplete": _err_rate(ops[t]) > MAX_ERROR_RATE,
+    } for t in per_t}
+    comps = {}
+    if baseline in per_t:
+        for t in per_t:
+            if t != baseline:
+                comps[t] = _compare([], [], max(stats[baseline]["error_rate"], stats[t]["error_rate"]) > MAX_ERROR_RATE)
+    return {"n_cases": 0, "label": capability(dim)["label"], "targets": stats}, comps
+
+
 def build_report(
     s: Session,
     runs: list[db.Run],
@@ -238,6 +267,7 @@ def build_report(
                 })
 
         for t in tr:
+            dim_scores[any_run.dimension][t]  # register the target even when every call errored, so the capability stays visible
             for cid, v in per_case[t].items():
                 dim_scores[any_run.dimension][t][(bname, cid)] = v["score"]
             dim_ops[any_run.dimension][t].append(summaries[t])
@@ -270,6 +300,7 @@ def build_report(
     for dim, per_t in sorted(dim_scores.items()):
         shared = set.intersection(*(set(v) for v in per_t.values()))
         if not shared:
+            dimensions[dim], dimension_comparisons[dim] = _unscored_dimension(dim, per_t, dim_ops[dim], baseline)
             continue
         keys = sorted(shared)
         aligned = {t: [per_t[t][k] for k in keys] for t in per_t}
@@ -298,7 +329,7 @@ def build_report(
         if len(keys) < 10:
             warnings.append(f"{dim}: only {len(keys)} shared cases; verdicts need at least 10.")
 
-    dim_quality = {d: {t: v["quality"] for t, v in info["targets"].items()} for d, info in dimensions.items()}
+    dim_quality = {d: {t: v["quality"] for t, v in info["targets"].items()} for d, info in dimensions.items() if info["n_cases"]}
     profiles = profile_rankings(dim_quality, load_profiles(profiles_path))
 
     # Overall: every case the candidate shares with the baseline, pooled across dimensions.
@@ -341,7 +372,7 @@ def build_report(
     }
     rep["summary"] = build_summary(rep)
     rep["suggestions"] = suggestions(rep)
-    return rep
+    return finite(rep)
 
 
 def _recommend(dim: str, stats: dict, aligned: dict, min_quality: float) -> dict[str, Any]:

@@ -155,6 +155,25 @@ test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and 
   await expect(page.getByText('NaN')).toHaveCount(0);
 });
 
+test('every call errored on a benchmark: the report renders "No paired cases" and never NaN', async ({ page }) => {
+  await page.goto('/compare/?job=qa-all-errors');
+  await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors');
+  await page.getByText('Details', { exact: true }).click();
+  await expect(page.getByText('2 capabilities')).toBeVisible();
+  const matrix = page.getByRole('region', { name: 'Verdict matrix' });
+  await expect(matrix.getByRole('columnheader', { name: /tool/i })).toBeVisible();
+  await expect(matrix.locator('td', { hasText: /^Incomplete/ })).toBeVisible();
+  await expect(page.locator('[data-chart="ranked-bars"][data-dimension="tool_calling"]')).toContainText('No scored cases');
+  const bench = page.getByRole('region', { name: 'qa-allerr-tools' });
+  await expect(bench).toContainText('No paired cases');
+  await expect(bench).toContainText('Incomplete');
+  await expect(page.locator('.recharts-wrapper').first()).toBeVisible();
+  await expect(page.locator('body')).not.toContainText(/NaN/);
+  expect(await noPageScroll(page)).toBe(true);
+  mkdirSync(SHOTS, { recursive: true });
+  await page.screenshot({ path: join(SHOTS, 'all-errors.png'), fullPage: true });
+});
+
 test('[AC-7.5] the report shows a loading state, then an error with retry', async ({ page }) => {
   let release!: () => void;
   const gate = new Promise<void>((r) => { release = r; });
@@ -197,6 +216,9 @@ for (const [name, width] of [['1280', 1280], ['390', 390]] as const) {
     await page.goto('/compare/?job=qa-incomplete');
     await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `incomplete-${name}.png`), fullPage: true });
+    await page.goto('/compare/?job=qa-all-errors');
+    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await page.screenshot({ path: join(SHOTS, `all-errors-${name}.png`), fullPage: true });
     await page.route('**/api/runs?*', (route) => route.fulfill({ json: [] }));
     await page.goto('/compare/');
     await expect(page.locator('[data-state="empty"]')).toBeVisible();

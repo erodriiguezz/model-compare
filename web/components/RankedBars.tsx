@@ -18,12 +18,21 @@ export default function RankedBars({ dimensions, baseline }: { dimensions: Recor
       <div className="charts">
         {dims.map(([dim, info]) => {
           const rows = Object.entries(info.targets)
-            .map(([name, t]) => ({
-              name, vendor: t.vendor, incomplete: t.incomplete, raw: t.quality, score: pct(t.quality), lo: pct(t.quality_ci[0]), hi: pct(t.quality_ci[1]),
+            .flatMap(([name, t]) => (t.quality == null || t.quality_ci[0] == null || t.quality_ci[1] == null ? [] : [{ name, t, q: t.quality, ci: [t.quality_ci[0], t.quality_ci[1]] as const }]))
+            .map(({ name, t, q, ci }) => ({
+              name, vendor: t.vendor, incomplete: t.incomplete, raw: q, score: pct(q), lo: pct(ci[0]), hi: pct(ci[1]),
               label: `${name}${name === baseline ? " (baseline)" : ""}${t.incomplete ? " (incomplete)" : ""}`,
-              err: t.incomplete ? undefined : [pct(t.quality) - pct(t.quality_ci[0]), pct(t.quality_ci[1]) - pct(t.quality)],
+              err: t.incomplete ? undefined : [pct(q) - pct(ci[0]), pct(ci[1]) - pct(q)],
             }))
             .sort((a, b) => b.raw - a.raw || a.name.localeCompare(b.name));
+          if (!rows.length) {
+            return (
+              <figure key={dim} className="chart" data-chart="ranked-bars" data-dimension={dim}>
+                <figcaption><strong>{info.label}</strong> <span className="muted small">0 shared cases</span></figcaption>
+                <p className="muted">No scored cases — every call errored. Fix the errors and re-run.</p>
+              </figure>
+            );
+          }
           const hatch = `hatch-${dim}`;
           const summary = `${info.label}: ${rows.map((r) => `${r.name} ${r.score}%${r.incomplete ? " incomplete, too many errors" : ` (${r.lo} to ${r.hi})`}`).join(", ")}`;
           return (

@@ -98,7 +98,7 @@ def _decision(rep: dict[str, Any]) -> list[str]:
         rng = d["overall_range_points"]
         h.append(f'<div class="card decision"><div class="muted small">{escape(d["candidate"])} compared with {escape(base)} (baseline)</div>')
         detail = ""
-        if rng:
+        if rng and None not in rng:
             detail = f" <span class='muted'>({_signed(d['overall_delta_points'], ' pts')}, likely between {rng[0]:+.1f} and {rng[1]:+.1f})</span>"
         h.append(f'<div class="big">{_chip(d["overall_verdict"], d["overall_verdict_text"])} overall{detail}</div>')
         h.append(f'<p class="lead">{escape(d["line"])}</p>')
@@ -265,7 +265,12 @@ def _evidence(rep: dict[str, Any], targets: list[str], base: str) -> list[str]:
             h.append(f"<tr><td>{escape(t)}</td><td class='num'>{sm['mean_score']:.3f}</td><td class='num'>{_pct(sm['pass_rate'])} ({_pct(lo)}–{_pct(hi)})</td><td class='num'>{_f(sm['consistency'])}</td><td class='num'>{_usd(sm['cost_usd'])}</td><td class='num'>{sm['latency_p50']:.2f}s</td><td class='num'>{_pct(sm['error_rate'])}</td></tr>")
         h.append("</table></div>")
         for c in b["comparisons"]:
-            h.append(f'<p>{escape(c["candidate"])} vs {escape(base)}: {_chip(c["verdict"])} Δ {c["delta"]:+.3f} (95% CI {c["ci"][0]:+.3f} to {c["ci"][1]:+.3f}, p={c["p_value"]:.3f}, McNemar p={c["mcnemar_p"]:.3f}) · W/T/L {c["wins"]}/{c["ties"]}/{c["losses"]}</p>')
+            head = f'<p>{escape(c["candidate"])} vs {escape(base)}: {_chip(c["verdict"])} '
+            if c["delta"] is None:
+                h.append(head + "No paired cases: every call errored on at least one side. —</p>")
+                continue
+            ci = c["ci"]
+            h.append(head + f'Δ {c["delta"]:+.3f} (95% CI {_f(ci[0], 3)} to {_f(ci[1], 3)}, p={_f(c["p_value"], 3)}, McNemar p={_f(c["mcnemar_p"], 3)}) · W/T/L {c["wins"]}/{c["ties"]}/{c["losses"]}</p>')
             for kind, label in (("regressions", "Regressions (baseline passed, candidate failed)"), ("improvements", "Improvements")):
                 if c[kind]:
                     h.append(f'<details><summary>{label}: {c["n_" + kind]}</summary>')

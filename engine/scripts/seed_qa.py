@@ -7,6 +7,8 @@ through modelcompare.db with mock targets, so no network, keys or engine run is 
                     saturated benchmark, at different prices so the cost scatter has a Pareto front.
                     A small "tool_calling" benchmark (6 cases, two models) gives an insufficient_data cell.
   qa-incomplete     one candidate whose errors make every comparison incomplete.
+  qa-all-errors     a healthy reasoning benchmark plus a tool_calling one where every call errors on both
+                    models, so nothing pairs (n=0, no delta): the report must still render.
 """
 
 from __future__ import annotations
@@ -69,7 +71,7 @@ def _job(s, job_id: str, targets: list[str], runs: list[db.Run]) -> None:
 
 def seed() -> None:
     with db.session() as s:
-        for job_id in ("qa-every-verdict", "qa-incomplete"):
+        for job_id in ("qa-every-verdict", "qa-incomplete", "qa-all-errors"):
             if old := s.get(db.Job, job_id):
                 _delete(s, old)
         s.commit()
@@ -82,6 +84,11 @@ def seed() -> None:
         inc = [_run(s, t, "qa-incomplete-math", "reasoning", HALF, 12 if t == "qa-flaky" else 0) for t in (BASE, "qa-flaky")]
         s.commit()
         _job(s, "qa-incomplete", [BASE, "qa-flaky"], inc)
+        s.commit()
+        dead = [_run(s, t, "qa-allerr-math", "reasoning", HALF) for t in (BASE, "qa-flaky")]
+        dead += [_run(s, t, "qa-allerr-tools", "tool_calling", HALF, n_errors=N) for t in (BASE, "qa-flaky")]
+        s.commit()
+        _job(s, "qa-all-errors", [BASE, "qa-flaky"], dead)
         s.commit()
 
 
@@ -98,7 +105,7 @@ def main() -> None:
     if not (os.getenv("MODELCOMPARE_HOME") or os.getenv("MODELCOMPARE_DB_URL")):
         raise SystemExit("seed_qa.py writes to the database: set MODELCOMPARE_HOME (the QA data dir) or MODELCOMPARE_DB_URL first, so it never touches your real data.")
     seed()
-    print("seeded qa-every-verdict and qa-incomplete")
+    print("seeded qa-every-verdict, qa-incomplete and qa-all-errors")
 
 
 if __name__ == "__main__":

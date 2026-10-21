@@ -19,7 +19,7 @@ def test_seed_is_idempotent_and_covers_every_verdict(db_url):
     _seed()
     _seed()
     with db.session(db_url) as s:
-        assert len(db.list_runs(s)) == 29
+        assert len(db.list_runs(s)) == 33
         job = s.get(db.Job, "qa-every-verdict")
         rep = build_report(s, runs_by_ids(s, job.run_ids), baseline=job.baseline)
         inc = s.get(db.Job, "qa-incomplete")

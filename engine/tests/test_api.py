@@ -246,3 +246,48 @@ def test_server_start_warms_litellm_in_the_background(tmp_path, monkeypatch):
     monkeypatch.setattr(api, "_warm_litellm", done.set)
     with TestClient(create_app(tmp_path / "no-web-out")):
         assert done.wait(2)
+
+
+def test_all_errored_benchmark_reports_without_nan(client, tmp_path, monkeypatch):
+    """Every call on one benchmark errors for both targets: n=0 comparison must still serialise (no NaN) and render."""
+    dead = bench("dead", "tool_calling")
+    dead.cases = [c.model_copy(update={"id": f"d{i}", "input": f"Dead {i}"}) for i, c in enumerate(dead.cases)]
+    (tmp_path / "dead.yaml").write_text(json.dumps(dead.model_dump(mode="json")))
+    boom = {c.id: "APIConnectionError: No module named 'mcp'" for c in dead.cases}
+    base, cand = mock("e-base", set(range(N))), mock("e-cand", set(range(N)))
+    for t in (base, cand):
+        t.extra["errors"] = boom
+    (tmp_path / "t2.yaml").write_text(json.dumps({"targets": [base.model_dump(), cand.model_dump()]}))
+    monkeypatch.setenv("MODELCOMPARE_TARGETS", str(tmp_path / "t2.yaml"))
+
+    req = {"targets": ["e-base", "e-cand"], "baseline": "e-base", "benchmarks": [client.bench_file, str(tmp_path / "dead.yaml")]}
+    job_id = client.post("/runs", json=req).json()["job_id"]
+    res = client.get(f"/jobs/{job_id}/report")
+    assert res.status_code == 200
+    json.loads(res.text, parse_constant=lambda c: pytest.fail(f"non-finite {c}"))
+    cmp = {b["name"]: b for b in res.json()["benchmarks"]}["dead"]["comparisons"][0]
+    assert cmp["n"] == 0 and cmp["delta"] is None and cmp["ci"] == [None, None] and cmp["verdict"] == "incomplete"
+    fix = [s for s in res.json()["suggestions"] if s["kind"] == "fix_errors"]
+    assert fix and "No module named 'mcp'" in fix[0]["text"]
+    assert "—" in client.get(f"/jobs/{job_id}/report.html").text
+    rep = res.json()
+    dead_dim = rep["dimensions"]["tool_calling"]  # a capability where every call errored must not vanish
+    assert dead_dim["n_cases"] == 0
+    assert all(t["quality"] is None and t["quality_ci"] is None and t["incomplete"] for t in dead_dim["targets"].values())
+    assert rep["dimension_comparisons"]["tool_calling"]["e-cand"]["verdict"] == "incomplete"
+    assert rep["dimension_comparisons"]["tool_calling"]["e-cand"]["delta"] is None
+    assert not any(r["dimension"] == "tool_calling" for r in rep["recommendations"])
+    caps = {c["dimension"]: c for c in rep["summary"]["decisions"][0]["capabilities"]}
+    assert caps["tool_calling"]["verdict"] == "incomplete" and caps["tool_calling"]["delta_points"] is None
+
+    res = client.post("/compare", json={"targets": ["e-base", "e-cand"], "baseline": "e-base"})
+    assert res.status_code == 200
+    json.loads(res.text, parse_constant=lambda c: pytest.fail(f"non-finite {c}"))
+    assert client.post("/compare.html", json={"targets": ["e-base", "e-cand"], "baseline": "e-base"}).status_code == 200
+
+    only = {"targets": ["e-base", "e-cand"], "baseline": "e-base", "benchmarks": ["dead"]}  # nothing paired anywhere
+    res = client.post("/compare", json=only)
+    assert res.status_code == 200
+    json.loads(res.text, parse_constant=lambda c: pytest.fail(f"non-finite {c}"))
+    assert res.json()["headline"][0]["overall"] == "incomplete"
+    assert client.post("/compare.html", json=only).status_code == 200
