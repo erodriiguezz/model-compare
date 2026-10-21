@@ -15,3 +15,4 @@ targets.yaml
 web/out/
 .claude/design-review/
 *.tsbuildinfo
+.modelcompare-demo/

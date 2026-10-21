@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-export type DimTarget = { quality: number; quality_ci: [number, number]; vendor: string; incomplete: boolean };
+export type DimTarget = { quality: number | null; quality_ci: [number | null, number | null]; vendor: string; incomplete: boolean };
 export type Dimension = { label: string; n_cases: number; targets: Record<string, DimTarget> };
-export type Marker = { task_success: number; cost_per_1k_tasks: number; incomplete: boolean };
+export type Marker = { task_success: number | null; cost_per_1k_tasks: number | null; incomplete: boolean };
 
 /** Provider colour tokens, keyed by the vendor prefix of the model id. */
 const PROVIDER_TOKEN: Record<string, string> = { openai: "openai", anthropic: "anthropic", google: "google", gemini: "google", vertex_ai: "google" };
@@ -36,7 +36,7 @@ export function paretoFront<T extends { quality: number; cost: number; incomplet
 }
 
 export type Suggestion = { kind: string; text: string; target?: string; benchmark?: string; data: Record<string, unknown> };
-export type CapabilityVerdict = { dimension: string; label: string; verdict: string; delta_points: number };
+export type CapabilityVerdict = { dimension: string; label: string; verdict: string; delta_points: number | null };
 export type Decision = { candidate: string; line: string; capabilities: CapabilityVerdict[] };
 export type FlaggedItem = {
   kind: string; tag: string; benchmark: string; dimension: string; case_id: string; delta: number;

@@ -24,7 +24,7 @@ export function Chip({ text }: { text: string }) {
 }
 
 type Summary = { mean_score: number; pass_rate: number; n_errors: number; n_calls: number };
-type Comparison = { candidate: string; verdict: string; delta: number; ci: [number, number]; n: number };
+type Comparison = { candidate: string; verdict: string; delta: number | null; ci: [number | null, number | null]; n: number };
 type Bench = { name: string; dimension: string; summaries: Record<string, Summary>; comparisons: Comparison[]; saturated: boolean; saturation_message: string | null };
 type Report = {
   baseline: string; warnings: string[]; benchmarks: Bench[];
@@ -37,7 +37,7 @@ type Report = {
 };
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
-const pts = (v: number) => `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`;
+const pts = (v: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`);
 export function ReportTable({ jobId, children }: { jobId: string; children?: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -87,15 +87,16 @@ export function ReportTable({ jobId, children }: { jobId: string; children?: Rea
             <thead><tr><th>Model</th><th className="num">Score</th><th className="num">Pass rate</th><th className="num">Errors</th><th>Verdict</th><th className="num">Change vs baseline (pts)</th></tr></thead>
             <tbody>{Object.entries(b.summaries).map(([t, s]) => {
               const c = b.comparisons.find((x) => x.candidate === t);
+              const allErrored = s.n_calls > 0 && s.n_errors === s.n_calls;
               const reasons = r.errors[t]?.[b.name]?.reasons ?? [];
               return (
                 <tr key={t}>
                   <td>{t}{t === r.baseline && <span className="muted"> (baseline)</span>}</td>
-                  <td className="num">{(100 * s.mean_score).toFixed(0)}%</td>
-                  <td className="num">{(100 * s.pass_rate).toFixed(0)}%</td>
+                  <td className="num">{allErrored ? "—" : `${(100 * s.mean_score).toFixed(0)}%`}</td>
+                  <td className="num">{allErrored ? "—" : `${(100 * s.pass_rate).toFixed(0)}%`}</td>
                   <td className="num">{s.n_errors}/{s.n_calls}{reasons.map((e) => <div key={e.reason} className="muted">{e.reason} ×{e.count}</div>)}</td>
                   <td>{c ? <Chip text={c.verdict} /> : <span className="muted">—</span>}</td>
-                  <td className="num">{c ? <>{pts(c.delta)} <span className="muted">({pts(c.ci[0])} to {pts(c.ci[1])}, n={c.n})</span></> : "—"}</td>
+                  <td className="num">{!c ? "—" : c.delta == null ? <span className="muted">No paired cases — every call errored</span> : <>{pts(c.delta)} <span className="muted">({pts(c.ci[0])} to {pts(c.ci[1])}, n={c.n})</span></>}</td>
                 </tr>
               );
             })}</tbody>

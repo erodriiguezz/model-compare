@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Benchmark and compare LLMs on your own tasks, with statistically grounded verdicts."
 requires-python = ">=3.11"
 dependencies = [
-  "litellm>=1.50",
+  # <1.106: its Anthropic tool path imports mcp types but only declares mcp as an optional extra,
+  # so every tool call fails with "No module named 'mcp'".
+  "litellm>=1.50,<1.106",
   "pydantic>=2.7",
   "pyyaml>=6.0",
   "typer>=0.12",

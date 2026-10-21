@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from statistics import mean, pstdev
@@ -144,6 +145,18 @@ def _per_case(results: list[db.Result]) -> dict[str, dict[str, Any]]:
             "error": first.error,
         }
     return out
+
+
+def finite(x: Any) -> Any:
+    """Replace NaN/inf with None, recursively. Stats are NaN when nothing was paired (every call errored),
+    and JSON has no NaN, so this runs once on the finished report: every consumer (API, HTML, CLI) gets clean data."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
 
 
 def build_report(
@@ -341,7 +354,7 @@ def build_report(
     }
     rep["summary"] = build_summary(rep)
     rep["suggestions"] = suggestions(rep)
-    return rep
+    return finite(rep)
 
 
 def _recommend(dim: str, stats: dict, aligned: dict, min_quality: float) -> dict[str, Any]:
