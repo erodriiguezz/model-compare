@@ -7,11 +7,12 @@ import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "re
 export default function Dialog({ open, title, onClose, onSubmit, children }: { open: boolean; title: string; onClose: () => void; onSubmit?: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
+  const quiet = useRef(false); // a close we asked for is not a user dismissal
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
+    if (!open && d.open) { quiet.current = true; d.close(); }
   }, [open]);
   // Tab wraps inside the dialog instead of leaving the page for the browser's own controls.
   const wrap = (e: KeyboardEvent<HTMLDialogElement>) => {
@@ -21,7 +22,7 @@ export default function Dialog({ open, title, onClose, onSubmit, children }: { o
     if (items.length && document.activeElement === edge) { e.preventDefault(); other.focus(); }
   };
   return (
-    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={onClose} onKeyDown={wrap}>
+    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={() => (quiet.current ? (quiet.current = false) : onClose())} onKeyDown={wrap}>
       {open && <form className="form" onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }}><h2 id={id}>{title}</h2>{children}</form>}
     </dialog>
   );
