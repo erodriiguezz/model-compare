@@ -35,7 +35,8 @@ export function ErrorState({ message, onRetry, retryLabel = "Try again", childre
   return (
     <div className="card state" role="alert" data-state="error">
       <h2>Something went wrong</h2>
-      <p className="state-msg">{message} {children}</p>
+      <p className="state-msg">{message}</p>
+      {children && <p className="muted">{children}</p>}
       <button type="button" className="btn" onClick={onRetry}>{retryLabel}</button>
     </div>
   );

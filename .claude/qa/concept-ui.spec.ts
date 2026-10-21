@@ -15,9 +15,9 @@ const job = (id: string, status: string, targets: string[]) => ({
   id, targets, baseline: targets[0], status, error: status === 'failed' ? 'OPENAI_API_KEY missing' : null, started_at: '2026-10-19T10:00:00',
   benchmarks: ['std-reasoning-math'], total_calls: 10, done_calls: 10, run_ids: [RUN_ID[id]], live: [],
 });
-const RUN_ID: Record<string, number> = { 'j-done': 1, 'j-cancel': 2, 'j-fail': 3 };
-const RUNS = [1.25, 0.5, 0].map((cost_usd, i) => ({ id: i + 1, target_name: 'mock-a', benchmark_name: 'std-reasoning-math', status: 'done', n_results: 1, passed: 1, n_errors: 0, cost_usd }));
-const JOBS = [job('j-done', 'done', ['claude-sonnet-5-5', 'gpt-6-sol']), job('j-cancel', 'cancelled', ['gemini-3-flash', 'mock-b']), job('j-fail', 'failed', ['mock-a', 'mock-b'])];
+const RUN_ID: Record<string, number> = { 'j-done': 1, 'j-cancel': 2, 'j-fail': 3, 'j-run': 4, 'j-int': 5 };
+const RUNS = [1.25, 0.5, 0, 0.1, 0.2].map((cost_usd, i) => ({ id: i + 1, target_name: 'mock-a', benchmark_name: 'std-reasoning-math', status: 'done', n_results: 1, passed: 1, n_errors: 0, cost_usd }));
+const JOBS = [job('j-done', 'done', ['claude-sonnet-5-5', 'gpt-6-sol']), job('j-cancel', 'cancelled', ['gemini-3-flash', 'mock-b']), job('j-fail', 'failed', ['mock-a', 'mock-b']), job('j-run', 'running', ['mock-a', 'mock-slow']), job('j-int', 'interrupted', ['mock-a', 'mock-errors'])];
 
 for (const width of [1280, 390]) {
   for (const { path, active } of ROUTES) {
@@ -40,7 +40,7 @@ test('[AC-34.12] history lists models, outcome, spend and status; filter chips c
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/history/');
   const rows = page.getByRole('region', { name: 'Comparisons' }).locator('tbody tr');
-  await expect(rows).toHaveCount(3);
+  await expect(rows).toHaveCount(5);
   await expect(rows.first()).toContainText('claude-sonnet-5-5');
   await expect(rows.first()).toContainText('gpt-6-sol');
   await expect(rows.first()).toContainText('Report ready');
@@ -51,14 +51,23 @@ test('[AC-34.12] history lists models, outcome, spend and status; filter chips c
   await page.getByRole('button', { name: 'Complete', exact: true }).click();
   await expect(rows).toHaveCount(1);
   await page.getByRole('button', { name: 'Partial or failed' }).click();
-  await expect(rows).toHaveCount(2);
-  await expect(rows.nth(1)).toContainText('No report');
-  await page.getByRole('button', { name: 'All' }).click();
   await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('No report');
+  await expect(rows.nth(2)).toContainText('mock-errors');
+  await expect(page.getByRole('region', { name: 'Comparisons' })).not.toContainText('mock-slow');
+  await page.getByRole('button', { name: 'All' }).click();
+  await expect(rows).toHaveCount(5);
   await page.getByRole('searchbox', { name: 'Search comparisons' }).fill('gemini');
   await expect(rows).toHaveCount(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('searchbox', { name: 'Search comparisons' }).fill('claude');
+  await page.getByRole('button', { name: 'All' }).click();
+  const first = rows.first();
+  for (const text of ['Report ready', 'Complete', '$1.25']) {
+    const box = await first.getByText(text, { exact: true }).locator('visible=true').first().boundingBox();
+    expect(box && box.x >= 0 && box.x + box.width <= 390).toBe(true);
+  }
   await shot(page, 'history-390');
 });
 
@@ -87,7 +96,7 @@ test('[AC-34.15] history shows loading, then error with retry that refetches', a
   await shot(page, 'history-error');
   down = false;
   await err.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('region', { name: 'Comparisons' }).locator('tbody tr')).toHaveCount(3);
+  await expect(page.getByRole('region', { name: 'Comparisons' }).locator('tbody tr')).toHaveCount(5);
 });
 
 test('[AC-34.15] history shows the empty state with a next step', async ({ page }) => {

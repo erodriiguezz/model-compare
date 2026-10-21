@@ -25,6 +25,7 @@ const OUTCOME: Record<string, { label: string; tone: "better" | "worse" | "neutr
 };
 const outcome = (status: string) => OUTCOME[status] ?? { label: "In progress", tone: "neutral" as const };
 /** The jobs list carries run ids only, so spend is summed from the runs list. */
+const usd2 = (v: number) => `$${v.toFixed(2)}`;
 const spend = (j: Job, cost: Map<number, number>) => j.run_ids.reduce((sum, id) => sum + (cost.get(id) ?? 0), 0);
 
 function Past() {
@@ -56,6 +57,7 @@ function Past() {
   if (!state.jobs.length && !runs.length) {
     return <Empty title="No comparisons yet" action={<Link href="/compare/" className="btn" prefetch={false}>Start a comparison</Link>}>Your first comparison shows up here, with its status and what it cost.</Empty>;
   }
+  const filtered = filter !== "all" || query.trim() !== "";
   return (
     <>
       <div className="toolbar">
@@ -67,18 +69,19 @@ function Past() {
       </div>
       <section className="card table-card" aria-labelledby="jobs-h">
         <h2 id="jobs-h" className="sr-only">Comparisons</h2>
-        {jobs.length === 0 ? <p className="muted state">No comparisons match.</p> : (
+        {jobs.length === 0 ? (filtered ? <p className="muted state">No comparisons match.</p> : <Empty title="No comparisons yet" action={<Link href="/compare/" className="btn" prefetch={false}>Start a comparison</Link>}>Your first comparison shows up here, with its status and what it cost.</Empty>) : (
           <div className="table-wrap" tabIndex={0}><table className="list">
-            <thead><tr><th>When</th><th>Models (baseline first)</th><th className="hide-sm">Tested</th><th>Outcome</th><th className="num hide-sm">Spend</th><th className="hide-sm">Status</th></tr></thead>
+            <thead><tr><th>When</th><th>Models (baseline first)</th><th className="hide-sm">Tested</th><th className="hide-sm">Outcome</th><th className="num hide-sm">Spend</th><th className="hide-sm">Status</th></tr></thead>
             <tbody>{jobs.slice(0, limit.jobs).map((j) => {
               const o = outcome(j.status), st = statusInfo(j.status);
               return (
                 <tr key={j.id}>
-                  <td className="nowrap"><Link className="row-link" href={`/compare/?job=${j.id}`} prefetch={false}>{fmtTime(j.started_at)}</Link></td>
-                  <td><div className="models-cell">{j.targets.map((t) => <span key={t}><span className="dot" style={{ background: vendorColor(t) }} />{t}</span>)}</div></td>
+                  <td className="nowrap"><Link className="row-link" href={`/compare/?job=${j.id}`} prefetch={false}>{fmtTime(j.started_at)}<span className="sr-only">, {j.targets.join(" vs ")}, {o.label}</span></Link></td>
+                  <td><div className="models-cell">{j.targets.map((t) => <span key={t}><span className="dot" style={{ background: vendorColor(t) }} />{t}</span>)}</div>
+                    <div className="show-sm summary-sm"><VerdictChip tone={o.tone}>{o.label}</VerdictChip><span className={`status status-${st.tone}`}>{st.label}</span><span className="status">{usd2(spend(j, cost))}</span></div></td>
                   <td className="hide-sm">{j.benchmarks.length} {j.benchmarks.length === 1 ? "benchmark" : "benchmarks"}</td>
-                  <td><VerdictChip tone={o.tone}>{o.label}</VerdictChip><div className="cell-note">{j.error ?? (j.baseline ? `Baseline ${j.baseline}` : "")}</div></td>
-                  <td className="num hide-sm">{usd(spend(j, cost))}</td>
+                  <td className="hide-sm"><VerdictChip tone={o.tone}>{o.label}</VerdictChip><div className="cell-note">{j.error ?? (j.baseline ? `Baseline ${j.baseline}` : "")}</div></td>
+                  <td className="num hide-sm">{usd2(spend(j, cost))}</td>
                   <td className="hide-sm"><span className={`status status-${st.tone}`}>{st.label}</span></td>
                 </tr>
               );
