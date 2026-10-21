@@ -11,7 +11,10 @@ from modelcompare.cli import app
 from modelcompare.html_report import render_html
 from modelcompare.report import build_report, latest_runs
 from modelcompare.runner import run_benchmark
-from modelcompare.schema import Benchmark, TargetConfig
+from modelcompare.runner import score_case
+from modelcompare.schema import Benchmark, Case, Completion, TargetConfig
+from modelcompare.scorers import ScoreContext, ScorerError, run_scorer
+from modelcompare.targets.mock import MockTarget
 
 N = 20
 
@@ -233,3 +236,74 @@ async def test_failing_target_is_not_recommended_or_cheap(db_url):
     assert rec["recommended"] == "ok" and rec["not_recommendable"] == ["dead"]
     sm = rep["benchmarks"][0]["summaries"]["dead"]
     assert sm["cost_per_case"] == pytest.approx(sm["cost_usd"] / 5)  # per successful call
+
+
+class SeqJudge(MockTarget):
+    """Judge stub: replies from a list, repeating the last one; counts calls."""
+
+    def __init__(self, replies):
+        super().__init__(TargetConfig(name="j", kind="mock", model="mock/j"))
+        self.replies, self.calls = replies, 0
+
+    async def complete(self, messages, tools=None, case_id=None):
+        r = self.replies[min(self.calls, len(self.replies) - 1)]
+        self.calls += 1
+        return Completion(error=r[6:]) if r.startswith("error:") else Completion(text=r)
+
+
+@pytest.mark.parametrize("reply,expected", [
+    ("Score: 8/10", 8), ("8/10", 8), ('{"score": 8}', 8), ("**8**/10", 8), ("SCORE: 8", 8), ("Score: **8**", 8),
+])
+async def test_judge_parses_score_variants(reply, expected):
+    d = await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=SeqJudge([reply])))
+    assert d.reason == f"{expected}/10"
+
+
+async def test_judge_no_score_retries_once_then_errors():
+    j = SeqJudge(["no idea"])
+    with pytest.raises(ScorerError, match="judge gave no score"):
+        await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=j))
+    assert j.calls == 2
+    j = SeqJudge(["hmm", "SCORE: 9"])
+    d = await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=j))
+    assert d.reason == "9/10" and j.calls == 2
+
+
+def judged_bench(scorers):
+    return Benchmark(name="j", dimension="reasoning", scorers=scorers,
+                     cases=[{"id": f"q{i}", "input": "q", "expected": 1} for i in range(N)])
+
+
+def judge_cfg(reply):
+    return TargetConfig(name="j", kind="mock", model="mock/j", extra={"default": reply})
+
+
+async def test_judge_failure_is_error_not_zero(db_url):
+    """A judge that fails is a scoring error: excluded from score and pairing, counted, and flags incomplete."""
+    b = judged_bench([{"type": "llm_judge"}])
+    ok, bad = mock("ok", set()), mock("bad", set())
+    ok.extra["responses"] = bad.extra["responses"] = {}
+    ok.extra["default"] = bad.extra["default"] = "answer"
+    await run_benchmark(ok, b, judge_cfg=judge_cfg("SCORE: 10"), db_url=db_url)
+    await run_benchmark(bad, b, judge_cfg=judge_cfg("no idea"), db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["ok", "bad"]), baseline="ok")
+        r = s.query(db.Result).filter(db.Result.error.isnot(None)).first()
+        assert r.text == "answer"
+    sm = rep["benchmarks"][0]["summaries"]["bad"]
+    assert sm["n_errors"] == N and sm["n_cases"] == 0
+    assert sm["error_reasons"][0]["reason"] == "judge gave no score"
+    assert rep["errors"]["bad"]["j"]["n_errors"] == N
+    assert rep["benchmarks"][0]["comparisons"][0]["verdict"] == "incomplete"
+
+
+async def test_judge_provider_error_is_scorer_error():
+    with pytest.raises(ScorerError, match="judge error: RateLimitError"):
+        await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {},
+                         ScoreContext(judge=SeqJudge(["error:RateLimitError"])))
+
+
+async def test_multi_scorer_with_failed_judge_is_error():
+    b = judged_bench([{"type": "numeric"}, {"type": "llm_judge"}])
+    _, score, err = await score_case(Completion(text="ANSWER: 1"), b.cases[0], b, ScoreContext(judge=SeqJudge(["??"])))
+    assert err == "judge gave no score" and score == 0.0

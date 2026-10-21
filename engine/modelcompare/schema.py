@@ -149,6 +149,7 @@ class CaseResult(BaseModel):
     scores: list[ScoreDetail]
     score: float
     passed: bool
+    error: str | None = None  # call or scoring error: the case is not scored
 
 
 def load_targets(path: str | Path) -> dict[str, TargetConfig]:
