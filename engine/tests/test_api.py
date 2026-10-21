@@ -291,3 +291,29 @@ def test_all_errored_benchmark_reports_without_nan(client, tmp_path, monkeypatch
     json.loads(res.text, parse_constant=lambda c: pytest.fail(f"non-finite {c}"))
     assert res.json()["headline"][0]["overall"] == "incomplete"
     assert client.post("/compare.html", json=only).status_code == 200
+
+
+def test_catalog_id_is_accepted_as_judge(client, monkeypatch, tmp_path):
+    """A catalog id works as the judge with no targets.yaml entry; it is resolved and flagged when unpriced."""
+    from modelcompare import api, catalog
+
+    fixtures = tmp_path / "fx"
+    fixtures.mkdir()
+    (fixtures / "groq.json").write_text(json.dumps({"data": [{"id": "zz-unknown-model", "context_window": 8192}]}))
+    monkeypatch.setenv("MODELCOMPARE_CATALOG_FIXTURES", str(fixtures))
+    monkeypatch.setenv("GROQ_API_KEY", "gq-fake-0001")
+    catalog._cache.clear()
+    judges = []
+
+    async def fake_run(cfg, b, judge, **kw):
+        from types import SimpleNamespace
+        judges.append(judge)
+        return SimpleNamespace(run_id=1, status="complete", results=[], cost_usd=0.0)
+
+    monkeypatch.setattr(api, "run_benchmark", fake_run)
+    req = {"targets": ["good"], "benchmarks": [client.judged_file], "judge": "groq/zz-unknown-model"}
+    est = client.post("/runs/estimate", json=req)
+    assert est.status_code == 200 and est.json()["unpriced"] == ["groq/zz-unknown-model"]
+    assert client.post("/runs", json=req).status_code == 202
+    assert judges and judges[0].name == "groq/zz-unknown-model"
+    catalog._cache.clear()
