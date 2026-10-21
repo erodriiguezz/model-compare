@@ -38,28 +38,30 @@ test('[AC-2.1] the Next app is served at / and the API at /api and the old path'
   expect(await a.json()).toEqual(await b.json());
 });
 
+// The Projects page is the shell's data page: it shows the shared loading, ready, empty and error states.
 test('[AC-2.3] loading, ready, empty and error states', async ({ page }) => {
   let release: () => void = () => {};
   const gate = new Promise<void>((r) => { release = r; });
-  await page.route('**/api/targets', async (route) => { await gate; await route.continue(); });
+  await page.route('**/api/projects', async (route) => { await gate; await route.continue(); });
   await page.goto('/projects/');
-  await expect(page.getByRole('status')).toContainText('Loading targets');
+  await expect(page.getByRole('status')).toContainText('Loading projects');
   release();
-  await expect(page.getByText('targets available')).toBeVisible();
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Projects' })).toBeVisible();
 });
 
-test('[AC-2.3] empty state when there are no targets', async ({ page }) => {
-  await page.route('**/api/targets', (route) => route.fulfill({ json: [] }));
+test('[AC-2.3] empty state when there are no projects', async ({ page }) => {
+  await page.route('**/api/projects', (route) => route.fulfill({ json: [] }));
   await page.goto('/projects/');
-  await expect(page.getByRole('heading', { name: 'No targets configured' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible();
 });
 
 test('[AC-2.3] error state with retry when the API is down', async ({ page }) => {
   let down = true;
-  await page.route('**/api/targets', (route) => (down ? route.abort() : route.continue()));
+  await page.route('**/api/projects', (route) => (down ? route.abort() : route.continue()));
   await page.goto('/projects/');
-  await expect(page.locator('[data-state="error"]')).toContainText('not reachable');
+  await expect(page.locator('[data-state="error"]')).toContainText('Could not load projects');
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByText('targets available')).toBeVisible();
+  await expect(page.locator('[data-state="error"]')).toHaveCount(0);
 });

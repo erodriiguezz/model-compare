@@ -197,3 +197,25 @@ html { scroll-padding-bottom: var(--bar-h); }
 .legend .chip + .muted { margin-left: var(--space-1); }
 .card p a { text-decoration: underline; text-underline-offset: 2px; }
 .links a { display: inline-block; padding: var(--space-1) 0; }
+
+/* Projects */
+.case-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--col-min), 1fr)); gap: var(--space-3); }
+.case-grid .wide { grid-column: 1 / -1; }
+.form label, .case-grid label { display: flex; flex-direction: column; gap: var(--space-1); font-weight: 500; }
+.form label.check { flex-direction: row; font-weight: 400; }
+input:not([type]), input[type="text"], input[type="number"], textarea { font: inherit; width: 100%; padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+input[type="number"] { width: var(--field-w); }
+textarea { resize: vertical; }
+[aria-invalid="true"] { border-color: var(--danger); }
+.link-btn.danger { color: var(--danger); }
+.name-cell { overflow-wrap: anywhere; }
+.btn.destructive-text { color: var(--danger); }
+.back { display: block; width: fit-content; min-height: var(--tap); line-height: var(--tap); }
+.card p a.btn { text-decoration: none; }
+.scorer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-6); }
+.scorer .check { align-items: center; }
+.scorer p { margin: 0 0 0 calc(var(--tap) + var(--space-2)); }
+.params-row { margin-top: var(--space-3); }
+table.cases td { vertical-align: middle; }
+.preview { display: block; max-width: var(--col-min); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .scorer-grid { grid-template-columns: 1fr; } .preview { max-width: var(--field-w); } }
