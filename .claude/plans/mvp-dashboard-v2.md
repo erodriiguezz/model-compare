@@ -1,7 +1,7 @@
 ---
 mvp: mvp-dashboard-v2
 title: Dashboard v2
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
