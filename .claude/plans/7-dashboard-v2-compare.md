@@ -2,7 +2,7 @@
 issue: 7
 title: Compare page and suggestions
 branch: feat/dashboard-v2-redesign-p7-compare
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-19
 autonomy: pr
@@ -82,5 +82,13 @@ See `mvp-dashboard-v2.md` §2.
 - QA seed `engine/scripts/seed_qa.py` — mock runs producing every verdict
 
 ## 5. Evidence
+- QA (top of the stack, 7c): passed on `61423c8`. Verify, app, API smoke, 73 browser tests, screenshots, and the UI audit of the report screens (0 serious, 0 minor). AC-7.1–7.5 covered. 7a and 7b green except the later-part ACs.
+- AC table and screens: `docs/reviews/7.md`.
+- Reviewer: round 1 Request changes (3 High), all fixed.
+- Lines: 254 + 192 + 219 counted across 3 PRs.
+
 ## 6. Retro
+- The Screens list named only `/compare`, so the audit skipped the report itself. Screens should list the exact URLs, query strings included, that show each state.
+- The data behind the charts (errors excluded) quietly contradicted the matrix. Any visual that ranks models must respect the incomplete flag; this should be a standing review item.
+- A rate limit stopped the builder mid-part. Resuming the same agent worked cleanly because each part was committed as it went.
 ## 7. Hand-off
