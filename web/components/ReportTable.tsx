@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
 import CostScatter from "./CostScatter";
@@ -38,7 +38,7 @@ type Report = {
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
 const pts = (v: number) => `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`;
-export function ReportTable({ jobId }: { jobId: string }) {
+export function ReportTable({ jobId, children }: { jobId: string; children?: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -51,7 +51,7 @@ export function ReportTable({ jobId }: { jobId: string }) {
   const retry = useCallback(() => { setState({ status: "loading" }); setAttempt((n) => n + 1); }, []);
 
   if (state.status === "loading") return <Loading label="Loading report" />;
-  if (state.status === "error") return <ErrorState message={state.message} onRetry={retry} />;
+  if (state.status === "error") return <><ErrorState message={state.message} onRetry={retry} />{children}</>;
   const { report: r } = state;
   const vendors = Object.fromEntries(Object.values(r.dimensions).flatMap((d) => Object.entries(d.targets).map(([t, v]) => [t, v.vendor])));
   return (
@@ -62,8 +62,6 @@ export function ReportTable({ jobId }: { jobId: string }) {
           <span className="links"><a href={`/api/jobs/${jobId}/report.html`} target="_blank" rel="noopener">Open report</a><a href={`/api/jobs/${jobId}/report`} target="_blank" rel="noopener">JSON</a></span>
         </div>
         {r.headline.length === 0 && <p className="muted">One model gives a scorecard; add a second for a verdict.</p>}
-        {r.headline.map((h) => <p key={h.candidate}>{h.candidate} vs {h.baseline}: <Chip text={h.overall} /></p>)}
-        {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
         {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
       </section>
       {r.suggestions && <Suggestions items={r.suggestions} />}
@@ -74,6 +72,13 @@ export function ReportTable({ jobId }: { jobId: string }) {
       <details className="details">
         <summary>Details</summary>
         <div className="details-body">
+      {r.headline.length > 0 && (
+        <section className="card" aria-labelledby="plain-h">
+          <h2 id="plain-h">In plain words</h2>
+          {r.headline.map((h) => <p key={h.candidate}>{h.candidate} vs {h.baseline}: <Chip text={h.overall} /></p>)}
+          {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
+        </section>
+      )}
       {r.benchmarks.map((b) => (
         <section key={b.name} className="card" aria-labelledby={`bench-${b.name}`}>
           <h2 id={`bench-${b.name}`}>{b.name} <span className="muted">{b.dimension}</span></h2>
@@ -99,6 +104,7 @@ export function ReportTable({ jobId }: { jobId: string }) {
       ))}
         </div>
       </details>
+      {children}
     </>
   );
 }

@@ -96,7 +96,7 @@ export default function JobView({ id }: { id: string }) {
           </table></div>
         )}
       </section>
-      {!active && (job.run_ids.length ? <><ReportTable jobId={job.id} /><CaseExplorer runs={job.runs} /></> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
+      {!active && (job.run_ids.length ? <ReportTable jobId={job.id}><CaseExplorer runs={job.runs} /></ReportTable> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
     </>
   );
 }

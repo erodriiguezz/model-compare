@@ -195,3 +195,5 @@ html { scroll-padding-bottom: var(--bar-h); }
 .details-body { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-2); }
 .card .legend { margin-top: var(--space-3); }
 .legend .chip + .muted { margin-left: var(--space-1); }
+.card p a { text-decoration: underline; text-underline-offset: 2px; }
+.links a { display: inline-block; padding: var(--space-1) 0; }
