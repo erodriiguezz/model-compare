@@ -34,16 +34,18 @@ test('[AC-9.1] the list shows name, dimension, case count and last run; a broken
   });
   await page.goto('/projects/');
   const row = page.getByRole('article', { name: /qa-nine-list/ });
-  await expect(row).toContainText('knowledge');
-  await expect(row).toContainText('3 cases');
-  await expect(row).toContainText('mock-b'); // newest run wins
+  const seen = async () => { // the card shows its dimension, case count and newest run
+    await expect(row.getByText('knowledge')).toBeVisible();
+    await expect(row.getByText('3 cases')).toBeVisible();
+    await expect(row.getByText(/mock-b/)).toBeVisible();
+  };
+  await seen();
   const broken = page.getByRole('article', { name: /broken/ });
   await expect(broken).toContainText('ValidationError: cases is required');
   await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
   await shot(page, 'projects-list');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(row).toContainText('knowledge'); // narrow screens keep dimension and last run on the card
-  await expect(row).toContainText('mock-b');
+  await seen(); // narrow screens keep dimension and last run on the card
   await shot(page, 'projects-list-390');
 });
 

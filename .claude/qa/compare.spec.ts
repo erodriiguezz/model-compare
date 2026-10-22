@@ -5,6 +5,11 @@ import { join } from 'node:path';
 // Needs the QA seed (engine/scripts/seed_qa.py): qa-every-verdict covers every verdict in 5 capabilities.
 const JOB = '/compare/?job=qa-every-verdict';
 const SHOTS = join(process.env.PWD ?? process.cwd(), '.claude', 'artifacts', 'screenshots', '7');
+/** Opens a finished report. The server builds it in about a second, more under parallel workers, so wait past the default 5 s. */
+const openReport = async (page: Page, url: string) => {
+  await page.goto(url);
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible({ timeout: 15_000 });
+};
 const caps = (page: Page) => page.getByRole('region', { name: 'Capabilities' });
 const cards = (page: Page) => caps(page).getByRole('article');
 const evidence = (page: Page) => page.getByRole('region', { name: 'Evidence' });
@@ -15,7 +20,7 @@ test('[AC-7.1] one capability card per dimension, bars sorted, with CI whiskers 
   // Vendor colours follow the model name, so give two models names that map to anthropic and openai.
   const body = (await (await request.get('/api/jobs/qa-every-verdict/report')).text()).replaceAll('qa-better', 'claude-better').replaceAll('qa-base', 'gpt-base');
   await page.route('**/api/jobs/qa-every-verdict/report', (route) => route.fulfill({ body, contentType: 'application/json' }));
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(cards(page)).toHaveCount(6);
   const first = cards(page).first();
   await expect(first.getByRole('list', { name: / score$/ })).toContainText('claude-better');
@@ -36,7 +41,7 @@ test('[AC-7.1] one capability card per dimension, bars sorted, with CI whiskers 
 
 test('[AC-7.1] capability cards fit a 390px screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(cards(page)).toHaveCount(6);
   expect(await noPageScroll(page)).toBe(true);
   const box = await cards(page).first().boundingBox();
@@ -44,7 +49,7 @@ test('[AC-7.1] capability cards fit a 390px screen', async ({ page }) => {
 });
 
 test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights the Pareto front', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const scatter = page.locator('[data-chart="cost-scatter"]');
   await expect(scatter).toBeVisible();
   await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /pass rate .* \$ per 1k tasks/i);
@@ -60,7 +65,7 @@ test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights t
 
 test('[AC-7.3] the scatter fits a 390px screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(page.locator('[data-chart="cost-scatter"]')).toBeVisible();
   expect(await noPageScroll(page)).toBe(true);
 });
@@ -88,7 +93,7 @@ test('[AC-7.1] an incomplete bar is flagged and has no whisker', async ({ page }
 const LABELS = ['Better', 'Worse', 'Tie', 'Inconclusive', 'Incomplete'];
 
 test('[AC-7.2] the capability cards show all five verdict labels and mark the baseline', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(caps(page)).toBeVisible();
   for (const label of LABELS) await expect(caps(page).locator('.verdicts .chip', { hasText: new RegExp(`^${label}$`) }).first()).toBeVisible();
   const bars = cards(page).first().getByRole('list', { name: / score$/ }).getByRole('listitem');
@@ -99,7 +104,7 @@ test('[AC-7.2] the capability cards show all five verdict labels and mark the ba
 });
 
 test('[AC-7.2] insufficient data reads n<10 in the cards instead of a point change', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const cell = caps(page).locator('.verdicts li').filter({ has: page.locator('[data-verdict="insufficient_data"]') });
   await expect(cell).toHaveCount(1);
   await expect(cell).toContainText('Inconclusive');
@@ -109,7 +114,7 @@ test('[AC-7.2] insufficient data reads n<10 in the cards instead of a point chan
 
 test('[AC-7.5] a finished job collapses its progress so the decision is the first thing on screen', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const summary = page.locator('[data-job-summary]');
   await expect(summary).toContainText(/done · \d+\/\d+ calls · 5 models · 6 capabilities/);
   await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
@@ -122,7 +127,7 @@ test('[AC-7.5] a finished job collapses its progress so the decision is the firs
 });
 
 test('[AC-7.4] the recommendation panel lists errors first, then decisions, then data advice', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const panel = page.getByRole('region', { name: 'Recommendation' });
   const items = panel.locator('ol > li');
   await expect(items.first()).toContainText('Fix errors');
@@ -137,7 +142,7 @@ test('[AC-7.4] the recommendation panel lists errors first, then decisions, then
 });
 
 test('[AC-7.5] regressions list the cases that got worse, collapsed, and the evidence is already open', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const reg = page.getByRole('region', { name: 'Regressions' });
   await expect(reg.getByRole('button', { name: /qa-worse/ })).toHaveAttribute('aria-pressed', 'true');
   await reg.getByRole('button', { name: /Show all/ }).click();
@@ -184,7 +189,7 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
     if (calls === 1) return route.fulfill({ status: 500, json: { detail: 'boom' } });
     return route.continue();
   });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(page.getByRole('status').filter({ hasText: 'Loading report' })).toBeVisible();
   release();
   const alert = page.locator('[data-state="error"]');
@@ -207,7 +212,7 @@ test('[AC-7.5] with no runs yet, Compare points to Models', async ({ page }) => 
 for (const [name, width] of [['1280', 1280], ['390', 390]] as const) {
   test(`[AC-7.5] report screenshots at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(JOB);
+    await openReport(page, JOB);
     await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await expect(page.locator('[data-chart="cost-scatter"] .recharts-wrapper')).toBeVisible();
     expect(await noPageScroll(page)).toBe(true);

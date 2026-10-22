@@ -16,8 +16,8 @@ export default function RunDialog({ open, project, onClose }: { open: boolean; p
       {choices && !choices.length && <p className="note">No model is ready to use. Add an API key in Settings first.</p>}
       {choices && <ModelChecks choices={choices} value={picked} onChange={setPicked} />}
       <div className="bar-actions">
-        <button type="submit" className="btn" disabled={!picked.length}>Open Compare</button>
         <button type="button" className="btn secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn" disabled={!picked.length}>Open Compare</button>
       </div>
     </Dialog>
   );

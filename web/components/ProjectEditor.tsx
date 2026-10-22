@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DIMENSIONS, deleteJSON, getJSON, postJSON, putJSON, usd, type ApiError, type FieldError, type Project, type ScorerInfo, type ScorerSpec } from "@/lib/api";
-import CaseTable, { Err, fromRow, idProblems, toRow, type Row } from "./CaseTable";
+import CaseTable, { Err, fromRow, idProblems, reveal, toRow, type Row } from "./CaseTable";
 import DraftDialog, { type Draft } from "./DraftDialog";
 import LeaveGuard from "./LeaveGuard";
 import RunDialog from "./RunDialog";
@@ -87,9 +87,11 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
   const probs = idProblems(rows);
   const badIds = rows.flatMap((r, i) => (probs[i] ? [{ k: r._k, n: i + 1, msg: probs[i] }] : []));
   const bare = form.scorers.length ? 0 : rows.filter((r) => !r.scorers?.length).length;
+  const apiBad = Object.entries(errors).flatMap(([k, m]) => { const i = Number(/^cases\.(\d+)/.exec(k)?.[1] ?? NaN); return rows[i] && !probs[i] ? [{ n: i + 1, k: rows[i]._k, msg: m[0] }] : []; })[0];
   const checks = [
     { ok: rows.length > 0 && !badIds.length, text: badIds.length ? `Case ${badIds[0].n}: ${badIds[0].msg.toLowerCase()}` : rows.length ? `${rows.length} ${rows.length === 1 ? "case" : "cases"}, ids unique` : "Add at least one case", fix: badIds[0]?.k },
     { ok: bare === 0 && rows.length > 0, text: bare ? `${bare} ${bare === 1 ? "case has" : "cases have"} no scorer. Pick one above.` : rows.length ? "Every case has a scorer" : "Cases need a scorer" },
+    ...(apiBad ? [{ ok: false, text: `Case ${apiBad.n}: ${apiBad.msg}`, fix: apiBad.k }] : []),
   ];
 
   return (
@@ -139,16 +141,20 @@ function Form({ initial, slug, scorers, onSaved }: { initial: Project; slug: str
       </div>
       <aside aria-label="Project actions" className="proj-side">
         <div className="card proj-actions">
-          <button type="submit" className="btn start" disabled={busy}>{busy ? "Saving…" : "Save project"}</button>
-          <button type="button" className="btn secondary" disabled={!slug || dirty} aria-describedby="run-why" onClick={() => setDialog("run")}>Run on selected models</button>
+          <div className="proj-bar">
+            <button type="submit" className="btn start" disabled={busy}>{busy ? "Saving…" : "Save project"}</button>
+            <button type="button" className="btn secondary" disabled={!slug || dirty} aria-describedby="run-why" onClick={() => setDialog("run")}>Run on selected models</button>
+          </div>
           <button type="button" className="btn secondary" onClick={() => setDialog("draft")}>Draft with AI</button>
-          {dirty && <span className="chip warn">Unsaved changes</span>}
-          <span id="run-why" role="status" className="muted small">{saved ? "Saved" : !slug ? "Save the project to run it." : dirty ? "Save your changes to run them." : ""}</span>
+          <div className="proj-state">
+            {dirty && <span className="chip warn">Unsaved changes</span>}
+            <span id="run-why" role="status" className="muted small">{saved ? "Saved" : !slug ? "Save the project to run it." : dirty ? "Save your changes to run them." : ""}</span>
+          </div>
         </div>
         <div className="card">
           <h2 className="eyebrow">Checks</h2>
           <ul className="proj-checks">{checks.map((c) => (
-            <li key={c.text} data-ok={c.ok}><span aria-hidden="true">{c.ok ? "✓" : "!"}</span><span>{c.text}{c.fix !== undefined && <> <button type="button" className="link-btn" onClick={() => setOpen(c.fix!)}>Fix it</button></>}</span></li>
+            <li key={c.text} data-ok={c.ok}><span aria-hidden="true">{c.ok ? "✓" : "!"}</span><span>{c.text}{c.fix !== undefined && <> <button type="button" className="link-btn" onClick={() => { setOpen(c.fix!); reveal(c.fix!); }}>Fix it</button></>}</span></li>
           ))}</ul>
         </div>
         {slug && (

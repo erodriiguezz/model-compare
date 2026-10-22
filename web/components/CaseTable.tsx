@@ -29,18 +29,25 @@ export const nextId = (rows: Row[]) => { let n = 1; while (rows.some((r) => r.id
 export const Err = ({ id, msgs }: { id: string; msgs: string[] }) => (msgs.length ? <p id={`e-${id}`} className="danger small">{msgs.join(" ")}</p> : null);
 
 const MULTI = "__multi";
+/** Scrolls an open case to the middle of the screen and puts focus in its id field, once it is drawn. */
+export const reveal = (k: number) => requestAnimationFrame(() => {
+  const row = document.getElementById(`case-${k}`);
+  row?.scrollIntoView({ block: "center" });
+  row?.querySelector("input")?.focus({ preventScroll: true });
+});
 const FIELDS = ["id", "input", "expected", "scorers"];
 const PAGE = 25; // rows drawn until "Show all": a project can hold hundreds of cases
 
 export default function CaseTable({ rows, scorers, errors, open, onOpen, onChange }: {
   rows: Row[]; scorers: ScorerInfo[]; errors: (key: string, exact?: boolean) => string[]; open: number | null; onOpen: (k: number | null) => void; onChange: (rows: Row[]) => void;
 }) {
-  const [all, setAll] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
   const edit = (i: number, patch: Partial<Row>) => onChange(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const add = () => {
     const k = Math.max(0, ...rows.map((r) => r._k)) + 1;
     onChange([...rows, toRow({ id: nextId(rows), input: "", expected: "" }, k)]);
     onOpen(k);
+    reveal(k);
   };
   const pick = (i: number, type: string) => {
     const old = rows[i].scorers?.[0];
@@ -48,7 +55,8 @@ export default function CaseTable({ rows, scorers, errors, open, onOpen, onChang
   };
   const dup = idProblems(rows);
   const openAt = rows.findIndex((r) => r._k === open);
-  const visible = all ? rows.length : Math.max(PAGE, openAt + 1); // the open case is always drawn
+  if (openAt >= limit) setLimit(openAt + 1); // the open case is always drawn, and stays drawn when it closes
+  const visible = Math.min(limit, rows.length);
   const label = (r: Row) => ((r.scorers?.length ?? 0) > 1 ? `${r.scorers!.length} scorers` : r.scorers?.[0]?.type ?? <span className="muted">project default</span>);
   return (
     <section id="cases" aria-labelledby="cases-h" className="card table-card proj-cases">
@@ -76,7 +84,7 @@ export default function CaseTable({ rows, scorers, errors, open, onOpen, onChang
                   <td className="hide-sm"><span className="preview mono small">{r.expected}</span></td>
                   <td className="hide-sm nowrap"><span className="tag">{label(r)}</span></td>
                   <td className="nowrap">
-                    <button type="button" className="link-btn" aria-expanded={isOpen} aria-controls={`case-${r._k}`} aria-label={`Edit case ${n}`} onClick={() => onOpen(isOpen ? null : r._k)}>{isOpen ? "Close" : "Edit"}</button>{" "}
+                    <button type="button" id={`edit-${r._k}`} className="link-btn" aria-expanded={isOpen} aria-controls={`case-${r._k}`} aria-label={`Edit case ${n}`} onClick={() => onOpen(isOpen ? null : r._k)}>{isOpen ? "Close" : "Edit"}</button>{" "}
                     <button type="button" className="link-btn danger" aria-label={`Delete case ${n}`} onClick={() => { onChange(rows.filter((_, j) => j !== i)); if (isOpen) onOpen(null); }}>Delete</button>
                   </td>
                 </tr>
@@ -104,7 +112,7 @@ export default function CaseTable({ rows, scorers, errors, open, onOpen, onChang
           })}</tbody>
         </table></div>
       )}
-      {visible < rows.length && <p className="proj-cases-head"><button type="button" className="link-btn" onClick={() => setAll(true)}>Show all {rows.length} cases</button></p>}
+      {visible < rows.length && <p className="proj-cases-head"><button type="button" className="link-btn" onClick={() => { const k = rows[visible]._k; setLimit(Infinity); requestAnimationFrame(() => document.getElementById(`edit-${k}`)?.focus()); }}>Show all {rows.length} cases</button></p>}
       {errors("cases", true).length > 0 && <p className="danger small proj-cases-head" role="alert">{errors("cases", true).join(" ")}</p>}
     </section>
   );

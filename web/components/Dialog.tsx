@@ -23,7 +23,7 @@ export default function Dialog({ open, title, onClose, onSubmit, children }: { o
     if (items.length && document.activeElement === edge) { e.preventDefault(); other.focus(); }
   };
   return (
-    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={() => { from.current?.focus(); if (quiet.current) quiet.current = false; else onClose(); }} onKeyDown={wrap}>
+    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={() => { if (from.current?.isConnected) from.current.focus(); if (quiet.current) quiet.current = false; else onClose(); }} onKeyDown={wrap}>
       {open && <form className="form" onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }}><h2 id={id}>{title}</h2>{children}</form>}
     </dialog>
   );

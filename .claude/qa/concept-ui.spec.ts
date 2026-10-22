@@ -250,6 +250,12 @@ test('[AC-34.4] a running job shows percent, calls, spend, time left, per-model 
 });
 
 const REPORT = '/compare/?job=qa-every-verdict';
+/** Opens a finished report. The server builds it in about a second, more under parallel workers, so wait past the default 5 s. */
+const openReport = async (page: Page, url: string) => {
+  await page.goto(url);
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible({ timeout: 15_000 });
+};
+
 /** Each bar's fill width and whisker position as fractions of its track, so an empty bar fails. */
 const bars = (list: Locator) => list.getByRole('listitem').evaluateAll((lis) => lis.map((li) => {
   const track = li.querySelector('.track')!.getBoundingClientRect();
@@ -263,7 +269,7 @@ const recommendation = (page: Page) => page.getByRole('region', { name: 'Recomme
 
 test('[AC-34.5] the report opens with the recommendation, an overall-change row per candidate and the use-case picks', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const rec = recommendation(page);
   await expect(rec).toBeVisible();
   const metricsTop = (await page.getByRole('region', { name: 'Key metrics' }).boundingBox())!.y;
@@ -289,7 +295,7 @@ test('[AC-34.5] the report opens with the recommendation, an overall-change row 
 
 for (const job of ['qa-incomplete', 'qa-all-errors']) {
   test(`[AC-34.5] ${job}: no broken chart and a clear caveat`, async ({ page }) => {
-    await page.goto(`/compare/?job=${job}`);
+    await openReport(page, `/compare/?job=${job}`);
     const rec = recommendation(page);
     await expect(rec).toContainText('Fix errors before deciding.');
     const row = rec.locator('li[data-candidate="qa-flaky"]');
@@ -302,7 +308,7 @@ for (const job of ['qa-incomplete', 'qa-all-errors']) {
 }
 
 test('[AC-34.6] key metrics lists 9 metrics per model and tints the best value in each comparable row', async ({ page }) => {
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const table = page.getByRole('region', { name: 'Key metrics' });
   const rows = table.locator('tbody tr');
   await expect(rows).toHaveCount(9);
@@ -335,7 +341,7 @@ test('[AC-34.6] key metrics lists 9 metrics per model and tints the best value i
 
 test('[AC-34.7] quality vs cost keeps the frontier line and its explanation next to sorted pass-rate bars', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const quality = page.getByRole('region', { name: 'Quality', exact: true });
   const scatter = quality.locator('[data-chart="cost-scatter"]');
   await expect(scatter.locator('.sr-only tbody tr')).toHaveCount(5);
@@ -352,7 +358,7 @@ test('[AC-34.7] quality vs cost keeps the frontier line and its explanation next
 for (const width of [1280, 390]) {
   test(`[AC-34.5] [AC-34.6] [AC-34.7] the report fits ${width}px and is captured`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(REPORT);
+    await openReport(page, REPORT);
     await expect(page.getByRole('region', { name: 'Quality', exact: true }).locator('.recharts-wrapper')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await shot(page, `report-top-${width}`);
@@ -363,13 +369,13 @@ test('[AC-34.5] the headline is the biggest switch whatever order the engine lis
   const report = await (await request.get('/api/jobs/qa-every-verdict/report')).json();
   report.suggestions.reverse(); // stay and tie now come before the switch
   await page.route('**/api/jobs/qa-every-verdict/report', (route) => route.fulfill({ json: report }));
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   await expect(recommendation(page).locator('.rec-title')).toHaveText('Switch to qa-better.');
 });
 
 test('[AC-34.5] the overall-change rows are on the first screen at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const box = (await recommendation(page).locator('li[data-candidate]').first().boundingBox())!;
   expect(box.y + box.height).toBeLessThan(844);
 });
@@ -382,7 +388,7 @@ const mockReport = (page: Page, report: unknown) => page.route('**/api/jobs/qa-e
 
 test('[AC-34.8] a card per dimension, each with a bar per model and a chip per candidate; bars are as wide as their score and whiskers span the CI', async ({ page, request }) => {
   const report = await loadReport(request);
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const cards = caps(page).getByRole('article');
   await expect(cards).toHaveCount(Object.keys(report.dimensions).length);
   expect(report.summary.decisions).toHaveLength(4);
@@ -413,7 +419,7 @@ test('[AC-34.9] cost per 1k bars, run spend, latency bars with a p95 tail and th
   for (const b of report.benchmarks) if (b.summaries['qa-worse']) b.summaries['qa-worse'].latency_p95 = 6;
   await mockReport(page, report);
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const costList = cost(page).getByRole('list', { name: 'Cost per 1,000 tasks' });
   await expect(costList.getByRole('listitem')).toHaveCount(5);
   const costs = (await costList.locator('.value').allTextContents()).map((t) => parseFloat(t.slice(1)));
@@ -443,7 +449,7 @@ test('[AC-34.9] a model with no successful call is not cheapest or fastest; an i
   Object.assign(report.summary.markers['qa-flaky'], { error_rate: 1, task_success: null, cost_per_1k_tasks: 0, latency_p50: 0 });
   report.summary.markers['qa-worse'].incomplete = true;
   await mockReport(page, report);
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const lists = [cost(page).getByRole('list', { name: 'Cost per 1,000 tasks' }), speed(page).getByRole('list', { name: 'Latency per call' })];
   for (const list of lists) {
     await expect(list.getByRole('listitem')).toHaveCount(4);
@@ -457,7 +463,7 @@ test('[AC-34.9] a model with no successful call is not cheapest or fastest; an i
 for (const width of [1280, 390]) {
   test(`[AC-34.8] [AC-34.9] [AC-34.10] [AC-34.11] the full report fits ${width}px and is captured`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(REPORT);
+    await openReport(page, REPORT);
     await expect(speed(page).locator('[data-chart="latency-scatter"] .recharts-wrapper')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const nav = page.getByRole('navigation', { name: 'Report sections' });
@@ -473,7 +479,7 @@ test('[AC-34.10] one toggle per candidate; switching changes the list; a regress
   const item = report.flagged['qa-worse'].items.find((i: { kind: string }) => i.kind === 'regression');
   item.candidate.reasons = ['expected "42" but got "ANSWER: 0"'];
   await mockReport(page, report);
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const reg = regressionsOf(page);
   const toggle = (name: RegExp) => reg.getByRole('group', { name: 'Candidates' }).getByRole('button', { name });
   await expect(reg.getByRole('group', { name: 'Candidates' }).getByRole('button')).toHaveCount(4);
@@ -505,7 +511,7 @@ for (const width of [1280, 390]) {
     item.candidate.text = Array.from({ length: 120 }, (_, i) => `line ${i} ${'x'.repeat(i === 3 ? 400 : 10)}`).join('\n');
     await mockReport(page, report);
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(REPORT);
+    await openReport(page, REPORT);
     const row = regressionsOf(page).locator('details.reg', { hasText: `${item.benchmark} · ${item.case_id}` });
     await row.locator('summary').click();
     const out = row.getByLabel('qa-worse output');
@@ -518,7 +524,7 @@ for (const width of [1280, 390]) {
 
 test('[AC-34.11] every evidence row shows n, change, CI, p, McNemar p, W/T/L and verdict from the benchmarks; the report links return HTML and JSON', async ({ page, request }) => {
   const report = await loadReport(request);
-  await page.goto(REPORT);
+  await openReport(page, REPORT);
   const evidence = page.getByRole('region', { name: 'Evidence' });
   await expect(evidence.getByRole('columnheader')).toHaveText(['Model', 'Pass rate', 'n', 'Score change (pts)', '95% CI (pts)', 'p', 'McNemar p', 'W/T/L', 'Verdict']);
   const pts = (v: number) => `${v >= 0 ? '+' : ''}${(100 * v).toFixed(1)}`;
@@ -570,11 +576,9 @@ test('[AC-34.13] the list shows a card per project and flags an invalid one with
     await page.setViewportSize(size);
     await page.goto('/projects/');
     const card = page.getByRole('article', { name: 'qa-p5-card' });
-    await expect(card).toContainText('3 cases');
-    await expect(card).toContainText('knowledge');
-    await expect(card).toContainText('Never run');
+    for (const text of ['3 cases', 'knowledge', 'Never run']) await expect(card.getByText(text)).toBeVisible();
     const broken = page.getByRole('article', { name: 'qa-p5-broken' });
-    await expect(broken).toContainText('Case refund_07: expected is not valid JSON.');
+    await expect(broken.getByText('Case refund_07: expected is not valid JSON.')).toBeVisible();
     await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
     await expect(page.getByText(/needs? fixing/)).toContainText('1 needs fixing');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -634,12 +638,51 @@ test('[AC-34.13] a project with hundreds of cases draws a page of rows, shows al
   await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(25);
   await page.getByRole('button', { name: 'Show all 300 cases' }).click();
   await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(300);
+  await expect(page.getByRole('button', { name: 'Edit case 26' })).toBeFocused(); // focus does not fall to the page
   await page.getByRole('button', { name: 'Edit case 300' }).click();
   await page.getByLabel('Case 300 input').fill('Edited last case');
   await expect(page.getByText('Unsaved changes')).toBeVisible();
   await page.getByRole('button', { name: 'Save project' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
   expect((await (await request.get(`/api/projects/${slug}`)).json()).cases[299].input).toBe('Edited last case');
+});
+
+test('[AC-34.13] Add case and Fix it bring the case into view and focus its id field, even on case 300', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-reveal', 300);
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  await page.getByRole('button', { name: 'Add case' }).click();
+  await expect(page.getByLabel('Case 301 id')).toBeInViewport();
+  await expect(page.getByLabel('Case 301 id')).toBeFocused();
+  await page.getByRole('button', { name: 'Delete case 301' }).click();
+  await page.getByRole('button', { name: 'Edit case 300' }).click();
+  await page.getByLabel('Case 300 id').fill('');
+  await page.getByRole('button', { name: 'Edit case 300' }).click(); // fold it
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const side = page.getByRole('complementary', { name: 'Project actions' });
+  await expect(side).toContainText('Case 300: id is required.');
+  await side.getByRole('button', { name: 'Fix it' }).click();
+  await expect(page.getByLabel('Case 300 id')).toBeInViewport();
+  await expect(page.getByLabel('Case 300 id')).toBeFocused();
+});
+
+test('[AC-34.13] at 390 the sticky bar stays one compact row and never covers a focused field', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-bar', 12);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  const bar = page.locator('.proj-bar');
+  await expect(bar.getByRole('button', { name: 'Save project' })).toBeVisible();
+  expect((await bar.boundingBox())!.height).toBeLessThanOrEqual(64);
+  await page.getByRole('button', { name: 'Edit case 12' }).click();
+  const last = page.locator('form input:not([type=checkbox]), form textarea, form select').last();
+  for (const field of [page.getByLabel('Case 12 input'), last]) {
+    await field.focus();
+    await expect(field).toBeInViewport();
+    const [f, b] = [(await field.boundingBox())!, (await bar.boundingBox())!];
+    expect(f.y + f.height).toBeLessThanOrEqual(b.y);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(bar).toBeInViewport(); // stuck to the bottom of the screen
+  await shot(page, 'project-editor-bar-390');
 });
 
 test('[AC-34.13] the draft dialog opens, keeps focus inside, closes on Escape and gives focus back', async ({ page }) => {
@@ -651,6 +694,7 @@ test('[AC-34.13] the draft dialog opens, keeps focus inside, closes on Escape an
     const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
     await expect(dialog).toBeVisible();
     await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true); // focus moved in
+    await expect(dialog.getByLabel('Model')).toBeVisible();
     await shot(page, `project-draft-dialog-${size.width}`);
     for (let i = 0; i < 12; i++) { // more tabs than the dialog has controls
       await page.keyboard.press('Tab');
