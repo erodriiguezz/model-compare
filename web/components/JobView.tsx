@@ -97,7 +97,7 @@ export default function JobView({ id }: { id: string }) {
         <div className="between">
           <div>
             <h2 id="job-h">Comparison {job.id} <Chip text={job.status} />{!active && job.status !== "done" && <span className="muted"> (partial results)</span>}</h2>
-            <p className="muted small">Started {fmtTime(job.started_at)} · baseline {job.baseline ?? "none"}</p>
+            {(active || showProgress) && <p className="muted small">Started {fmtTime(job.started_at)} · baseline {job.baseline ?? "none"}</p>}
           </div>
           {active && <button type="button" className="btn secondary destructive-text" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
         </div>
@@ -116,7 +116,7 @@ export default function JobView({ id }: { id: string }) {
         )}
         {!active && (
           <p className="muted" data-job-summary>
-            {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
+            {job.status} · started {fmtTime(job.started_at)} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
             <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
           </p>
         )}
