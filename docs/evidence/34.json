@@ -1,0 +1,111 @@
+{
+  "issue": 34,
+  "title": "Concept UI redesign — Compare, Projects and Settings",
+  "branch": "feat/concept-ui-redesign-p1-shell",
+  "commit": "798a2a6103867faccf552181e7b86949d4e6d0c7",
+  "plan": ".claude/plans/34-concept-ui-redesign.md",
+  "size": "L",
+  "touchesApi": false,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-21"
+  },
+  "tests": {
+    "commit": "798a2a6103867faccf552181e7b86949d4e6d0c7",
+    "at": "2026-10-22T02:46:00.031Z",
+    "passed": false,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "fail",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "fail",
+    "criteria": [
+      {
+        "id": "AC-34.14",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.1",
+        "tests": 2
+      },
+      {
+        "id": "AC-34.2",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.3",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.4",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.5",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.6",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.7",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.8",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.9",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.10",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.11",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.12",
+        "tests": 2
+      },
+      {
+        "id": "AC-34.13",
+        "tests": 0
+      },
+      {
+        "id": "AC-34.15",
+        "tests": 2
+      },
+      {
+        "id": "AC-34.16",
+        "tests": 0
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "p1: Request changes → 1 High fixed (798a2a6); Medium/Low fixed except empty-state copy",
+    "document": null
+  },
+  "cost": {
+    "estTokens": 1500000,
+    "actualTokens": 15169748,
+    "toolCalls": 152,
+    "handoff": true
+  },
+  "writtenAt": "2026-10-22T02:46:53.019Z"
+}

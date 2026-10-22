@@ -66,8 +66,8 @@ test('[AC-3.3] past jobs are listed and opening one shows its report', async ({ 
   await page.goto('/history/');
   await expect(page.getByRole('navigation', { name: 'Main' }).locator('[aria-current="page"]')).toHaveText('Compare');
   await expect(page.getByRole('navigation', { name: 'Compare sections' }).locator('[aria-current="page"]')).toHaveText('History');
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
-  await page.locator(`a[href="/history/?job=${job_id}"]`).click();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
+  await page.locator(`a[href="/compare/?job=${job_id}"]`).click();
   await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
   await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toBeVisible();
 });
@@ -86,8 +86,8 @@ test('[AC-3.5] empty history links to a new run', async ({ page }) => {
   await page.route('**/api/jobs', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/runs', (route) => route.fulfill({ json: [] }));
   await page.goto('/history/');
-  await expect(page.getByRole('heading', { name: 'No runs yet' })).toBeVisible();
-  await page.getByRole('link', { name: 'Start your first comparison' }).click();
+  await expect(page.getByRole('heading', { name: 'No comparisons yet' })).toBeVisible();
+  await page.getByRole('link', { name: 'Start a comparison' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Compare' })).toBeVisible();
 });
 
@@ -98,7 +98,7 @@ test('[AC-3.5] history shows an error with retry when the API fails', async ({ p
   await expect(page.locator('[data-state="error"]')).toContainText('Could not load history');
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
 });
 
 test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
@@ -108,7 +108,7 @@ test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
 });
 
 test('[AC-3.3] history caps long lists and shows all on request', async ({ page }) => {
-  const jobs = Array.from({ length: 30 }, (_, i) => ({ id: `j${i}`, targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'done', done_calls: 30, total_calls: 30, started_at: '2026-10-19T10:00:00' }));
+  const jobs = Array.from({ length: 30 }, (_, i) => ({ id: `j${i}`, targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'done', done_calls: 30, total_calls: 30, run_ids: [], benchmarks: ['std-reasoning-math'], started_at: '2026-10-19T10:00:00' }));
   await page.route('**/api/jobs', (route) => route.fulfill({ json: jobs }));
   await page.goto('/history/');
   const section = page.getByRole('region', { name: 'Comparisons' });
