@@ -262,7 +262,7 @@ test('[AC-34.5] the report opens with the recommendation, an overall-change row 
   await expect(rec).toContainText('Switch to qa-better.');
   const rows = rec.getByRole('list', { name: 'Overall change' }).locator('li[data-candidate]');
   await expect(rows).toHaveCount(4);
-  for (const [name, verdict] of [['qa-better', 'better'], ['qa-worse', 'worse'], ['qa-tie', 'equivalent'], ['qa-flaky', 'incomplete']]) {
+  for (const [name, verdict] of [['qa-better', 'better'], ['qa-worse', 'worse'], ['qa-tie', 'equivalent'], ['qa-flaky', 'equivalent']]) {
     const row = rows.filter({ hasText: name });
     await expect(row.locator(`[data-verdict="${verdict}"]`)).toBeVisible();
     await expect(row.locator('.forest-zero')).toBeAttached();

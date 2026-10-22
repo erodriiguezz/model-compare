@@ -43,7 +43,7 @@ export default function DecisionPanel({ baseline, decisions, suggestions, profil
           <h2 id="rec-h" className="eyebrow">Recommendation</h2>
           <p className="rec-title">{title}</p>
           {lead && <p className="rec-text">{lead.text}</p>}
-          {!lead && decisions.length === 0 && <p className="rec-text muted">One model gives a scorecard; add a second for a verdict.</p>}
+          {!lead && decisions.length === 0 && <p className="rec-text muted">A single model has no baseline to beat, so there is nothing to recommend.</p>}
         </div>
         {decisions.length > 0 && (
           <div>
