@@ -415,6 +415,7 @@ test('[AC-34.9] cost per 1k bars, run spend, latency bars with a p95 tail and th
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(REPORT);
   const costList = cost(page).getByRole('list', { name: 'Cost per 1,000 tasks' });
+  await expect(costList.getByRole('listitem')).toHaveCount(5);
   const costs = (await costList.locator('.value').allTextContents()).map((t) => parseFloat(t.slice(1)));
   expect(costs).toHaveLength(5);
   expect(costs).toEqual([...costs].sort((a, b) => a - b)); // cheapest first
@@ -422,6 +423,7 @@ test('[AC-34.9] cost per 1k bars, run spend, latency bars with a p95 tail and th
   await expect(cost(page).getByRole('list', { name: 'Spend by model' }).getByRole('listitem')).toHaveCount(5);
   await expect(cost(page)).toContainText(/Total spend\s*\$1\.\d\d/);
   const lat = speed(page).getByRole('list', { name: 'Latency per call' });
+  await expect(lat.getByRole('listitem')).toHaveCount(5);
   const secs = (await lat.locator('.value').allTextContents()).map((t) => parseFloat(t));
   expect(secs).toHaveLength(5);
   expect(secs).toEqual([...secs].sort((a, b) => a - b)); // fastest first
