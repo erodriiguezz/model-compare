@@ -29,13 +29,9 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
   const onFront = new Set(front.map((p) => p.name));
   // Models at (nearly) the same spot would print their names on top of each other: each gets its own line,
   // frontier names stacked upward and the rest downward.
-  const seen = new Map<string, number>();
-  const placed = points.map((p) => {
-    const key = `${onFront.has(p.name)}|${p.x.toFixed(2)}|${Math.round(p.quality)}`;
-    const slot = seen.get(key) ?? 0;
-    seen.set(key, slot + 1);
-    return { ...p, slot };
-  });
+  const maxX = Math.max(...points.map((p) => p.x));
+  const near = (a: (typeof points)[number], b: (typeof points)[number]) => Math.abs(a.x - b.x) <= 0.08 * maxX && Math.abs(a.quality - b.quality) < 8;
+  const placed = points.map((p, i) => ({ ...p, slot: points.slice(0, i).filter((q) => onFront.has(q.name) === onFront.has(p.name) && near(p, q)).length }));
   const slotOf = new Map(placed.map((p) => [p.name, p.slot]));
   const withSlot = (list: typeof points) => list.map((p) => ({ ...p, slot: slotOf.get(p.name) ?? 0 }));
   const labelAt = (dir: 1 | -1, fill: string, weight: number, size: number, data: { label: string; slot: number }[]) =>
