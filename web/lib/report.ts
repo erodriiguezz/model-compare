@@ -45,7 +45,17 @@ export type Decision = {
   overall_verdict: string; overall_verdict_text: string; overall_delta_points: number | null; overall_range_points: [number, number] | null;
 };
 export type Profile = { profile: string; description: string; ranking: { target: string; score: number }[]; coverage: number };
+export type CaseSide = { score: number; pass_rate: number; text: string; reasons: string[] };
 export type FlaggedItem = {
   kind: string; tag: string; benchmark: string; dimension: string; case_id: string; delta: number;
-  baseline: { score: number }; candidate: { score: number };
+  baseline: CaseSide; candidate: CaseSide;
+};
+export type Summary = { mean_score: number; pass_rate: number; n_errors: number; n_calls: number; latency_p50?: number | null; latency_p95?: number | null };
+export type Comparison = {
+  candidate: string; verdict: string; delta: number | null; ci: [number | null, number | null]; n: number;
+  p_value: number | null; mcnemar_p: number | null; wins: number; ties: number; losses: number;
+};
+export type Bench = {
+  name: string; dimension: string; fingerprint: string; summaries: Record<string, Summary>; comparisons: Comparison[];
+  saturated: boolean; saturation_message: string | null;
 };

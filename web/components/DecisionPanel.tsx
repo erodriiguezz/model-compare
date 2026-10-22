@@ -1,6 +1,6 @@
 import { vendorColor } from "@/lib/vendor";
 import type { Decision, Marker, Profile, Suggestion } from "@/lib/report";
-import VerdictChip, { VERDICT } from "./ui/VerdictChip";
+import VerdictChip, { VERDICT, VERDICT_NOTE } from "./ui/VerdictChip";
 
 const KINDS: Record<string, [string, string]> = {
   fix_errors: ["Fix errors", "bad"], switch: ["Switch", "ok"], stay: ["Stay", "info"], tradeoff: ["Trade-off", "warn"], tie: ["Tie", "info"],
@@ -74,7 +74,7 @@ export default function DecisionPanel({ jobId, baseline, decisions, suggestions,
                     </span>
                     <span className="forest-value">
                       <span className="mono small">{scored ? `${sign(d.overall_delta_points as number)}${lo != null && hi != null ? ` [${sign(lo)}, ${sign(hi)}]` : ""}` : "Not compared"}</span>
-                      <VerdictChip verdict={d.overall_verdict}>{d.overall_verdict_text}</VerdictChip>
+                      <VerdictChip verdict={d.overall_verdict} />{VERDICT_NOTE[d.overall_verdict] && <span className="muted small">{VERDICT_NOTE[d.overall_verdict]}</span>}
                     </span>
                   </li>
                 );

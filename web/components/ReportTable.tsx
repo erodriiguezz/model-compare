@@ -8,9 +8,9 @@ import KeyMetrics, { slowestP95 } from "./KeyMetrics";
 import QualityScatter from "./QualityScatter";
 import SectionTabs from "./SectionTabs";
 import BarList from "./ui/BarList";
-import RankedBars from "./RankedBars";
+import CapabilityGrid from "./CapabilityGrid";
+import CostSpeed from "./CostSpeed";
 import Regressions from "./Regressions";
-import VerdictMatrix from "./VerdictMatrix";
 import { vendorColor } from "@/lib/vendor";
 import type { Decision, Dimension, FlaggedItem, Marker, Profile, Suggestion } from "@/lib/report";
 
@@ -41,7 +41,8 @@ type Report = {
   profiles?: Profile[];
   total_cost_usd?: Record<string, number>;
 };
-const TABS = [{ href: "#decision", label: "Decision" }, { href: "#overview", label: "Key metrics" }, { href: "#quality", label: "Quality" }];
+const TABS = [["decision", "Decision"], ["overview", "Key metrics"], ["quality", "Quality"], ["capabilities", "Capabilities"], ["cost", "Cost"], ["speed", "Speed"]]
+  .map(([id, label]) => ({ href: `#${id}`, label }));
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
 const pts = (v: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`);
@@ -83,8 +84,8 @@ export function ReportTable({ jobId, children }: { jobId: string; children?: Rea
           </section>
         </>
       )}
-      {r.summary && <VerdictMatrix baseline={r.baseline} decisions={r.summary.decisions} />}
-      <RankedBars dimensions={r.dimensions} baseline={r.baseline} />
+      <CapabilityGrid dimensions={r.dimensions} baseline={r.baseline} decisions={r.summary?.decisions ?? []} />
+      {r.summary && <CostSpeed markers={r.summary.markers} costs={r.total_cost_usd ?? {}} slowestP95={slowestP95(r.benchmarks)} vendors={vendors} />}
       {r.flagged && <Regressions flagged={r.flagged} baseline={r.baseline} />}
       <details className="details">
         <summary>Details</summary>

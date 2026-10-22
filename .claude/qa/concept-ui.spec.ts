@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -250,6 +250,15 @@ test('[AC-34.4] a running job shows percent, calls, spend, time left, per-model 
 });
 
 const REPORT = '/compare/?job=qa-every-verdict';
+/** Each bar's fill width and whisker position as fractions of its track, so an empty bar fails. */
+const bars = (list: Locator) => list.getByRole('listitem').evaluateAll((lis) => lis.map((li) => {
+  const track = li.querySelector('.track')!.getBoundingClientRect();
+  const whisker = li.querySelector('.whisker')?.getBoundingClientRect();
+  return {
+    label: li.firstElementChild!.textContent ?? '', value: li.querySelector('.value')!.textContent ?? '', ratio: li.querySelector('.fill')!.getBoundingClientRect().width / track.width,
+    from: whisker ? (whisker.left - track.left) / track.width : null, span: whisker ? whisker.width / track.width : null,
+  };
+}));
 const recommendation = (page: Page) => page.getByRole('region', { name: 'Recommendation' });
 
 test('[AC-34.5] the report opens with the recommendation, an overall-change row per candidate and the use-case picks', async ({ page }) => {
@@ -319,6 +328,9 @@ test('[AC-34.6] key metrics lists 9 metrics per model and tints the best value i
   expect((await best('Regressions'))[col('qa-tie')]).toBe(true);
   await expect(rows.nth(2).locator('td').nth(col('qa-worse'))).toHaveText('26');
   await expect(rows.nth(1).locator('td').nth(col('qa-better'))).toContainText('Better');
+  const tie = rows.nth(1).locator('td').nth(col('qa-tie')); // one label everywhere: the chip says Tie, the muted note says what it means
+  await expect(tie.locator('.chip')).toHaveText('Tie');
+  await expect(tie).toContainText('within 3 points');
 });
 
 test('[AC-34.7] quality vs cost keeps the frontier line and its explanation next to sorted pass-rate bars', async ({ page }) => {
@@ -332,6 +344,7 @@ test('[AC-34.7] quality vs cost keeps the frontier line and its explanation next
   const values = (await quality.getByRole('list', { name: 'Overall pass rate' }).locator('.value').allTextContents()).map(parseFloat);
   expect(values).toHaveLength(5);
   expect(values).toEqual([...values].sort((a, b) => b - a));
+  for (const r of await bars(quality.getByRole('list', { name: 'Overall pass rate' }))) expect(Math.abs(r.ratio - parseFloat(r.value) / values[0])).toBeLessThan(0.01); // a fill is as wide as its value
   const sideBySide = await Promise.all([scatter.boundingBox(), quality.getByRole('list', { name: 'Overall pass rate' }).boundingBox()]);
   expect(Math.abs(sideBySide[0]!.y - sideBySide[1]!.y)).toBeLessThan(sideBySide[0]!.height);
 });
@@ -360,3 +373,95 @@ test('[AC-34.5] the overall-change rows are on the first screen at 390px', async
   const box = (await recommendation(page).locator('li[data-candidate]').first().boundingBox())!;
   expect(box.y + box.height).toBeLessThan(844);
 });
+
+const caps = (page: Page) => page.getByRole('region', { name: 'Capabilities' });
+const cost = (page: Page) => page.getByRole('region', { name: 'Cost', exact: true });
+const speed = (page: Page) => page.getByRole('region', { name: 'Speed', exact: true });
+const loadReport = async (request: import('@playwright/test').APIRequestContext) => (await request.get('/api/jobs/qa-every-verdict/report')).json();
+const mockReport = (page: Page, report: unknown) => page.route('**/api/jobs/qa-every-verdict/report', (route) => route.fulfill({ json: report }));
+
+test('[AC-34.8] a card per dimension, each with a bar per model and a chip per candidate; bars are as wide as their score and whiskers span the CI', async ({ page, request }) => {
+  const report = await loadReport(request);
+  await page.goto(REPORT);
+  const cards = caps(page).getByRole('article');
+  await expect(cards).toHaveCount(Object.keys(report.dimensions).length);
+  expect(report.summary.decisions).toHaveLength(4);
+  type Target = { quality: number | null; quality_ci: [number | null, number | null]; incomplete: boolean };
+  for (const [dim, info] of Object.entries(report.dimensions) as [string, { label: string; targets: Record<string, Target> }][]) {
+    const card = cards.filter({ has: page.getByRole('heading', { name: info.label, exact: true }) });
+    await expect(card, dim).toHaveCount(1);
+    const list = card.getByRole('list', { name: `${info.label} score` });
+    await expect(list.getByRole('listitem')).toHaveCount(Object.values(info.targets).filter((t) => t.quality != null).length);
+    await expect(card.getByRole('list', { name: `${info.label} verdicts` }).getByRole('listitem')).toHaveCount(4);
+    for (const d of report.summary.decisions) await expect(card.getByRole('list', { name: `${info.label} verdicts` })).toContainText(d.candidate);
+    for (const b of await bars(list)) {
+      const t = info.targets[b.label.replace(/ \(.*\)$/, '')];
+      expect(Math.abs(b.ratio - t.quality!), `${dim} ${b.label} fill`).toBeLessThan(0.01);
+      if (t.incomplete) expect(b.from).toBeNull();
+      else {
+        expect(Math.abs(b.from! - t.quality_ci[0]!), `${dim} ${b.label} whisker start`).toBeLessThan(0.01);
+        expect(Math.abs(b.span! - (t.quality_ci[1]! - t.quality_ci[0]!)), `${dim} ${b.label} whisker width`).toBeLessThan(0.01);
+      }
+    }
+  }
+});
+
+test('[AC-34.9] cost per 1k bars, run spend, latency bars with a p95 tail and the latency scatter render from the report', async ({ page, request }) => {
+  const report = await loadReport(request);
+  report.summary.markers['qa-worse'].latency_p50 = 2; // distinct latencies so the order and the tail are visible
+  report.summary.markers['qa-better'].latency_p50 = 0.5;
+  for (const b of report.benchmarks) if (b.summaries['qa-worse']) b.summaries['qa-worse'].latency_p95 = 6;
+  await mockReport(page, report);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(REPORT);
+  const costList = cost(page).getByRole('list', { name: 'Cost per 1,000 tasks' });
+  await expect(costList.getByRole('listitem')).toHaveCount(5);
+  const costs = (await costList.locator('.value').allTextContents()).map((t) => parseFloat(t.slice(1)));
+  expect(costs).toHaveLength(5);
+  expect(costs).toEqual([...costs].sort((a, b) => a - b)); // cheapest first
+  for (const r of await bars(costList)) expect(Math.abs(r.ratio - parseFloat(r.value.slice(1)) / costs[4])).toBeLessThan(0.01);
+  await expect(cost(page).getByRole('list', { name: 'Spend by model' }).getByRole('listitem')).toHaveCount(5);
+  await expect(cost(page)).toContainText(/Total spend\s*\$1\.\d\d/);
+  const lat = speed(page).getByRole('list', { name: 'Latency per call' });
+  await expect(lat.getByRole('listitem')).toHaveCount(5);
+  const secs = (await lat.locator('.value').allTextContents()).map((t) => parseFloat(t));
+  expect(secs).toHaveLength(5);
+  expect(secs).toEqual([...secs].sort((a, b) => a - b)); // fastest first
+  const worse = lat.getByRole('listitem').filter({ hasText: 'qa-worse' });
+  await expect(worse).toContainText('p95 6.0 s');
+  const [track, tail, median] = await Promise.all([worse.locator('.track').boundingBox(), worse.locator('.fill.tail').boundingBox(), worse.locator('.fill:not(.tail)').boundingBox()]);
+  expect(Math.abs(tail!.width / track!.width - 1)).toBeLessThan(0.01); // the slowest tail sets the scale
+  expect(Math.abs(median!.width / tail!.width - 2 / 6)).toBeLessThan(0.01);
+  const scatter = speed(page).locator('[data-chart="latency-scatter"]');
+  await expect(scatter.locator('.sr-only tbody tr')).toHaveCount(5);
+  await expect(scatter.locator('.recharts-scatter-line')).toBeAttached();
+  await expect(scatter).toContainText('Median latency (s)');
+});
+
+test('[AC-34.9] a model with no successful call is not cheapest or fastest; an incomplete one is labelled and hatched', async ({ page, request }) => {
+  const report = await loadReport(request);
+  Object.assign(report.summary.markers['qa-flaky'], { error_rate: 1, task_success: null, cost_per_1k_tasks: 0, latency_p50: 0 });
+  report.summary.markers['qa-worse'].incomplete = true;
+  await mockReport(page, report);
+  await page.goto(REPORT);
+  const lists = [cost(page).getByRole('list', { name: 'Cost per 1,000 tasks' }), speed(page).getByRole('list', { name: 'Latency per call' })];
+  for (const list of lists) {
+    await expect(list.getByRole('listitem')).toHaveCount(4);
+    await expect(list).not.toContainText('qa-flaky');
+    const worse = list.getByRole('listitem').filter({ hasText: 'qa-worse' });
+    await expect(worse).toContainText('qa-worse (incomplete)');
+    await expect(worse.locator('.fill.hatched').first()).toBeAttached();
+  }
+});
+
+for (const width of [1280, 390]) {
+  test(`[AC-34.8] [AC-34.9] capabilities, cost and speed fit ${width}px and are captured`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(REPORT);
+    await expect(speed(page).locator('[data-chart="latency-scatter"] .recharts-wrapper')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    const nav = page.getByRole('navigation', { name: 'Report sections' });
+    for (const tab of ['Capabilities', 'Cost', 'Speed']) await expect(nav.getByRole('link', { name: tab })).toBeVisible();
+    await shot(page, `report-full-${width}`);
+  });
+}
