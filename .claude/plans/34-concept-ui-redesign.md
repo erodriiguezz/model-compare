@@ -2,7 +2,7 @@
 issue: 34
 title: Concept UI redesign — Compare, Projects and Settings
 branch: feat/concept-ui-redesign
-status: approved
+status: shipped
 approved_by: Ernesto
 approved_at: 2026-10-21
 autonomy: pr
@@ -220,5 +220,18 @@ none
 - Review doc: `docs/reviews/34-p6.md`
 
 ## 6. Retro
+- **What the plan got wrong:**
+  - AC-34.3 (Start disabled below two models) contradicted AC-16's existing one-model journey. Grilling should cross-check new criteria against existing journeys.
+  - Milestone 4 was estimated at 380 lines and came in at 515. Replacing components counts their deletions too, and the estimate ignored them.
+- **What slowed the work:**
+  - The first builder stalled twice for hours without reporting.
+  - A stale fake key in the shared QA keys file turned three unrelated specs red.
+  - Builders measured PR size only at the end.
+  - Bugs the specs didn't catch: empty bars (no width assertion) and a CSS class collision (no grep before adding a class).
+- **What would have prevented it:**
+  - A QA setup step that resets the isolated keys file.
+  - A builder rule to run `pr-size` after the first commit.
+  - A design-skill check for duplicate selectors in `globals.css`.
+  - A report-cache follow-up for the about 1.1 s report build behind the flaky specs.
 
 ## 7. Hand-off

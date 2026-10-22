@@ -1,8 +1,8 @@
 {
   "issue": 34,
   "title": "Concept UI redesign — Compare, Projects and Settings",
-  "branch": "feat/concept-ui-redesign-p6-settings",
-  "commit": "3656219847f99b71aad435833682cdd590da40c1",
+  "branch": "feat/concept-ui-redesign",
+  "commit": "16823c41101b0d699f1f2c7778229d56172bd578",
   "plan": ".claude/plans/34-concept-ui-redesign.md",
   "size": "L",
   "touchesApi": false,
@@ -12,8 +12,8 @@
     "at": "2026-10-21"
   },
   "tests": {
-    "commit": "3656219847f99b71aad435833682cdd590da40c1",
-    "at": "2026-10-22T16:17:34.099Z",
+    "commit": "16823c41101b0d699f1f2c7778229d56172bd578",
+    "at": "2026-10-22T16:23:18.497Z",
     "passed": true,
     "steps": {
       "verify": "pass",
@@ -98,14 +98,14 @@
     "target": "local"
   },
   "review": {
-    "local": "p6: key-in-DOM, scatter labels and copy fixed",
-    "document": null
+    "local": "Approve: every milestone's High and Medium findings fixed before merge; follow-ups listed",
+    "document": "docs/reviews/34.md"
   },
   "cost": {
     "estTokens": 1500000,
-    "actualTokens": 79715158,
-    "toolCalls": 92,
+    "actualTokens": 82115837,
+    "toolCalls": 7,
     "handoff": false
   },
-  "writtenAt": "2026-10-22T16:18:44.583Z"
+  "writtenAt": "2026-10-22T16:23:39.426Z"
 }
