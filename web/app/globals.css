@@ -173,8 +173,8 @@ table.list .cell-note { font-size: var(--text-xs); color: var(--text-muted); mar
 .status-better { color: var(--better-fg); } .status-worse { color: var(--worse-fg); } .status-warning { color: var(--warning); } .status-neutral { color: var(--text-muted); }
 .barlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .barlist li { display: grid; grid-template-columns: minmax(var(--chip-col), 1fr) 3fr auto; align-items: center; gap: var(--space-3); }
-.barlist .track { height: var(--space-3); background: var(--neutral-bg); border-radius: var(--radius-pill); overflow: hidden; }
-.barlist .fill { height: 100%; border-radius: var(--radius-pill); background: var(--vendor-other); }
+.barlist .track { position: relative; height: var(--space-3); background: var(--neutral-bg); border-radius: var(--radius-pill); overflow: hidden; }
+.barlist .fill { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--vendor-other); }
 .barlist .value { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
 .note { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--warning); color: var(--warning); }
 .warnings { margin: var(--space-3) 0 0; padding-left: var(--space-4); color: var(--warning); }
@@ -250,7 +250,6 @@ html { scroll-padding-bottom: var(--bar-h); }
 .keyless a { display: inline-block; min-height: var(--tap); line-height: var(--tap); }
 
 /* Charts */
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--space-6) var(--space-4); }
 .chart { margin: 0; min-width: 0; }
 .chart figcaption { margin-bottom: var(--space-2); }
 .scatter { height: var(--chart-h); }
@@ -392,8 +391,8 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .picks { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
 .picks li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--row-line); }
 .picks li > span:first-child { display: flex; flex-direction: column; min-width: 0; }
-.pick-name { font-weight: 500; font-size: var(--text-sm); }
-.pick { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 600; font-size: var(--text-sm); }
+.pick-name { font-weight: 500; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.pick { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 600; font-size: var(--text-sm); white-space: nowrap; }
 .table-card { padding: 0; overflow: hidden; }
 .metrics th, .metrics td { padding: var(--space-3) var(--space-4); vertical-align: middle; }
 .metrics thead th { background: var(--subtle); white-space: nowrap; }
@@ -404,3 +403,18 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .split > :first-child { flex: 3 1 calc(var(--col-min) * 2); }
 .split > :last-child { flex: 2 1 var(--col-min); }
 .run-head .summary-line { font-size: var(--text-sm); }
+.cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--col-min)), 1fr)); gap: var(--space-3); }
+.cap-grid .card { display: flex; flex-direction: column; gap: var(--space-3); }
+.cap-grid .card > * { margin-top: 0; }
+.verdicts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm); }
+.verdicts li, .spend li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.barlist .whisker { position: absolute; top: 50%; height: 2px; background: var(--ink); transform: translateY(-50%); }
+.barlist .whisker::before, .barlist .whisker::after { content: ""; position: absolute; top: calc(var(--space-1) * -1); height: var(--space-2); width: 2px; background: var(--ink); }
+.barlist .whisker::after { right: 0; }
+.fill.hatched { box-sizing: border-box; background: repeating-linear-gradient(45deg, var(--border-strong) 0 var(--space-1), var(--surface) var(--space-1) var(--space-2)); border: 1px dashed var(--text-muted); }
+.latency .fill { position: absolute; left: 0; top: 0; }
+.latency .fill.tail { opacity: 0.35; }
+.stat-tile { display: flex; flex-direction: column; background: var(--canvas); border-radius: var(--radius); padding: var(--space-3) var(--space-4); }
+.spend { list-style: none; margin: 0; padding: 0; }
+.spend li { justify-content: space-between; padding: var(--space-2) 0; border-bottom: 1px solid var(--row-line); }
+.report-section p a { text-decoration: underline; }

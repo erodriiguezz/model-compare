@@ -1,6 +1,6 @@
 import { vendorColor } from "@/lib/vendor";
 import type { Decision, Marker } from "@/lib/report";
-import VerdictChip from "./ui/VerdictChip";
+import VerdictChip, { VERDICT_NOTE } from "./ui/VerdictChip";
 
 type Row = { kind?: "verdict"; label: string; hint: string; values: (number | null)[]; fmt: (v: number) => string; best?: "high" | "low" };
 const pct = (digits: number) => (v: number) => `${(100 * v).toFixed(digits)}%`;
@@ -49,7 +49,7 @@ export default function KeyMetrics({ baseline, markers, decisions, costs, slowes
                 {models.map((m, i) => {
                   if (r.kind === "verdict") {
                     const d = decisions.find((x) => x.candidate === m);
-                    return <td key={m} className="num">{d ? <VerdictChip verdict={d.overall_verdict}>{d.overall_verdict_text}</VerdictChip> : <span className="muted">Baseline</span>}</td>;
+                    return <td key={m} className="num">{d ? <><VerdictChip verdict={d.overall_verdict} />{VERDICT_NOTE[d.overall_verdict] && <div className="muted small">{VERDICT_NOTE[d.overall_verdict]}</div>}</> : <span className="muted">Baseline</span>}</td>;
                   }
                   const v = r.values[i];
                   return <td key={m} className="num">{v == null ? <span className="muted">—</span> : <span className={best.has(i) ? "best" : undefined} data-best={best.has(i) || undefined}>{r.fmt(v)}</span>}</td>;
