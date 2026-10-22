@@ -29,15 +29,25 @@ API keys are read from the environment, or from a `.env` file in the directory y
 ## Web dashboard
 
 ```bash
+(cd web && npm ci && npm run build)            # once, and after changing web/: exports web/out
 cd engine && .venv/bin/modelcompare serve      # open http://127.0.0.1:8000
 ```
 
-Run it from `engine/` so it finds `targets.yaml` and `.env`. The page has four steps:
+The server serves the exported Next.js app from `web/out` at `/`; without it, `/` returns a 503 asking you to run `cd web && npm run build`. The API lives under `/api` (old root paths still work). Set `MODELCOMPARE_WEB_OUT` to serve an export from another directory (the export is read from the checkout, not packaged). To work on the UI with hot reload, run `modelcompare serve` and `cd web && npm run dev`, which proxies `/api` to port 8000.
 
-1. **Setup** lists your targets and shows whether each provider's API key is set.
-2. **Run** lets you pick targets, benchmarks, an optional judge and budget, then shows a cost estimate and live progress.
-3. **Results** shows every case of a run: the model output, its score and the scorer's reason.
-4. **Compare** renders the comparison report for the targets and baseline you choose.
+Run it from `engine/` so it finds `targets.yaml` and `.env`. The dashboard follows the order you work in: **Settings → Models → Compare → History → Projects**.
+
+- **Settings**: add a provider API key. It is saved to the engine env file, shown only masked (`sk-…a1b2`), and applies at once without a restart. Test and Remove sit next to each key.
+- **Models**: your configured targets plus, for every provider with a key, its model catalog with context size and price (cached for 10 minutes). Search, tick two or more, and "Compare selected" opens Compare with them preselected. Models without a key show as "no key" with a link to Settings.
+- **Compare**, two tabs:
+  - **New run**: pick models (one to score it, two or more to compare), choose a baseline and the benchmarks, and set optional repeats, parallel calls, a per-run budget and whether to reuse cached answers. A judge is picked automatically, from a vendor you are not comparing, when a benchmark needs one. The form shows a live cost estimate and asks for an inline confirmation before a paid run. The run shows live progress with a Cancel button, then the report: a verdict matrix per capability, ranked charts, a cost scatter, **Suggestions** (what to do next: switch, stay, add cases, fix errors) and, under Details, per-benchmark tables and a case explorer with each case's output, score and the scorer's reason. "Open report" and "JSON" give the full HTML and JSON reports.
+  - **History**: past comparisons and runs. Opening one shows its report; interrupted ones open with whatever finished.
+- **Projects**: your own benchmarks, saved as YAML in `engine/benchmarks/custom/` (override with `MODELCOMPARE_CUSTOM_DIR`).
+  - The list shows each project's dimension, case count and last run; a file that does not parse is listed with its error.
+  - The editor takes a name, description, dimension, system prompt, scorers (with optional JSON parameters) and a pass threshold, plus a compact case table (id, input and expected previews, scorer; Edit opens one case at a time). Scorers that run code (`code_exec`, `test_quality`) carry a warning when picked. Problems the API finds appear next to the field or case that caused them.
+  - **Draft with AI** asks a model you choose to write cases and scorers from a description and pasted examples (`input => expected`, one per line). The draft lands in the editor **unsaved**, with its cost shown; nothing is written until you press Save. Drafts never use the code-running scorers (`code_exec`, `test_quality`); add those by hand if you want them.
+  - Leaving the editor with unsaved changes asks first, in the page: for the nav links, the back link and the browser Back button. Closing the tab uses the browser's own prompt.
+  - **Run on selected models** opens Compare with the project and the models you ticked already selected.
 
 The JSON API it uses is documented at http://127.0.0.1:8000/docs.
 

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Run in progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.card{background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:24px;min-width:0}
+.ct{margin:0;font-size:17px;font-weight:600;letter-spacing:-0.01em}
+.cs{margin:6px 0 0;font-size:14px;line-height:1.5;color:#5C5C66}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:8px;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A}
+.btn:hover{background:#F6F6F7;color:#17171A}
+table.g{width:100%;border-collapse:collapse;font-size:14px}
+table.g th,table.g td{padding:10px 14px;border-bottom:1px solid #EEEEF1;text-align:left}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+    <a class="navl" href="#">API docs</a>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 20px">
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div style="flex: 1 1 520px; min-width: 0">
+      <div style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #11663D; background: #E3F3EA; border-radius: 999px; padding: 3px 10px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #11663D; animation: pulse 1.4s infinite"></span>Running</div>
+      <h1 style="margin: 10px 0 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">3 models on the full deck</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; color: #45454D">Started 14:28 · baseline claude-sonnet-5-5 · judge mistral-large-3</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <a class="btn" href="Main.dc.html">See partial results</a>
+      <a class="btn" href="Choose.dc.html" style="color: #A1271C">Cancel run</a>
+    </div>
+  </div>
+
+  <section class="card" aria-label="Overall progress" style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px">
+      <div><div style="font-size: 12px; color: #5C5C66">Progress</div><div style="font-size: 32px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{pct}}%</div></div>
+      <div><div style="font-size: 12px; color: #5C5C66">Calls</div><div style="font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums">{{done}} <span style="color: #5C5C66; font-weight: 400">of 2,409</span></div></div>
+      <div><div style="font-size: 12px; color: #5C5C66">Spent</div><div style="font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums">{{spent}} <span style="color: #5C5C66; font-weight: 400">of ~$7.10</span></div></div>
+      <div><div style="font-size: 12px; color: #5C5C66">Time left</div><div style="font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums">{{left}}</div></div>
+    </div>
+    <div style="height: 12px; background: #F1F1F4; border-radius: 999px; overflow: hidden"><div style="{{bar}}"></div></div>
+  </section>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+    <section class="card" aria-labelledby="h-grid" style="flex: 999 1 640px; padding: 0; overflow: hidden">
+      <div style="padding: 20px 20px 12px">
+        <h2 id="h-grid" class="ct">By benchmark</h2>
+        <p class="cs">Pass rate so far. Numbers settle as runs finish.</p>
+      </div>
+      <div style="overflow-x: auto">
+        <table class="g" style="min-width: 620px">
+          <thead>
+            <tr style="background: #FAFAFB; font-size: 13px">
+              <th style="font-weight: 500; color: #5C5C66">Dimension</th>
+              <sc-for list="{{cols}}" as="c" hint-placeholder-count="3">
+                <th style="font-weight: 600"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="{{c.dot}}"></span>{{c.name}}</span></th>
+              </sc-for>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+              <tr>
+                <td style="font-weight: 500">{{r.name}}</td>
+                <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="3">
+                  <td>
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px">
+                      <span style="{{c.icon}}">{{c.glyph}}</span>
+                      <span style="{{c.textStyle}}">{{c.text}}</span>
+                    </div>
+                    <div style="{{c.trackStyle}}"><div style="{{c.fill}}"></div></div>
+                  </td>
+                </sc-for>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <section class="card" aria-labelledby="h-models" style="display: flex; flex-direction: column; gap: 14px">
+        <h2 id="h-models" class="ct">By model</h2>
+        <sc-for list="{{cols}}" as="c" hint-placeholder-count="3">
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 14px"><span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600"><span style="{{c.dot}}"></span>{{c.name}}</span><span style="font-variant-numeric: tabular-nums; color: #45454D">{{c.prog}}</span></div>
+            <div style="height: 8px; background: #F1F1F4; border-radius: 999px; overflow: hidden; margin: 6px 0 4px"><div style="{{c.bar}}"></div></div>
+            <div style="font-size: 12px; color: #5C5C66">{{c.meta}}</div>
+          </div>
+        </sc-for>
+      </section>
+
+      <section class="card" aria-labelledby="h-feed" style="display: flex; flex-direction: column; gap: 4px">
+        <h2 id="h-feed" class="ct" style="margin-bottom: 8px">Latest results</h2>
+        <sc-for list="{{feed}}" as="f" hint-placeholder-count="6">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #EEEEF1; font-size: 13px">
+            <span style="{{f.dot}}"></span>
+            <span class="mono" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px">{{f.id}}</span>
+            <span style="color: #5C5C66; font-variant-numeric: tabular-nums">{{f.lat}}</span>
+            <span style="{{f.style}}">{{f.res}}</span>
+          </div>
+        </sc-for>
+      </section>
+    </div>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1260}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tick: 0 }; }
+  componentDidMount() { var self = this; this.t = setInterval(function () { self.setState({ tick: Math.min(self.state.tick + 1, 40) }); }, 900); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() {
+    var k = this.state.tick;
+    var done = Math.min(2409, 1512 + k * 17);
+    var pct = Math.round(done / 2409 * 100);
+    var dot = function (c) { return 'display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;background:' + c; };
+    var M = [
+      { name: 'claude-sonnet-5-5', color: '#D9774F', d: 803, sp: 4.20, pass: '66.4%', err: '0 errors' },
+      { name: 'gpt-6.1-sol', color: '#0F8A6A', d: 512 + k * 9, sp: 0.98, pass: '82.7%', err: '0 errors' },
+      { name: 'gemini-3-flash', color: '#3D6FE0', d: 197 + k * 8, sp: 0.07, pass: '70.9%', err: '3 rate-limit errors, retrying' }
+    ];
+    var cols = M.map(function (m) {
+      var d = Math.min(803, m.d), p = d / 803 * 100;
+      return { name: m.name, dot: dot(m.color), prog: d === 803 ? 'Done' : d + ' / 803',
+        bar: 'height:100%;border-radius:999px;background:' + m.color + ';width:' + p + '%;transition:width .6s',
+        meta: 'Pass rate so far ' + m.pass + ' · ' + m.err };
+    });
+    var D = [['Reasoning', 60, 62, 85, 70], ['Coding', 65, 74, 88, 69], ['Instruction following', 60, 71, 86, 78], ['Structured output', 83, 80, 92, 84], ['Tool calling', 64, 69, 81, 58], ['Long context', 60, 58, 77, 73], ['Factuality', 60, 64, 79, null], ['Calibration', 60, 55, 72, null], ['Summarization', 60, 73, null, null], ['Robustness', 70, 60, null, null], ['Multilingual', 60, 68, null, null], ['Software delivery', 61, 67, null, null]];
+    var cell = function (state, text, p, color) {
+      var icon = { done: ['#11663D', '#E3F3EA', '✓'], run: ['#1F4FD1', '#E6ECFC', '•'], queue: ['#5C5C66', '#F1F1F4', '–'], warn: ['#7A4A00', '#FFF1D6', '!'] }[state];
+      return {
+        glyph: icon[2], text: text,
+        icon: 'display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:12px;font-weight:700;color:' + icon[0] + ';background:' + icon[1] + (state === 'run' ? ';animation:pulse 1.4s infinite' : ''),
+        textStyle: state === 'queue' ? 'color:#5C5C66' : 'font-weight:600;font-variant-numeric:tabular-nums',
+        trackStyle: state === 'run' || state === 'warn' ? 'height:4px;background:#F1F1F4;border-radius:999px;overflow:hidden;margin-top:6px' : 'display:none',
+        fill: 'height:100%;background:' + color + ';width:' + p + '%'
+      };
+    };
+    var gem = Math.min(5, Math.floor((197 + k * 8) / 803 * 12));
+    var gpt = Math.min(11, Math.floor((512 + k * 9) / 803 * 12));
+    var rows = D.map(function (r, i) {
+      return { name: r[0], cells: [
+        cell('done', r[2] + '%', 100, M[0].color),
+        i < gpt ? cell('done', r[3] + '%', 100, M[1].color) : i === gpt ? cell('run', 'Running', 40 + k, M[1].color) : cell('queue', 'Queued', 0, M[1].color),
+        i < gem ? cell('done', r[4] + '%', 100, M[2].color) : i === gem ? cell('warn', 'Rate limited · retrying', 25 + k, M[2].color) : cell('queue', 'Queued', 0, M[2].color)
+      ] };
+    });
+    var F = [
+      ['gpt-6.1-sol', 'multilingual/generated › es_idiom_07', '2.1 s', true], ['gemini-3-flash', 'tool_calling/generated › book_flight_12', '0.9 s', false],
+      ['gpt-6.1-sol', 'multilingual/generated › ja_formal_03', '2.6 s', true], ['gemini-3-flash', 'tool_calling/generated › weather_abstain_04', '1.0 s', true],
+      ['gpt-6.1-sol', 'multilingual/generated › de_units_11', '1.9 s', true], ['gemini-3-flash', 'tool_calling/function_calls › multi_arg_02', 'cached', true]
+    ];
+    var col = { 'gpt-6.1-sol': '#0F8A6A', 'gemini-3-flash': '#3D6FE0' };
+    var shift = k % F.length;
+    var feed = F.slice(shift).concat(F.slice(0, shift)).map(function (f) {
+      return { id: f[1], lat: f[2], dot: dot(col[f[0]]), res: f[3] ? 'Pass' : 'Fail',
+        style: 'font-size:12px;font-weight:600;border-radius:999px;padding:1px 8px;' + (f[3] ? 'color:#11663D;background:#E3F3EA' : 'color:#A1271C;background:#FBE7E5') };
+    });
+    var secs = Math.max(0, Math.round((2409 - done) / 9));
+    return {
+      pct: pct, done: done.toLocaleString('en-US'), spent: '$' + (5.25 + k * 0.03).toFixed(2),
+      left: done >= 2409 ? 'Finishing' : '~' + Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s',
+      bar: 'height:100%;border-radius:999px;background:#17171A;transition:width .6s;width:' + pct + '%',
+      cols: cols, rows: rows, feed: feed
+    };
+  }
+}
+</script>
+</body>
+</html>

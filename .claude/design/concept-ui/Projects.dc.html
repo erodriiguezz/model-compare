@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:8px;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A}
+.btn:hover{background:#F6F6F7;color:#17171A}
+.btn.pri{background:#17171A;border-color:#17171A;color:#FFFFFF}
+.btn.pri:hover{background:#33333A;color:#FFFFFF}
+.pc{display:flex;flex-direction:column;gap:12px;background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:20px;text-decoration:none;color:#17171A;min-height:44px}
+a.pc:hover{border-color:#C9C9D1;box-shadow:0 2px 8px rgba(23,23,26,.06);color:#17171A}
+.tag{display:inline-flex;font-size:12px;font-weight:500;color:#45454D;background:#F1F1F4;border-radius:6px;padding:2px 8px}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 24px">
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div style="flex: 1 1 520px; min-width: 0">
+      <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">Projects</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; color: #45454D; max-width: 720px">Your own benchmarks: cases, scorers and a system prompt, ready to run on any model. They sit next to the standard deck when you compare.</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <a class="btn" href="ProjectEditor.dc.html">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5l1.6 3.9 3.9 1.6-3.9 1.6L8 12.5 6.4 8.6 2.5 7l3.9-1.6z"></path></svg>
+        Draft with AI
+      </a>
+      <a class="btn pri" href="ProjectEditor.dc.html">New project</a>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+    <label style="flex: 1 1 280px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; background: #FFFFFF; border: 1px solid #D9D9DF; border-radius: 8px">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#5C5C66" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5L14 14"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search projects</span>
+      <input type="search" placeholder="Search projects" style="flex: 1; border: none; outline: none; font: inherit; font-size: 14px; background: transparent; color: #17171A">
+    </label>
+    <span style="font-size: 13px; color: #5C5C66">5 projects · 1 needs fixing</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px">
+    <sc-for list="{{items}}" as="p" hint-placeholder-count="5">
+      <a class="pc" href="ProjectEditor.dc.html" style="{{p.border}}">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+          <div style="min-width: 0">
+            <div style="font-size: 17px; font-weight: 600">{{p.name}}</div>
+            <div style="font-size: 14px; color: #5C5C66; margin-top: 2px">{{p.desc}}</div>
+          </div>
+          <span class="tag">{{p.dim}}</span>
+        </div>
+        <sc-if value="{{p.invalid}}" hint-placeholder-val="{{false}}">
+          <div style="display: flex; gap: 8px; align-items: flex-start; background: #FBE7E5; color: #7A1D15; border-radius: 8px; padding: 10px 12px; font-size: 13px">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="flex: none; margin-top: 2px"><circle cx="10" cy="10" r="8"></circle><path d="M10 6v5M10 14v.1"></path></svg>
+            <span>{{p.error}}</span>
+          </div>
+        </sc-if>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{p.scorers}}" as="s" hint-placeholder-count="2"><span class="tag mono" style="font-size: 11.5px">{{s}}</span></sc-for>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid #EEEEF1; font-size: 13px">
+          <span style="font-weight: 600; font-variant-numeric: tabular-nums">{{p.cases}} cases</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; color: #45454D; min-width: 0"><span style="{{p.dot}}"></span>{{p.last}}</span>
+        </div>
+      </a>
+    </sc-for>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var dot = function (c) { return 'display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:' + c; };
+    var P = [
+      ['Support triage', 'Route customer emails to a queue and flag refunds.', 'structured_output', ['json_schema'], 42, '#0F8A6A', 'gpt-6.1-sol · 88% · Oct 20', false, ''],
+      ['Invoice extraction', 'Pull totals, dates and line items from PDFs as JSON.', 'structured_output', ['json_schema', 'numeric'], 30, '#3D6FE0', 'gemini-3-flash · 93% · Oct 17', false, ''],
+      ['SQL review', 'Spot injection and N+1 issues in pull request diffs.', 'software_delivery', ['llm_judge'], 18, '#D9774F', 'claude-sonnet-5-5 · 72% · Oct 18', false, ''],
+      ['Refund policy bot', 'Answer refund questions within our policy and call the right tool.', 'tool_calling', ['tool_call', 'refusal'], 12, '#9A9AA3', 'Never run', true, 'Case refund_07: expected is not valid JSON. Open to fix.'],
+      ['Release notes', 'Summarize merged PRs for a non-technical audience.', 'summarization', ['llm_judge'], 15, '#9A9AA3', 'Never run', false, '']
+    ];
+    return { items: P.map(function (p) {
+      return { name: p[0], desc: p[1], dim: p[2].replace(/_/g, ' '), scorers: p[3], cases: p[4], dot: dot(p[5]), last: p[6], invalid: p[7], error: p[8],
+        border: p[7] ? 'border-color:#E8B4AE' : '' };
+    }) };
+  }
+}
+</script>
+</body>
+</html>

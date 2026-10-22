@@ -1,0 +1,28 @@
+# Paths not counted toward PR size (still reviewed). Glob syntax: * ** ?
+# Project copy of the global default, plus Python test paths (test_*.py), which the default misses.
+**/*.test.*
+**/*.spec.*
+**/__tests__/**
+**/__snapshots__/**
+e2e/**
+.claude/**
+docs/reviews/**
+docs/evidence/**
+docs/context/changes/**
+docs/context/journal/**
+docs/releases/**
+CHANGELOG.md
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+**/bun.lock
+**/bun.lockb
+**/uv.lock
+**/poetry.lock
+**/go.sum
+**/migrations/**/*.sql
+**/next-env.d.ts
+**/*.generated.*
+**/generated/**
+**/tests/**
+**/test_*.py

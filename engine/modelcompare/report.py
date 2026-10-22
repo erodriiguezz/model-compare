@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+import math
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from statistics import mean, pstdev
 from typing import Any
@@ -11,8 +12,8 @@ from sqlmodel import Session, select
 
 from modelcompare import db
 from modelcompare.recommend import load_profiles, profile_rankings, recommend_dimension
-from modelcompare.summary import build_summary
-from modelcompare.stats import mcnemar_exact, min_detectable_diff, paired_bootstrap, percentile, wilson_ci
+from modelcompare.summary import build_summary, capability, suggestions
+from modelcompare.stats import MAX_ERROR_RATE, mcnemar_exact, mean_ci, min_detectable_diff, paired_bootstrap, percentile, wilson_ci
 
 
 def latest_runs(s: Session, targets: list[str], benchmarks: list[str] | None = None) -> list[db.Run]:
@@ -34,12 +35,35 @@ def runs_by_ids(s: Session, run_ids: list[int]) -> list[db.Run]:
     return list(latest.values())
 
 
-def _compare(a: list[float], b: list[float]) -> dict[str, Any]:
+SATURATION_SCORE = 0.95
+SATURATION_TEXT = "Too easy to separate these models"
+
+
+def _verdict(pr_verdict: str, incomplete: bool) -> str:
+    # Errors make any score untrustworthy, so incomplete wins even over insufficient_data.
+    return "incomplete" if incomplete else pr_verdict
+
+
+def _error_info(results: list[db.Result]) -> dict[str, Any]:
+    n = sum(1 for r in results if r.error)
+    reasons = Counter((r.error or "")[:120] for r in results if r.error)
+    return {
+        "n_errors": n, "n_calls": len(results), "rate": n / max(len(results), 1),
+        "reasons": [{"reason": k, "count": v} for k, v in reasons.most_common(3)],
+    }
+
+
+def _err_rate(summaries: list[dict[str, Any]]) -> float:
+    calls = sum(s["n_calls"] for s in summaries)
+    return sum(s["n_errors"] for s in summaries) / calls if calls else 0.0
+
+
+def _compare(a: list[float], b: list[float], incomplete: bool = False) -> dict[str, Any]:
     """Paired comparison of candidate scores b against baseline scores a, plus detectable effect size."""
     pr = paired_bootstrap(a, b)
     return {
         "n": pr.n, "delta": pr.delta, "ci": [pr.ci_low, pr.ci_high], "p_value": pr.p_value,
-        "verdict": pr.verdict, "mde": min_detectable_diff([y - x for x, y in zip(a, b)]),
+        "verdict": _verdict(pr.verdict, incomplete), "mde": min_detectable_diff([y - x for x, y in zip(a, b)]),
         "baseline_mean": pr.mean_a, "candidate_mean": pr.mean_b,
     }
 
@@ -70,6 +94,7 @@ def _vendor(model: str) -> str:
 def _target_summary(run: db.Run, results: list[db.Result]) -> dict[str, Any]:
     per_case = _per_case(results)
     n_cases = len(per_case)
+    err = _error_info(results)
     passed_cases = sum(1 for v in per_case.values() if v["pass_rate"] >= 0.5)
     lat = [r.latency_s for r in results if not r.error]
     cost = sum(r.cost_usd for r in results)
@@ -84,21 +109,26 @@ def _target_summary(run: db.Run, results: list[db.Result]) -> dict[str, Any]:
         "pass_rate": passed_cases / n_cases if n_cases else 0.0,
         "pass_rate_ci": wilson_ci(passed_cases, n_cases),
         "cost_usd": cost,
-        "cost_per_case": cost / max(len(results), 1),
-        "cost_per_1k_tasks": 1000 * cost / max(len(results), 1),
+        "cost_per_case": cost / max(len(results) - err["n_errors"], 1),  # errored calls are free: don't average them in
+        "cost_per_1k_tasks": 1000 * cost / max(len(results) - err["n_errors"], 1),
         "latency_p50": percentile(lat, 0.5) if lat else 0.0,
         "latency_p95": percentile(lat, 0.95) if lat else 0.0,
         "input_tokens": sum(r.input_tokens for r in results),
         "output_tokens": sum(r.output_tokens for r in results),
-        "error_rate": sum(1 for r in results if r.error) / max(len(results), 1),
+        "error_rate": err["rate"],
+        "n_errors": err["n_errors"],
+        "error_reasons": err["reasons"],
         "cached_fraction": sum(1 for r in results if r.cached) / max(len(results), 1),
         "consistency": 1 - mean(stds) if stds else None,
     }
 
 
 def _per_case(results: list[db.Result]) -> dict[str, dict[str, Any]]:
+    """Per-case aggregates over successful calls only: errored calls are not scores (they are counted separately)."""
     grouped: dict[str, list[db.Result]] = defaultdict(list)
     for r in results:
+        if r.error:
+            continue
         grouped[r.case_id].append(r)
     out = {}
     for cid, rs in grouped.items():
@@ -115,6 +145,34 @@ def _per_case(results: list[db.Result]) -> dict[str, dict[str, Any]]:
             "error": first.error,
         }
     return out
+
+
+def finite(x: Any) -> Any:
+    """Replace NaN/inf with None, recursively. Stats are NaN when nothing was paired (every call errored),
+    and JSON has no NaN, so this runs once on the finished report: every consumer (API, HTML, CLI) gets clean data."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [finite(v) for v in x]
+    return x
+
+
+def _unscored_dimension(dim: str, per_t: dict, ops: dict, baseline: str) -> tuple[dict, dict]:
+    """A capability with no case scored for every target (typically every call errored): keep it in the report
+    with no numbers, so it shows as incomplete (too many errors) or not-enough-data rather than disappearing."""
+    stats = {t: {
+        "quality": None, "quality_ci": None, "vendor": _vendor(next(iter(ops[t]))["model"] or t),
+        "cost_per_case": 0.0, "latency_p50": 0.0, "latency_p95": 0.0,
+        "error_rate": _err_rate(ops[t]), "incomplete": _err_rate(ops[t]) > MAX_ERROR_RATE,
+    } for t in per_t}
+    comps = {}
+    if baseline in per_t:
+        for t in per_t:
+            if t != baseline:
+                comps[t] = _compare([], [], max(stats[baseline]["error_rate"], stats[t]["error_rate"]) > MAX_ERROR_RATE)
+    return {"n_cases": 0, "label": capability(dim)["label"], "targets": stats}, comps
 
 
 def build_report(
@@ -143,6 +201,7 @@ def build_report(
     dim_scores: dict[str, dict[str, dict[tuple[str, str], float]]] = defaultdict(lambda: defaultdict(dict))
     dim_ops: dict[str, dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     flagged: dict[str, list[dict]] = defaultdict(list)
+    errors: dict[str, dict[str, dict]] = defaultdict(dict)  # target -> benchmark -> error counts + top reasons
 
     for bname, tr in sorted(by_bench.items()):
         fps = {r.benchmark_fingerprint for r in tr.values()}
@@ -172,6 +231,7 @@ def build_report(
                 a = [base_pc[c]["score"] for c in common]
                 b = [per_case[t][c]["score"] for c in common]
                 pr = paired_bootstrap(a, b)
+                incomplete = max(summaries[baseline]["error_rate"], summaries[t]["error_rate"]) > MAX_ERROR_RATE
                 a_pass = {c for c in common if base_pc[c]["pass_rate"] >= 0.5}
                 b_pass = {c for c in common if per_case[t][c]["pass_rate"] >= 0.5}
                 regressions, improvements = sorted(a_pass - b_pass), sorted(b_pass - a_pass)
@@ -195,7 +255,8 @@ def build_report(
                     "ci": [pr.ci_low, pr.ci_high],
                     "p_value": pr.p_value,
                     "mcnemar_p": mcnemar_exact(len(improvements), len(regressions)),
-                    "verdict": pr.verdict,
+                    "verdict": _verdict(pr.verdict, incomplete),
+                    "error_rates": {baseline: summaries[baseline]["error_rate"], t: summaries[t]["error_rate"]},
                     "wins": sum(1 for x, y in zip(a, b) if y > x),
                     "ties": sum(1 for x, y in zip(a, b) if y == x),
                     "losses": sum(1 for x, y in zip(a, b) if y < x),
@@ -206,9 +267,19 @@ def build_report(
                 })
 
         for t in tr:
+            dim_scores[any_run.dimension][t]  # register the target even when every call errored, so the capability stays visible
             for cid, v in per_case[t].items():
                 dim_scores[any_run.dimension][t][(bname, cid)] = v["score"]
             dim_ops[any_run.dimension][t].append(summaries[t])
+
+        saturated = len(summaries) >= 2 and all(sm["n_cases"] and sm["mean_score"] >= SATURATION_SCORE for sm in summaries.values())
+        if saturated:
+            warnings.append(f"{bname}: {SATURATION_TEXT}.")
+        for t, sm in summaries.items():
+            if sm["n_errors"]:
+                errors[t][bname] = {"n_errors": sm["n_errors"], "n_calls": sm["n_calls"], "rate": sm["error_rate"], "reasons": sm["error_reasons"]}
+                warnings.append(f"{bname}/{t}: {sm['n_errors']} of {sm['n_calls']} calls errored and are not scored"
+                                f" ({sm['error_reasons'][0]['reason']}).")
 
         benchmarks.append({
             "name": bname,
@@ -218,6 +289,8 @@ def build_report(
             "source": any_run.source,
             "summaries": summaries,
             "comparisons": comparisons,
+            "saturated": saturated,
+            "saturation_message": SATURATION_TEXT if saturated else None,
         })
 
     # Dimension roll-up on cases every target shares, so quality numbers are comparable.
@@ -227,30 +300,36 @@ def build_report(
     for dim, per_t in sorted(dim_scores.items()):
         shared = set.intersection(*(set(v) for v in per_t.values()))
         if not shared:
+            dimensions[dim], dimension_comparisons[dim] = _unscored_dimension(dim, per_t, dim_ops[dim], baseline)
             continue
         keys = sorted(shared)
         aligned = {t: [per_t[t][k] for k in keys] for t in per_t}
         stats = {}
         for t, scores in aligned.items():
             ops = dim_ops[dim][t]
-            calls = sum(o["n_calls"] for o in ops) or 1
+            calls = sum(o["n_calls"] - o["n_errors"] for o in ops) or 1
             stats[t] = {
                 "quality": mean(scores),
+                "quality_ci": mean_ci(scores),
+                "vendor": _vendor(next(iter(dim_ops[dim][t]))["model"] or t),
                 "cost_per_case": sum(o["cost_usd"] for o in ops) / calls,
                 "latency_p50": mean(o["latency_p50"] for o in ops),
                 "latency_p95": max(o["latency_p95"] for o in ops),
-                "error_rate": mean(o["error_rate"] for o in ops),
+                "error_rate": _err_rate(ops),
+                "incomplete": _err_rate(ops) > MAX_ERROR_RATE,
             }
-        dimensions[dim] = {"n_cases": len(keys), "targets": stats}
+        dimensions[dim] = {"n_cases": len(keys), "label": capability(dim)["label"], "targets": stats}
         if baseline in aligned:
             dimension_comparisons[dim] = {
-                t: _compare(aligned[baseline], aligned[t]) for t in aligned if t != baseline
+                t: _compare(aligned[baseline], aligned[t],
+                            max(_err_rate(dim_ops[dim][baseline]), _err_rate(dim_ops[dim][t])) > MAX_ERROR_RATE)
+                for t in aligned if t != baseline
             }
-        recommendations.append(recommend_dimension(dim, stats, aligned, min_quality=min_quality))
+        recommendations.append(_recommend(dim, stats, aligned, min_quality))
         if len(keys) < 10:
             warnings.append(f"{dim}: only {len(keys)} shared cases; verdicts need at least 10.")
 
-    dim_quality = {d: {t: v["quality"] for t, v in info["targets"].items()} for d, info in dimensions.items()}
+    dim_quality = {d: {t: v["quality"] for t, v in info["targets"].items()} for d, info in dimensions.items() if info["n_cases"]}
     profiles = profile_rankings(dim_quality, load_profiles(profiles_path))
 
     # Overall: every case the candidate shares with the baseline, pooled across dimensions.
@@ -262,7 +341,8 @@ def build_report(
         cand_all = {(d, k): v for d, per_t in dim_scores.items() for k, v in per_t.get(t, {}).items()}
         keys = sorted(set(base_all) & set(cand_all))
         if keys:
-            overall[t] = _compare([base_all[k] for k in keys], [cand_all[k] for k in keys])
+            err = max(_err_rate([o for d in dim_ops.values() for o in d.get(x, [])]) for x in (baseline, t))
+            overall[t] = _compare([base_all[k] for k in keys], [cand_all[k] for k in keys], err > MAX_ERROR_RATE)
 
     flagged_out = {}
     for t, items in flagged.items():
@@ -277,8 +357,9 @@ def build_report(
     rep = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "baseline": baseline,
-        "targets": {t: next(r.target_config for r in runs if r.target_name == t) for t in targets},
+        "errors": errors,
         "headline": _headline(baseline, benchmarks),
+        "targets": {t: next(r.target_config for r in runs if r.target_name == t) for t in targets},
         "benchmarks": benchmarks,
         "dimensions": dimensions,
         "dimension_comparisons": dimension_comparisons,
@@ -290,7 +371,20 @@ def build_report(
         "warnings": sorted(set(warnings)),
     }
     rep["summary"] = build_summary(rep)
-    return rep
+    rep["suggestions"] = suggestions(rep)
+    return finite(rep)
+
+
+def _recommend(dim: str, stats: dict, aligned: dict, min_quality: float) -> dict[str, Any]:
+    """Recommend only among targets with a trustworthy error rate: a failing model is not "cheap and good"."""
+    ok = [t for t in stats if stats[t]["error_rate"] <= MAX_ERROR_RATE]
+    out = {"not_recommendable": [t for t in stats if t not in ok]}
+    if not ok:
+        return {**out, "dimension": dim, "recommended": "—", "best_quality": "—", "best_value": "—",
+                "fastest_acceptable": None, "n_cases": len(next(iter(aligned.values()), [])),
+                "summary": "Every target has too many errors to recommend one. Fix errors and re-run."}
+    rec = recommend_dimension(dim, {t: stats[t] for t in ok}, {t: aligned[t] for t in ok}, min_quality=min_quality)
+    return {**rec, **out}
 
 
 def _headline(baseline: str, benchmarks: list[dict]) -> list[dict]:
@@ -301,13 +395,17 @@ def _headline(baseline: str, benchmarks: list[dict]) -> list[dict]:
             tally[c["candidate"]][c["verdict"]].append(b["name"])
     out = []
     for cand, v in tally.items():
-        better, worse = v.get("better", []), v.get("worse", [])
-        if better and not worse:
+        better, worse, incomplete = v.get("better", []), v.get("worse", []), v.get("incomplete", [])
+        if incomplete:
+            overall = "incomplete"  # errors make every other verdict untrustworthy
+        elif better and not worse:
             overall = "better"
         elif worse and not better:
             overall = "worse"
         elif better and worse:
             overall = "mixed"
+        elif v.get("equivalent") and not (v.get("inconclusive") or v.get("insufficient_data")):
+            overall = "equivalent"
         else:
             overall = "inconclusive"
         out.append({
@@ -316,6 +414,8 @@ def _headline(baseline: str, benchmarks: list[dict]) -> list[dict]:
             "overall": overall,
             "better_on": better,
             "worse_on": worse,
+            "equivalent_on": v.get("equivalent", []),
+            "incomplete_on": incomplete,
             "inconclusive_on": v.get("inconclusive", []) + v.get("insufficient_data", []),
         })
     return out

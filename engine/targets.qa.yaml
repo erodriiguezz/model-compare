@@ -1,0 +1,41 @@
+# Mock-only targets for QA runs: no network, no API keys. Used via MODELCOMPARE_TARGETS=targets.qa.yaml.
+targets:
+  - name: mock-a
+    kind: mock
+    model: mock/a
+    extra:
+      default: "ANSWER: 0"
+  - name: mock-b
+    kind: mock
+    model: mock/b
+    extra:
+      default: "ANSWER: 1"
+  # Slow target so a run can be cancelled mid-flight.
+  - name: mock-slow
+    kind: mock
+    model: mock/slow
+    extra:
+      default: "ANSWER: 0"
+      latency_s: 3
+  # Errors on 3 of the 15 math cases (20%), so comparisons against it are incomplete.
+  - name: mock-errors
+    kind: mock
+    model: mock/errors
+    extra:
+      default: "ANSWER: 0"
+      errors:
+        pens-bulk: "provider unavailable"
+        train-minutes: "provider unavailable"
+        age-ratio: "provider unavailable"
+  # Answers any draft request with a small valid project (AC-8.3, AC-9.6).
+  - name: mock-drafter
+    kind: mock
+    model: mock/drafter
+    extra:
+      default: '{"name":"qa-drafted","dimension":"custom","description":"Drafted by the mock model","scorers":[{"type":"contains"}],"cases":[{"id":"c1","input":"Name the capital of France.","expected":"Paris"},{"id":"c2","input":"Name the capital of Spain.","expected":"Madrid"},{"id":"c3","input":"Name the capital of Italy.","expected":"Rome"}]}'
+  # A draft that asks for a code-running scorer: the API must refuse it (AC-9.3).
+  - name: mock-drafter-code
+    kind: mock
+    model: mock/drafter-code
+    extra:
+      default: '{"name":"qa-drafted-code","dimension":"custom","description":"Asks for code_exec","scorers":[{"type":"code_exec"}],"cases":[{"id":"c1","input":"Write add(a, b).","expected":"def add(a, b): return a + b"}]}'

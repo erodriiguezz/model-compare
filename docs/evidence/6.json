@@ -1,0 +1,63 @@
+{
+  "issue": 6,
+  "title": "Models page",
+  "branch": "feat/dashboard-v2-redesign-p6-models-ui",
+  "commit": "c8dda4e5eab683c0afe3b85567ea838717597464",
+  "plan": ".claude/plans/6-dashboard-v2-models-ui.md",
+  "size": "M",
+  "touchesApi": false,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "c8dda4e5eab683c0afe3b85567ea838717597464",
+    "at": "2026-10-20T22:17:57.954Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-6.1",
+        "tests": 4
+      },
+      {
+        "id": "AC-6.2",
+        "tests": 5
+      },
+      {
+        "id": "AC-6.3",
+        "tests": 1
+      },
+      {
+        "id": "AC-6.4",
+        "tests": 5
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (1 High) → all fixed; lead-verified",
+    "document": "docs/reviews/6.md"
+  },
+  "cost": {
+    "estTokens": 250000,
+    "actualTokens": 63455076,
+    "toolCalls": 105,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-20T22:20:20.792Z"
+}

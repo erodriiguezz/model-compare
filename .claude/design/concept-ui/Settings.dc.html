@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+button{font:inherit;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 14px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A}
+.btn:hover{background:#F6F6F7;color:#17171A}
+.btn.pri{background:#17171A;border-color:#17171A;color:#FFFFFF}
+.btn.pri:hover{background:#33333A;color:#FFFFFF}
+.side{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none}
+.side:hover{background:#FFFFFF;color:#17171A}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html">Projects</a>
+      <a class="navl" href="Settings.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 24px">
+  <div>
+    <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">Settings</h1>
+    <p style="margin: 8px 0 0; font-size: 16px; color: #45454D">Provider keys decide which models you can run.</p>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+    <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+      <section aria-labelledby="h-keys" style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; overflow: hidden">
+        <div style="padding: 20px 24px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px; border-bottom: 1px solid #EEEEF1">
+          <div>
+            <h2 id="h-keys" style="margin: 0; font-size: 17px; font-weight: 600">Provider API keys</h2>
+            <p style="margin: 6px 0 0; font-size: 14px; color: #5C5C66">Saved to the engine env file and always shown masked. Changes apply right away.</p>
+          </div>
+          <span style="font-size: 13px; color: #5C5C66">{{setCount}} of 6 set</span>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 0">
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+            <li style="padding: 16px 24px; border-bottom: 1px solid #EEEEF1; display: flex; flex-direction: column; gap: 12px">
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px">
+                <span style="{{r.badge}}" aria-hidden="true">{{r.initial}}</span>
+                <div style="flex: 1 1 200px; min-width: 0">
+                  <h3 style="margin: 0; font-size: 15px; font-weight: 600">{{r.name}}</h3>
+                  <div class="mono" style="font-size: 12px; color: #5C5C66">{{r.var}}</div>
+                </div>
+                <span style="{{r.chipStyle}}">{{r.chip}}</span>
+                <code class="mono" style="flex: 0 0 150px; font-size: 13px; color: #45454D">{{r.masked}}</code>
+                <sc-if value="{{r.idle}}" hint-placeholder-val="{{true}}">
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap">
+                    <button type="button" class="btn" onClick="{{r.edit}}">{{r.editText}}</button>
+                    <sc-if value="{{r.set}}" hint-placeholder-val="{{true}}"><button type="button" class="btn" onClick="{{r.test}}">Test</button></sc-if>
+                    <sc-if value="{{r.fromFile}}" hint-placeholder-val="{{true}}"><button type="button" class="btn" style="color: #A1271C" onClick="{{r.confirm}}">Remove</button></sc-if>
+                  </div>
+                </sc-if>
+              </div>
+              <sc-if value="{{r.fromEnv}}" hint-placeholder-val="{{false}}">
+                <p style="margin: 0 0 0 52px; font-size: 13px; color: #5C5C66">Set in the server environment, not the env file. Replacing it here writes the file. Removing it needs a change outside this page.</p>
+              </sc-if>
+              <sc-if value="{{r.editing}}" hint-placeholder-val="{{false}}">
+                <form style="margin-left: 52px; display: flex; flex-wrap: wrap; gap: 8px">
+                  <label style="flex: 1 1 280px; display: flex"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">{{r.name}} API key</span><input type="password" placeholder="Paste {{r.name}} key" autocomplete="new-password" style="flex: 1; font: inherit; min-height: 42px; padding: 0 12px; border: 1px solid #17171A; border-radius: 8px"></label>
+                  <button type="button" class="btn pri" onClick="{{r.saveKey}}">Save</button>
+                  <button type="button" class="btn" onClick="{{r.cancel}}">Cancel</button>
+                </form>
+              </sc-if>
+              <sc-if value="{{r.confirming}}" hint-placeholder-val="{{false}}">
+                <div role="group" aria-label="Remove key" style="margin-left: 52px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #FDF3F2; border-radius: 10px; padding: 10px 12px">
+                  <span style="flex: 1 1 240px; font-size: 14px; color: #7A1D15">Remove the {{r.name}} key from the env file? Models from {{r.name}} stop running.</span>
+                  <button type="button" class="btn" style="background: #A1271C; border-color: #A1271C; color: #FFFFFF" onClick="{{r.removeKey}}">Remove key</button>
+                  <button type="button" class="btn" onClick="{{r.cancel}}">Cancel</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{r.hasNote}}" hint-placeholder-val="{{false}}">
+                <p role="status" style="{{r.noteStyle}}">{{r.note}}</p>
+              </sc-if>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+    </div>
+
+    <aside style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; color: #33333A">
+      <h2 style="margin: 0; font-size: 15px; font-weight: 600">Where keys live</h2>
+      <p style="margin: 0">In <span class="mono" style="font-size: 13px">engine/.env</span> on this machine, the same file the CLI reads. The page never shows a full key and only sends it to its provider.</p>
+      <p style="margin: 0; color: #5C5C66">The server only answers requests from this machine.</p>
+    </aside>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: { together: 'edit' }, set: { openai: 'file', anthropic: 'file', gemini: 'env', openrouter: 'file' }, note: { anthropic: [true, 'Key works · 14 models available'] } };
+  }
+  renderVals() {
+    var self = this, s = this.state;
+    var P = [['openai', 'OpenAI', 'OPENAI_API_KEY', '#0F8A6A', 'sk-…h4Qz'], ['anthropic', 'Anthropic', 'ANTHROPIC_API_KEY', '#D9774F', 'sk-ant-…9fWc'], ['gemini', 'Google Gemini', 'GEMINI_API_KEY', '#3D6FE0', 'AIza…kP2e'], ['openrouter', 'OpenRouter', 'OPENROUTER_API_KEY', '#8A63D2', 'sk-or-…T7xa'], ['together', 'Together AI', 'TOGETHERAI_API_KEY', '#5C5C66', '—'], ['groq', 'Groq', 'GROQ_API_KEY', '#5C5C66', '—']];
+    var setMode = function (id, m) { var n = Object.assign({}, s.mode); n[id] = m; var no = Object.assign({}, s.note); delete no[id]; self.setState({ mode: n, note: no }); };
+    var rows = P.map(function (p) {
+      var id = p[0], src = s.set[id], mode = s.mode[id] || 'idle', note = s.note[id];
+      return {
+        name: p[1], var: p[2], initial: p[1][0], masked: src ? p[4].replace('—', 'sk-…new1') : '—',
+        badge: 'flex:none;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;font-weight:700;font-size:15px;color:#FFFFFF;background:' + (src ? p[3] : '#B5B5BD'),
+        chip: src === 'env' ? 'Set · environment' : src ? 'Set' : 'Not set',
+        chipStyle: 'font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;white-space:nowrap;' + (src ? 'color:#11663D;background:#E3F3EA' : 'color:#45454D;background:#EEEEF1'),
+        set: !!src, fromFile: src === 'file', fromEnv: src === 'env' && mode === 'idle',
+        idle: mode === 'idle', editing: mode === 'edit', confirming: mode === 'confirm',
+        editText: src ? 'Replace' : 'Add key',
+        hasNote: !!note, note: note ? note[1] : '',
+        noteStyle: 'margin:0 0 0 52px;font-size:13px;font-weight:500;' + (note && note[0] ? 'color:#11663D' : 'color:#A1271C'),
+        edit: function () { setMode(id, 'edit'); },
+        confirm: function () { setMode(id, 'confirm'); },
+        cancel: function () { setMode(id, 'idle'); },
+        test: function () { var no = Object.assign({}, s.note); no[id] = id === 'openrouter' ? [false, 'Provider rejected the key (401). Replace it.'] : [true, 'Key works']; self.setState({ note: no }); },
+        saveKey: function () { var st = Object.assign({}, s.set); st[id] = 'file'; var m = Object.assign({}, s.mode); m[id] = 'idle'; var no = Object.assign({}, s.note); no[id] = [true, 'Saved. Testing…']; self.setState({ set: st, mode: m, note: no }); },
+        removeKey: function () { var st = Object.assign({}, s.set); delete st[id]; var m = Object.assign({}, s.mode); m[id] = 'idle'; self.setState({ set: st, mode: m }); }
+      };
+    });
+    return { rows: rows, setCount: Object.keys(s.set).length };
+  }
+}
+</script>
+</body>
+</html>

@@ -45,10 +45,11 @@ async def test_worse_candidate_lists_regressions_first(db_url):
     assert rep["summary"]["markers"]["cand"]["regressions"] == 2 * (N - 5)
 
 
-async def test_identical_models_show_no_difference_with_sensitivity(db_url):
+async def test_identical_models_are_equivalent_with_sensitivity(db_url):
     rep = await _report(db_url, set(range(10)), set(range(10)))
     d = _decision(rep)
-    assert d["overall_verdict"] == "inconclusive" and d["overall_verdict_text"] == "No measurable difference"
+    assert d["overall_verdict"] == "equivalent" and d["overall_verdict_text"].startswith("Equivalent")
+    assert "equivalent in 2 areas" in d["line"]
     assert "cand" not in rep["flagged"]
     assert d["sensitivity_points"] > 0  # never claims infinite precision
 
@@ -101,3 +102,117 @@ def test_mark_interrupted(db_url):
         s.commit()
         assert db.mark_interrupted(s) == 2
         assert s.get(db.Job, "j1").status == "interrupted"
+
+
+def _kinds(rep):
+    return [s["kind"] for s in rep["suggestions"]]
+
+
+def _by_kind(rep, kind):
+    return [s for s in rep["suggestions"] if s["kind"] == kind]
+
+
+async def _priced(db_url, base_correct, cand_correct, base_price=(1.0, 2.0), cand_price=(1.0, 2.0), cand_errors=None, bname="b0"):
+    b = bench(bname)
+    cand = mock("cand", cand_correct, price=cand_price)
+    cand.extra["errors"] = cand_errors or {}
+    await run_benchmark(mock("base", base_correct, price=base_price), b, db_url=db_url)
+    await run_benchmark(cand, b, db_url=db_url)
+    with db.session(db_url) as s:
+        return build_report(s, latest_runs(s, ["base", "cand"]), baseline="base")
+
+
+async def test_suggestions_tie_names_the_cheaper_model_and_saving(db_url):
+    same = set(range(N)) - {3, 7}
+    rep = await _priced(db_url, same, same, base_price=(10.0, 30.0), cand_price=(0.1, 0.4))
+    (tie,) = _by_kind(rep, "tie")
+    assert tie["target"] == "cand" and "cheaper is cand" in tie["text"] and "saves $" in tie["text"] and "/ 1k tasks" in tie["text"]
+    assert tie["data"]["saving_per_1k"] > 0
+    assert "switch" not in _kinds(rep)
+
+
+async def test_suggestions_switch_when_better_everywhere_and_stay_when_worse(db_url):
+    rep = await _priced(db_url, set(range(8)), set(range(N)))
+    (sw,) = _by_kind(rep, "switch")
+    assert sw["target"] == "cand" and "Solves multi-step problems" in sw["text"]
+    rep = await _priced(db_url, set(range(N)), set(range(5)))
+    (st,) = _by_kind(rep, "stay")
+    assert st["target"] == "base" and "worse" in st["text"] and "switch" not in _kinds(rep)
+
+
+async def test_suggestions_wide_ci_asks_for_n_more_cases_from_the_mde(db_url):
+    rep = await _priced(db_url, set(range(0, 14)), set(range(6, 18)))
+    (add,) = _by_kind(rep, "add_cases")
+    d = add["data"]
+    assert add["benchmark"] == "b0" and f"add {d['add']} more cases to b0" in add["text"]
+    target = max(abs(d["delta_points"]), 3.0)
+    assert d["add"] == math.ceil(d["n"] * (d["mde_points"] / target) ** 2 - d["n"]) and d["add"] > 0
+
+
+async def test_suggestions_tiny_difference_is_called_unmeasurable(db_url):
+    from modelcompare.summary import MAX_ADD_CASES, cases_needed
+
+    assert cases_needed(20, 0.40, 0.0) > MAX_ADD_CASES
+    rep = await _priced(db_url, set(range(0, 12)), set(range(4, 16)))
+    (small,) = _by_kind(rep, "too_small")
+    assert "too small to measure" in small["text"] and "add_cases" not in _kinds(rep)
+    assert cases_needed(20, 0.40, 0.30) == math.ceil(20 * (0.40 / 0.30) ** 2 - 20)
+
+
+async def test_suggestions_saturated_benchmark_gets_its_own_line(db_url):
+    rep = await _priced(db_url, set(range(N)), set(range(N)))
+    (sat,) = _by_kind(rep, "saturated")
+    assert sat["benchmark"] == "b0" and "too easy" in sat["text"].lower()
+
+
+async def test_suggestions_errors_come_first_and_name_the_top_reason(db_url):
+    errs = {f"q{i}": "provider unavailable" for i in range(5)}
+    rep = await _priced(db_url, set(range(10)), set(range(10)), cand_errors=errs)
+    assert _kinds(rep)[0] == "fix_errors"
+    fix = rep["suggestions"][0]
+    assert fix["target"] == "cand" and "provider unavailable" in fix["text"] and fix["data"]["n_errors"] == 5
+    assert "switch" not in _kinds(rep) and "tie" not in _kinds(rep)
+
+
+async def test_suggestions_order_is_errors_decisions_then_data_advice(db_url):
+    rep = await _priced(db_url, set(range(N)), set(range(N)))
+    order = {"fix_errors": 0, "switch": 1, "stay": 1, "tradeoff": 1, "tie": 1, "add_cases": 2, "too_small": 2, "saturated": 2}
+    ranks = [order[k] for k in _kinds(rep)]
+    assert ranks == sorted(ranks)
+
+
+async def test_dimension_chart_data_has_ci_and_vendor(db_url):
+    rep = await _priced(db_url, set(range(8)), set(range(N)))
+    assert rep["dimensions"]["reasoning"]["label"] == "Solves multi-step problems"
+    t = rep["dimensions"]["reasoning"]["targets"]["cand"]
+    lo, hi = t["quality_ci"]
+    assert lo <= t["quality"] <= hi and t["vendor"] == "mock"
+
+
+async def test_suggestions_no_tie_while_a_capability_is_still_open(db_url):
+    same = set(range(N)) - {3, 7}
+    for name, base, cand, dim in (("b0", same, same, "reasoning"), ("b1", set(range(0, 14)), set(range(6, 18)), "coding")):
+        b = bench(name, dim)
+        await run_benchmark(mock("base", base, price=(10.0, 30.0)), b, db_url=db_url)
+        await run_benchmark(mock("cand", cand, price=(0.1, 0.4)), b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "cand"]), baseline="base")
+    verdicts = {d: c["cand"]["verdict"] for d, c in rep["dimension_comparisons"].items()}
+    assert verdicts == {"reasoning": "equivalent", "coding": "inconclusive"}
+    assert "tie" not in _kinds(rep) and _kinds(rep).count("add_cases") == 1
+
+
+async def test_incomplete_flag_on_dimension_targets_and_markers(db_url):
+    errs = {f"q{i}": "provider unavailable" for i in range(5)}
+    rep = await _priced(db_url, set(range(10)), set(range(10)), cand_errors=errs)
+    dim = rep["dimensions"]["reasoning"]["targets"]
+    assert dim["cand"]["incomplete"] is True and dim["base"]["incomplete"] is False
+    marks = rep["summary"]["markers"]
+    assert marks["cand"]["incomplete"] is True and marks["base"]["incomplete"] is False
+    assert "cost_per_1k_tasks" not in dim["cand"]  # the scatter uses list-price markers, not spend
+
+
+def test_cases_needed_never_suggests_a_token_handful():
+    from modelcompare.summary import MIN_ADD_CASES, cases_needed
+
+    assert cases_needed(40, 0.031, 0.03) == MIN_ADD_CASES == 5

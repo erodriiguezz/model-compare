@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Comparison report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.card{background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:24px;min-width:0}
+.ct{margin:0;font-size:17px;font-weight:600;letter-spacing:-0.01em}
+.cs{margin:6px 0 0;font-size:14px;line-height:1.5;color:#5C5C66}
+.hb{display:inline-block;margin-left:8px;font-size:12px;font-weight:500;color:#5C5C66;background:#F1F1F4;border-radius:6px;padding:2px 8px;vertical-align:2px}
+.sec{margin:0;font-size:22px;font-weight:700;letter-spacing:-0.02em}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.tab{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:#17171A;border-bottom-color:#C9C9D1}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:8px;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A}
+.btn:hover{background:#F6F6F7;color:#17171A}
+.btn.pri{background:#17171A;border-color:#17171A;color:#FFFFFF}
+.btn.pri:hover{background:#33333A;color:#FFFFFF}
+table.km{width:100%;border-collapse:collapse;font-size:14px}
+table.km th,table.km td{padding:11px 16px;border-bottom:1px solid #EEEEF1;text-align:left}
+table.km td.n{text-align:right;font-variant-numeric:tabular-nums}
+details>summary{cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+pre{margin:0;white-space:pre-wrap;word-break:break-word}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+    <a class="navl" href="#">API docs</a>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 24px">
+
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div style="flex: 1 1 560px; min-width: 0">
+      <div style="font-size: 13px; color: #5C5C66"><a href="History.dc.html" style="color: #5C5C66">Reports</a> / Standard deck · Oct 20, 2026, 14:32</div>
+      <h1 style="margin: 8px 0 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">gpt-6.1-sol vs gemini-3-flash vs claude-sonnet-5-5</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; color: #45454D; max-width: 760px">Quality, cost and speed on your standard deck: 12 dimensions, 22 benchmarks, 803 cases. Each candidate is judged against the baseline with paired statistics, never a raw average.</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <a class="btn" href="#">Download HTML</a>
+      <a class="btn" href="Choose.dc.html">Re-run</a>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px">
+    <sc-for list="{{models}}" as="m" hint-placeholder-count="3">
+      <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+          <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #5C5C66"><span style="{{m.dot}}"></span>{{m.vendor}}</span>
+          <span style="{{m.roleStyle}}">{{m.role}}</span>
+        </div>
+        <div style="font-size: 17px; font-weight: 600">{{m.name}}</div>
+        <div class="mono" style="font-size: 12px; color: #5C5C66">{{m.model}}</div>
+      </div>
+    </sc-for>
+    <a href="Choose.dc.html" style="border: 1px dashed #C9C9D1; border-radius: 12px; padding: 16px 18px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #45454D; text-decoration: none; font-weight: 500; min-height: 96px">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"></path></svg>
+      Add a model
+    </a>
+  </div>
+
+  <section aria-labelledby="dec" style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 16px; padding: 28px; display: flex; flex-wrap: wrap; gap: 32px">
+    <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+      <div>
+        <div id="dec" style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5C5C66">Recommendation</div>
+        <div style="margin-top: 8px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25">Switch to <span style="color: #0B6E54">gpt-6.1-sol</span>.</div>
+        <p style="margin: 8px 0 0; font-size: 16px; color: #33333A; max-width: 680px">It beats the baseline overall by <b>+16.3 points</b> (95% CI +9.4 to +22.8) and costs <b>64% less</b> per task. Review its <a href="#regressions">3 consistent regressions</a> before you switch.</p>
+      </div>
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; color: #5C5C66; margin-bottom: 8px"><span>Change vs claude-sonnet-5-5, overall, with 95% CI</span><span>points</span></div>
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <sc-for list="{{forest}}" as="f" hint-placeholder-count="2">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px">
+              <div style="flex: 0 0 150px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span style="{{f.dot}}"></span>{{f.name}}</div>
+              <div style="flex: 1 1 260px; position: relative; height: 28px">
+                <div style="position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: #EEEEF1"></div>
+                <div style="position: absolute; left: 25%; top: 2px; bottom: 2px; width: 2px; background: #9A9AA3"></div>
+                <div style="{{f.ci}}"></div>
+                <div style="{{f.pt}}"></div>
+              </div>
+              <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 10px">
+                <span class="mono" style="font-size: 13px; color: #33333A">{{f.text}}</span>
+                <span style="{{f.chip}}">{{f.verdict}}</span>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display: flex; gap: 8px 16px; flex-wrap: wrap">
+            <div style="flex: 0 0 150px"></div>
+            <div style="flex: 1 1 260px; position: relative; height: 16px; font-size: 11px; color: #5C5C66">
+              <span style="position: absolute; left: 0">−10</span>
+              <span style="position: absolute; left: 25%; transform: translateX(-50%)">0</span>
+              <span style="position: absolute; left: 50%; transform: translateX(-50%)">+10</span>
+              <span style="position: absolute; left: 75%; transform: translateX(-50%)">+20</span>
+              <span style="position: absolute; right: 0">+30</span>
+            </div>
+            <div style="flex: 0 0 236px"></div>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; align-items: flex-start; background: #FFF7E6; border-radius: 10px; padding: 12px 14px; font-size: 14px; color: #5A3B00">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex: none; margin-top: 2px"><path d="M9 2l7.5 13h-15z" stroke-linejoin="round"></path><path d="M9 7.5v3.5M9 13.2v.1" stroke-linecap="round"></path></svg>
+        <span>Small packs: 12–15 cases in 9 of the 22 benchmarks. "No measurable difference" there only rules out gaps larger than about 18 points.</span>
+      </div>
+    </div>
+    <div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+      <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5C5C66; margin-bottom: 8px">Best by use case</div>
+      <sc-for list="{{profiles}}" as="p" hint-placeholder-count="5">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #EEEEF1">
+          <div style="min-width: 0">
+            <div style="font-size: 14px; font-weight: 500">{{p.name}}</div>
+            <div style="font-size: 12px; color: #5C5C66">{{p.note}}</div>
+          </div>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap"><span style="{{p.dot}}"></span>{{p.pick}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <nav aria-label="Report sections" style="position: sticky; top: 0; z-index: 5; background: #F6F6F7; border-bottom: 1px solid #E4E4E8; display: flex; gap: 4px; overflow-x: auto">
+    <a class="tab" href="#overview" style="color: #17171A; border-bottom-color: #17171A">Key metrics</a>
+    <a class="tab" href="#quality">Quality</a>
+    <a class="tab" href="#capabilities">Capabilities</a>
+    <a class="tab" href="#cost">Cost</a>
+    <a class="tab" href="#speed">Speed</a>
+    <a class="tab" href="#regressions">Regressions</a>
+    <a class="tab" href="#evidence">Evidence</a>
+  </nav>
+
+  <section id="overview" style="display: flex; flex-direction: column; gap: 12px">
+    <h2 class="sec">Key metrics</h2>
+    <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; overflow-x: auto">
+      <table class="km">
+        <thead>
+          <tr style="background: #FAFAFB">
+            <th style="width: 32%; font-weight: 500; color: #5C5C66; font-size: 13px">Metric</th>
+            <sc-for list="{{models}}" as="m" hint-placeholder-count="3">
+              <th style="text-align: right; font-size: 13px; font-weight: 600; white-space: nowrap"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="{{m.dot}}"></span>{{m.name}}</span><div style="font-weight: 400; color: #5C5C66; font-size: 12px">{{m.role}}</div></th>
+            </sc-for>
+          </tr>
+        </thead>
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+          <tbody>
+            <tr><td colspan="4" style="padding-top: 18px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5C5C66; border-bottom: none">{{g.name}}</td></tr>
+            <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="2">
+              <tr>
+                <td><div style="font-weight: 500">{{r.label}}</div><div style="font-size: 12px; color: #5C5C66">{{r.hint}}</div></td>
+                <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="3">
+                  <td class="n"><span style="{{c.style}}">{{c.text}}</span></td>
+                </sc-for>
+              </tr>
+            </sc-for>
+          </tbody>
+        </sc-for>
+      </table>
+    </div>
+    <div style="font-size: 12px; color: #5C5C66">Bold with a tint marks the best value in each row. Tasks are case × repeat; this run used the deck default of 1 repeat.</div>
+  </section>
+
+  <section id="quality" style="display: flex; flex-direction: column; gap: 12px">
+    <h2 class="sec">Quality</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 16px">
+      <div class="card" style="flex: 3 1 560px">
+        <h3 class="ct">Quality vs cost</h3>
+        <p class="cs">Up and to the left is better. Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both.</p>
+        <div style="display: flex; gap: 8px; margin-top: 20px">
+          <div style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 12px; color: #5C5C66; text-align: center">Overall pass rate</div>
+          <div style="flex: 1; min-width: 0">
+            <div style="position: relative; height: 340px; margin-left: 40px; border-left: 1px solid #D9D9DF; border-bottom: 1px solid #D9D9DF">
+              <sc-for list="{{yTicks}}" as="t" hint-placeholder-count="5">
+                <div style="{{t.line}}"></div>
+                <div style="{{t.label}}">{{t.text}}</div>
+              </sc-for>
+              <sc-for list="{{costX}}" as="t" hint-placeholder-count="5">
+                <div style="{{t.line}}"></div>
+                <div style="{{t.label}}">{{t.text}}</div>
+              </sc-for>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible">
+                <polyline points="{{costFront}}" fill="none" stroke="#17171A" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></polyline>
+              </svg>
+              <sc-for list="{{costPts}}" as="p" hint-placeholder-count="3">
+                <div style="{{p.dot}}" role="img" aria-label="{{p.aria}}"></div>
+                <div style="{{p.label}}">{{p.name}}</div>
+              </sc-for>
+            </div>
+            <div style="margin: 28px 0 0 40px; text-align: center; font-size: 12px; color: #5C5C66">$ per 1,000 tasks</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 16px; font-size: 13px; color: #45454D">
+          <sc-for list="{{models}}" as="m" hint-placeholder-count="3"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="{{m.dot}}"></span>{{m.vendor}}</span></sc-for>
+          <span style="display: inline-flex; align-items: center; gap: 6px"><svg width="22" height="4" aria-hidden="true"><line x1="0" y1="2" x2="22" y2="2" stroke="#17171A" stroke-width="1.5" stroke-dasharray="4 3"></line></svg>Best trade-off line</span>
+          <span>Faded: beaten on both quality and cost</span>
+        </div>
+      </div>
+      <div class="card" style="flex: 2 1 380px">
+        <h3 class="ct">Overall pass rate<span class="hb">Higher is better</span></h3>
+        <p class="cs">Share of all 803 cases each model passed.</p>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 24px">
+          <sc-for list="{{qBars}}" as="b" hint-placeholder-count="3">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px"><span style="font-weight: 500">{{b.name}}</span><span style="font-weight: 600; font-variant-numeric: tabular-nums">{{b.text}}</span></div>
+              <div style="height: 28px; background: #F1F1F4; border-radius: 6px; overflow: hidden"><div style="{{b.bar}}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="capabilities" style="display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px">
+      <div>
+        <h2 class="sec">Capabilities</h2>
+        <p class="cs">Pass rate in each dimension. The chips say whether each candidate's change against the baseline is real or noise.</p>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: #45454D">
+        <sc-for list="{{models}}" as="m" hint-placeholder-count="3"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="{{m.dot}}"></span>{{m.name}}</span></sc-for>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px">
+      <sc-for list="{{dims}}" as="d" hint-placeholder-count="12">
+        <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+            <h3 style="margin: 0; font-size: 15px; font-weight: 600">{{d.name}}</h3>
+            <span style="font-size: 12px; color: #5C5C66">{{d.n}} cases</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <sc-for list="{{d.bars}}" as="b" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <div style="flex: 1; height: 14px; background: #F1F1F4; border-radius: 4px; overflow: hidden"><div style="{{b.bar}}"></div></div>
+                <span style="flex: 0 0 34px; text-align: right; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums">{{b.text}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px">
+            <sc-for list="{{d.verdicts}}" as="v" hint-placeholder-count="2"><span style="{{v.style}}">{{v.text}}</span></sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section id="cost" style="display: flex; flex-direction: column; gap: 12px">
+    <h2 class="sec">Cost</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 16px">
+      <div class="card" style="flex: 1 1 420px">
+        <h3 class="ct">Cost per 1,000 tasks<span class="hb">Lower is better</span></h3>
+        <p class="cs">Input and output tokens at list price, averaged over every case.</p>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 24px">
+          <sc-for list="{{costBars}}" as="b" hint-placeholder-count="3">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px"><span style="font-weight: 500">{{b.name}}</span><span style="font-weight: 600; font-variant-numeric: tabular-nums">{{b.text}}</span></div>
+              <div style="height: 28px; background: #F1F1F4; border-radius: 6px; overflow: hidden; display: flex"><div style="{{b.inBar}}"></div><div style="{{b.outBar}}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display: flex; gap: 16px; margin-top: 16px; font-size: 12px; color: #5C5C66"><span>Darker: output tokens</span><span>Lighter: input tokens</span></div>
+      </div>
+      <div class="card" style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 16px">
+        <div>
+          <h3 class="ct">What this run cost</h3>
+          <p class="cs">Spend for this report. Cached answers were reused and not billed again.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px">
+          <div style="background: #F6F6F7; border-radius: 10px; padding: 14px 16px"><div style="font-size: 12px; color: #5C5C66">Total spend</div><div style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em">$8.86</div></div>
+          <div style="background: #F6F6F7; border-radius: 10px; padding: 14px 16px"><div style="font-size: 12px; color: #5C5C66">Saved by cache</div><div style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em">$2.41</div></div>
+          <div style="background: #F6F6F7; border-radius: 10px; padding: 14px 16px"><div style="font-size: 12px; color: #5C5C66">Judge (mistral-large-3)</div><div style="font-size: 26px; font-weight: 700; letter-spacing: -0.02em">$0.38</div></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+          <sc-for list="{{models}}" as="m" hint-placeholder-count="3">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EEEEF1"><span style="display: inline-flex; align-items: center; gap: 8px"><span style="{{m.dot}}"></span>{{m.name}}</span><span style="font-variant-numeric: tabular-nums; font-weight: 600">{{m.totalText}}</span></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="speed" style="display: flex; flex-direction: column; gap: 12px">
+    <h2 class="sec">Speed</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 16px">
+      <div class="card" style="flex: 2 1 420px">
+        <h3 class="ct">Latency per task<span class="hb">Lower is better</span></h3>
+        <p class="cs">Solid bar: median (p50). Lighter extension: the slow tail (p95). Measured on uncached calls only.</p>
+        <div style="display: flex; flex-direction: column; gap: 18px; margin-top: 24px">
+          <sc-for list="{{latBars}}" as="b" hint-placeholder-count="3">
+            <div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px"><span style="font-weight: 500">{{b.name}}</span><span style="font-variant-numeric: tabular-nums"><b>{{b.p50}}</b> <span style="color: #5C5C66">· p95 {{b.p95}}</span></span></div>
+              <div style="height: 28px; background: #F1F1F4; border-radius: 6px; overflow: hidden; position: relative"><div style="{{b.tail}}"></div><div style="{{b.med}}"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div class="card" style="flex: 3 1 520px">
+        <h3 class="ct">Quality vs latency</h3>
+        <p class="cs">Up and to the left is better. Median seconds per task against overall pass rate.</p>
+        <div style="position: relative; height: 260px; margin: 20px 0 0 40px; border-left: 1px solid #D9D9DF; border-bottom: 1px solid #D9D9DF">
+          <sc-for list="{{yTicks}}" as="t" hint-placeholder-count="5">
+            <div style="{{t.line}}"></div>
+            <div style="{{t.label}}">{{t.text}}</div>
+          </sc-for>
+          <sc-for list="{{latX}}" as="t" hint-placeholder-count="5">
+            <div style="{{t.line}}"></div>
+            <div style="{{t.label}}">{{t.text}}</div>
+          </sc-for>
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible">
+            <polyline points="{{latFront}}" fill="none" stroke="#17171A" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></polyline>
+          </svg>
+          <sc-for list="{{latPts}}" as="p" hint-placeholder-count="3">
+            <div style="{{p.dot}}" role="img" aria-label="{{p.aria}}"></div>
+            <div style="{{p.label}}">{{p.name}}</div>
+          </sc-for>
+        </div>
+        <div style="margin: 28px 0 0 40px; text-align: center; font-size: 12px; color: #5C5C66">Median seconds per task</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="regressions" style="display: flex; flex-direction: column; gap: 12px">
+    <div>
+      <h2 class="sec">Regressions</h2>
+      <p class="cs">Cases the baseline passed and the candidate failed. Consistent means it failed on every repeat, so it is not a fluke.</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <sc-for list="{{regTabs}}" as="t" hint-placeholder-count="2">
+        <a href="#regressions" style="{{t.style}}"><span style="{{t.dot}}"></span>{{t.name}} · {{t.count}}</a>
+      </sc-for>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; overflow: hidden">
+      <sc-for list="{{regs}}" as="r" hint-placeholder-count="4">
+        <details open style="border-bottom: 1px solid #EEEEF1">
+          <summary style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 14px 20px; min-height: 44px">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#5C5C66" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l4 4-4 4"></path></svg>
+            <span class="mono" style="font-size: 13px; font-weight: 500; flex: 1 1 300px; min-width: 0">{{r.id}}</span>
+            <span style="font-size: 12px; color: #45454D; background: #F1F1F4; border-radius: 6px; padding: 2px 8px">{{r.dim}}</span>
+            <span style="{{r.consStyle}}">{{r.cons}}</span>
+            <span class="mono" style="font-size: 13px; color: #33333A; white-space: nowrap">{{r.scores}}</span>
+          </summary>
+          <div style="padding: 0 20px 20px 50px; display: flex; flex-direction: column; gap: 12px">
+            <div style="font-size: 14px; color: #33333A"><b>Why it failed:</b> {{r.reason}}</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px">
+              <div style="flex: 1 1 360px; min-width: 0; border: 1px solid #E4E4E8; border-radius: 10px; overflow: hidden">
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #FAFAFB; border-bottom: 1px solid #E4E4E8; font-size: 13px"><span style="font-weight: 600">claude-sonnet-5-5 · baseline</span><span style="color: #11663D; font-weight: 600">Passed</span></div>
+                <pre class="mono" style="padding: 12px; font-size: 12.5px; line-height: 1.55; color: #33333A">{{r.base}}</pre>
+              </div>
+              <div style="flex: 1 1 360px; min-width: 0; border: 1px solid #E4E4E8; border-radius: 10px; overflow: hidden">
+                <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: #FAFAFB; border-bottom: 1px solid #E4E4E8; font-size: 13px"><span style="font-weight: 600">gpt-6.1-sol · candidate</span><span style="color: #A1271C; font-weight: 600">Failed</span></div>
+                <pre class="mono" style="padding: 12px; font-size: 12.5px; line-height: 1.55; color: #33333A">{{r.cand}}</pre>
+              </div>
+            </div>
+          </div>
+        </details>
+      </sc-for>
+      <div style="padding: 12px 20px; font-size: 14px"><a href="#regressions">Show 3 more regressions and 41 improvements</a></div>
+    </div>
+  </section>
+
+  <section id="evidence" style="display: flex; flex-direction: column; gap: 12px">
+    <div>
+      <h2 class="sec">Evidence for engineers</h2>
+      <p class="cs">Per-benchmark paired statistics. Runs whose benchmark fingerprint differs are never compared.</p>
+    </div>
+    <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; overflow-x: auto">
+      <table class="km" style="min-width: 860px">
+        <thead>
+          <tr style="background: #FAFAFB; font-size: 13px; color: #5C5C66">
+            <th style="font-weight: 500">Benchmark</th><th style="font-weight: 500">Fingerprint</th><th style="font-weight: 500; text-align: right">n</th><th style="font-weight: 500; text-align: right">Δ gpt-6.1-sol</th><th style="font-weight: 500; text-align: right">95% CI</th><th style="font-weight: 500; text-align: right">p</th><th style="font-weight: 500; text-align: right">McNemar p</th><th style="font-weight: 500; text-align: right">W / T / L</th><th style="font-weight: 500">Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          <sc-for list="{{ev}}" as="e" hint-placeholder-count="5">
+            <tr>
+              <td><div style="font-weight: 500">{{e.name}}</div><div style="font-size: 12px; color: #5C5C66">{{e.dim}}</div></td>
+              <td class="mono" style="font-size: 12px; color: #5C5C66">{{e.fp}}</td>
+              <td class="n">{{e.n}}</td><td class="n">{{e.d}}</td><td class="n">{{e.ci}}</td><td class="n">{{e.p}}</td><td class="n">{{e.mp}}</td><td class="n">{{e.wtl}}</td>
+              <td><span style="{{e.style}}">{{e.v}}</span></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+      <div style="padding: 12px 16px; font-size: 14px; border-top: 1px solid #EEEEF1"><a href="#evidence">Show all 22 benchmarks, both candidates</a></div>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #5C5C66">Method: bootstrap CI on per-case score deltas plus McNemar on pass/fail. Better = CI above 0, worse = CI below 0. Fewer than 10 shared cases gives no verdict. Judge: mistral-large-3, from a vendor not under test to avoid self-preference. <a href="#">Glossary</a></p>
+  </section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":4600}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var V = {
+      better: { label: 'Better', bg: '#E3F3EA', fg: '#11663D' },
+      worse: { label: 'Worse', bg: '#FBE7E5', fg: '#A1271C' },
+      inconclusive: { label: 'No measurable difference', short: 'No difference', bg: '#EEEEF1', fg: '#45454D' }
+    };
+    var chip = function (v) { return 'display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:' + V[v].bg + ';color:' + V[v].fg; };
+    var dot = function (c, s) { s = s || 10; return 'display:inline-block;flex:none;width:' + s + 'px;height:' + s + 'px;border-radius:50%;background:' + c; };
+    var M = [
+      { name: 'claude-sonnet-5-5', vendor: 'Anthropic', model: 'anthropic/claude-sonnet-5-5', color: '#D9774F', role: 'Baseline', q: 66.8, cost: 7.42, outShare: 0.71, p50: 3.1, p95: 9.8, err: 0.6, cons: 91, total: 5.96 },
+      { name: 'gpt-6.1-sol', vendor: 'OpenAI', model: 'openai/gpt-6.1-sol', color: '#0F8A6A', role: 'Candidate', q: 83.1, cost: 2.68, outShare: 0.64, p50: 2.4, p95: 7.2, err: 0.3, cons: 94, total: 2.15, verdict: 'better', d: 16.3, lo: 9.4, hi: 22.8, regs: 7, regsC: 3, front: true },
+      { name: 'gemini-3-flash', vendor: 'Google', model: 'google/gemini-3-flash', color: '#3D6FE0', role: 'Candidate', q: 71.5, cost: 0.94, outShare: 0.58, p50: 1.1, p95: 3.0, err: 1.2, cons: 88, total: 0.75, verdict: 'inconclusive', d: 4.7, lo: -1.8, hi: 11.0, regs: 12, regsC: 5, front: true }
+    ];
+    var byName = {}; M.forEach(function (m) { byName[m.name] = m; });
+
+    var models = M.map(function (m) {
+      return Object.assign({}, m, {
+        dot: dot(m.color),
+        totalText: '$' + m.total.toFixed(2),
+        roleStyle: m.role === 'Baseline'
+          ? 'font-size:12px;font-weight:600;color:#FFFFFF;background:#17171A;border-radius:999px;padding:2px 10px'
+          : 'font-size:12px;font-weight:600;color:#45454D;border:1px solid #D9D9DF;border-radius:999px;padding:1px 9px'
+      });
+    });
+
+    var fx = function (v) { return (v + 10) / 40 * 100; };
+    var forest = M.filter(function (m) { return m.verdict; }).map(function (m) {
+      var c = V[m.verdict].fg;
+      return {
+        name: m.name, dot: dot(m.color), verdict: V[m.verdict].short || V[m.verdict].label, chip: chip(m.verdict),
+        text: (m.d > 0 ? '+' : '') + m.d.toFixed(1) + ' [' + (m.lo > 0 ? '+' : '') + m.lo.toFixed(1) + ', +' + m.hi.toFixed(1) + ']',
+        ci: 'position:absolute;top:9px;height:10px;border-radius:5px;opacity:.35;background:' + c + ';left:' + fx(m.lo) + '%;width:' + (fx(m.hi) - fx(m.lo)) + '%',
+        pt: 'position:absolute;top:7px;width:14px;height:14px;margin-left:-7px;border-radius:50%;border:2px solid #FFFFFF;box-shadow:0 0 0 1px ' + c + ';background:' + c + ';left:' + fx(m.d) + '%'
+      };
+    });
+
+    var profiles = [
+      { name: 'Coding assistant', note: 'Statistically ahead', pick: 'gpt-6.1-sol' },
+      { name: 'Customer support', note: 'Ahead on tool calling', pick: 'gpt-6.1-sol' },
+      { name: 'Data extraction', note: 'Tie on quality, cheapest wins', pick: 'gemini-3-flash' },
+      { name: 'Research / RAG', note: 'Tie on quality, cheapest wins', pick: 'gemini-3-flash' },
+      { name: 'Engineering team', note: 'Statistically ahead', pick: 'gpt-6.1-sol' }
+    ].map(function (p) { return Object.assign(p, { dot: dot(byName[p.pick].color, 8) }); });
+
+    var best = 'font-weight:700;background:#E3F3EA;color:#11663D;border-radius:6px;padding:2px 8px';
+    var plain = 'padding:2px 8px';
+    var row = function (label, hint, vals, fmt, bestIdx) {
+      return { label: label, hint: hint, cells: vals.map(function (v, i) { return { text: fmt(v, i), style: i === bestIdx ? best : plain }; }) };
+    };
+    var idxMax = function (a) { return a.indexOf(Math.max.apply(null, a)); };
+    var idxMin = function (a) { return a.indexOf(Math.min.apply(null, a)); };
+    var col = function (k) { return M.map(function (m) { return m[k]; }); };
+    var groups = [
+      { name: 'Quality', rows: [
+        row('Overall pass rate', 'Share of cases passed', col('q'), function (v) { return v.toFixed(1) + '%'; }, idxMax(col('q'))),
+        { label: 'Verdict vs baseline', hint: 'Paired bootstrap, 95% CI', cells: M.map(function (m) { return m.verdict ? { text: (V[m.verdict].short || V[m.verdict].label) + ' · ' + (m.d > 0 ? '+' : '') + m.d.toFixed(1) + ' pts', style: chip(m.verdict) } : { text: 'Baseline', style: 'color:#5C5C66;padding:2px 8px' }; }) },
+        { label: 'Regressions', hint: 'Baseline passed, candidate failed (consistent)', cells: M.map(function (m) { return { text: m.regs ? m.regs + ' (' + m.regsC + ')' : '—', style: plain }; }) },
+        row('Consistency', 'Same answer across repeats', col('cons'), function (v) { return v + '%'; }, idxMax(col('cons')))
+      ] },
+      { name: 'Cost', rows: [
+        row('Cost per 1,000 tasks', 'List price, input + output', col('cost'), function (v) { return '$' + v.toFixed(2); }, idxMin(col('cost'))),
+        row('Cost of this run', '803 tasks each', col('total'), function (v) { return '$' + v.toFixed(2); }, idxMin(col('total')))
+      ] },
+      { name: 'Speed', rows: [
+        row('Median latency (p50)', 'Seconds per task', col('p50'), function (v) { return v.toFixed(1) + ' s'; }, idxMin(col('p50'))),
+        row('Slow tail (p95)', 'Seconds per task', col('p95'), function (v) { return v.toFixed(1) + ' s'; }, idxMin(col('p95')))
+      ] },
+      { name: 'Reliability', rows: [
+        row('Error rate', 'Timeouts and API errors', col('err'), function (v) { return v.toFixed(1) + '%'; }, idxMin(col('err')))
+      ] }
+    ];
+
+    var yp = function (q) { return (q - 50) / 40 * 100; };
+    var yTicks = [50, 60, 70, 80, 90].map(function (v) {
+      var b = yp(v);
+      return { text: v + '%', line: 'position:absolute;left:0;right:0;height:1px;background:#EEEEF1;bottom:' + b + '%', label: 'position:absolute;left:-44px;width:36px;text-align:right;font-size:12px;color:#5C5C66;transform:translateY(50%);bottom:' + b + '%' };
+    });
+    var xTicks = function (vals, max, fmt) {
+      return vals.map(function (v) {
+        var l = v / max * 100;
+        return { text: fmt(v), line: 'position:absolute;top:0;bottom:0;width:1px;background:#EEEEF1;left:' + l + '%', label: 'position:absolute;bottom:-24px;font-size:12px;color:#5C5C66;transform:translateX(-50%);left:' + l + '%' };
+      });
+    };
+    var pts = function (key, max, unit) {
+      return M.map(function (m) {
+        var x = m[key] / max * 100, y = yp(m.q);
+        var big = m.front;
+        var s = big ? 18 : 12;
+        var anchor = x > 80 ? 'translate(-100%,0)' : 'translate(-50%,0)';
+        return {
+          name: m.name,
+          aria: m.name + ': ' + m.q + '% pass rate, ' + unit(m[key]),
+          dot: 'position:absolute;border-radius:50%;width:' + s + 'px;height:' + s + 'px;margin:0 0 -' + s / 2 + 'px -' + s / 2 + 'px;left:' + x + '%;bottom:' + y + '%;background:' + m.color + ';' + (big ? 'box-shadow:0 0 0 2px #FFFFFF,0 0 0 3.5px #17171A' : 'opacity:.45'),
+          label: 'position:absolute;white-space:nowrap;font-size:13px;left:' + x + '%;bottom:calc(' + y + '% + 16px);transform:' + anchor + ';' + (big ? 'font-weight:600;color:#17171A' : 'color:#5C5C66')
+        };
+      });
+    };
+    var front = function (key, max) {
+      return M.filter(function (m) { return m.front; }).sort(function (a, b) { return a[key] - b[key]; })
+        .map(function (m) { return (m[key] / max * 100).toFixed(2) + ',' + (100 - yp(m.q)).toFixed(2); }).join(' ');
+    };
+
+    var sorted = function (k, desc) { return M.slice().sort(function (a, b) { return desc ? b[k] - a[k] : a[k] - b[k]; }); };
+    var qBars = sorted('q', true).map(function (m) { return { name: m.name, text: m.q.toFixed(1) + '%', bar: 'height:100%;border-radius:6px;background:' + m.color + ';width:' + m.q + '%' }; });
+    var costBars = sorted('cost').map(function (m) {
+      var w = m.cost / 8 * 100;
+      return { name: m.name, text: '$' + m.cost.toFixed(2),
+        outBar: 'height:100%;background:' + m.color + ';width:' + (w * m.outShare) + '%',
+        inBar: 'height:100%;background:' + m.color + ';opacity:.45;width:' + (w * (1 - m.outShare)) + '%' };
+    });
+    var latBars = sorted('p50').map(function (m) {
+      return { name: m.name, p50: m.p50.toFixed(1) + ' s', p95: m.p95.toFixed(1) + ' s',
+        tail: 'position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.3;background:' + m.color + ';width:' + (m.p95 / 10 * 100) + '%',
+        med: 'position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:' + m.color + ';width:' + (m.p50 / 10 * 100) + '%' };
+    });
+
+    var D = [
+      ['Reasoning', 60, 62, 85, 70, 'better', 'inconclusive'],
+      ['Coding', 65, 74, 88, 69, 'better', 'inconclusive'],
+      ['Instruction following', 60, 71, 86, 78, 'better', 'inconclusive'],
+      ['Structured output', 83, 80, 92, 84, 'better', 'inconclusive'],
+      ['Tool calling', 64, 69, 81, 58, 'better', 'worse'],
+      ['Long context', 60, 58, 77, 73, 'better', 'better'],
+      ['Factuality', 60, 64, 79, 61, 'better', 'inconclusive'],
+      ['Calibration', 60, 55, 72, 60, 'better', 'inconclusive'],
+      ['Summarization', 60, 73, 84, 76, 'inconclusive', 'inconclusive'],
+      ['Robustness', 70, 60, 78, 66, 'better', 'inconclusive'],
+      ['Multilingual', 60, 68, 82, 79, 'better', 'better'],
+      ['Software delivery', 61, 67, 83, 63, 'better', 'worse']
+    ];
+    var dims = D.map(function (r) {
+      var q = [r[2], r[3], r[4]];
+      return {
+        name: r[0], n: r[1],
+        bars: M.map(function (m, i) { return { text: q[i] + '%', bar: 'height:100%;border-radius:4px;background:' + m.color + ';width:' + q[i] + '%' }; }),
+        verdicts: [1, 2].map(function (i) {
+          var v = r[4 + i], d = q[i] - q[0];
+          return { text: M[i].name.split('-')[0] + ' ' + (d > 0 ? '+' : '') + d + ' · ' + (V[v].short || V[v].label), style: chip(v) };
+        })
+      };
+    });
+
+    var tab = function (on) { return 'display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;font-size:14px;font-weight:600;text-decoration:none;' + (on ? 'background:#17171A;color:#FFFFFF' : 'background:#FFFFFF;color:#33333A;border:1px solid #D9D9DF'); };
+    var regTabs = [
+      { name: 'gpt-6.1-sol', count: 7, style: tab(true), dot: dot('#0F8A6A', 8) },
+      { name: 'gemini-3-flash', count: 12, style: tab(false), dot: dot('#3D6FE0', 8) }
+    ];
+    var consS = function (c) { return c ? 'font-size:12px;font-weight:600;color:#A1271C;background:#FBE7E5;border-radius:999px;padding:2px 8px' : 'font-size:12px;font-weight:600;color:#45454D;background:#EEEEF1;border-radius:999px;padding:2px 8px'; };
+    var regs = [
+      { id: 'coding/python_functions › merge_intervals', dim: 'Coding', cons: 'Failed 3 of 3', consStyle: consS(true), scores: '1.00 → 0.00', open: true,
+        reason: 'code_exec: 2 of 6 unit tests failed (test_touching_intervals, test_empty_input).',
+        base: 'def merge(iv):\n    iv = sorted(iv)\n    out = []\n    for s, e in iv:\n        if out and s <= out[-1][1]:\n            out[-1][1] = max(out[-1][1], e)\n        else:\n            out.append([s, e])\n    return out',
+        cand: 'def merge(iv):\n    iv.sort()\n    out = [iv[0]]          # IndexError on []\n    for s, e in iv[1:]:\n        if s < out[-1][1]:   # misses touching\n            out[-1][1] = max(out[-1][1], e)\n        else:\n            out.append([s, e])\n    return out' },
+      { id: 'tool_calling/function_calls › abstain_no_tool', dim: 'Tool calling', cons: 'Failed 3 of 3', consStyle: consS(true), scores: '1.00 → 0.00', open: false,
+        reason: 'tool_call: expected no call, got get_weather(city="Paris").', base: 'I can\'t check live weather here.', cand: 'get_weather({"city": "Paris"})' },
+      { id: 'software_delivery/review › flag_sql_injection', dim: 'Software delivery', cons: 'Failed 3 of 3', consStyle: consS(true), scores: '1.00 → 0.33', open: false,
+        reason: 'llm_judge 3/10: missed the string-built query in build_query().', base: 'Blocking: build_query() concatenates user input…', cand: 'Looks good. Minor: rename q to query.' },
+      { id: 'instruction_following/constraints › exactly_three_bullets', dim: 'Instruction following', cons: 'Failed 2 of 3', consStyle: consS(false), scores: '1.00 → 0.33', open: false,
+        reason: 'instructions: 4 bullets in repeats 1 and 3.', base: '- a\n- b\n- c', cand: '- a\n- b\n- c\n- d' }
+    ];
+
+    var ev = [
+      ['math_word_problems', 'Reasoning', 'a91c03e7f2d4', 15, '+0.200', '+0.000 to +0.400', '0.048', '0.125', '4 / 10 / 1', 'inconclusive'],
+      ['reasoning/generated', 'Reasoning', '3fe8b1c90a72', 45, '+0.244', '+0.111 to +0.378', '0.001', '0.002', '13 / 29 / 3', 'better'],
+      ['python_functions', 'Coding', '77d2e05b4c18', 12, '+0.083', '−0.167 to +0.333', '0.590', '1.000', '3 / 7 / 2', 'inconclusive'],
+      ['coding/generated', 'Coding', 'c04a9e6611bd', 53, '+0.151', '+0.057 to +0.245', '0.004', '0.006', '11 / 39 / 3', 'better'],
+      ['function_calls', 'Tool calling', '5b2f7d13e8a0', 13, '+0.077', '−0.154 to +0.308', '0.680', '1.000', '3 / 8 / 2', 'inconclusive']
+    ].map(function (e) { return { name: e[0], dim: e[1], fp: e[2], n: e[3], d: e[4], ci: e[5], p: e[6], mp: e[7], wtl: e[8], v: V[e[9]].short || V[e[9]].label, style: chip(e[9]) }; });
+
+    return {
+      models: models, forest: forest, profiles: profiles, groups: groups,
+      yTicks: yTicks,
+      costX: xTicks([0, 2, 4, 6, 8], 8, function (v) { return '$' + v.toFixed(2); }),
+      latX: xTicks([0, 1, 2, 3, 4], 4, function (v) { return v + ' s'; }),
+      costPts: pts('cost', 8, function (v) { return '$' + v.toFixed(2) + ' per 1,000 tasks'; }),
+      latPts: pts('p50', 4, function (v) { return v + ' s median'; }),
+      costFront: front('cost', 8), latFront: front('p50', 4),
+      qBars: qBars, costBars: costBars, latBars: latBars, dims: dims,
+      regTabs: regTabs, regs: regs, ev: ev
+    };
+  }
+}
+</script>
+</body>
+</html>

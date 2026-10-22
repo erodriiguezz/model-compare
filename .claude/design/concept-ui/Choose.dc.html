@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New comparison</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.card{background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:24px;min-width:0}
+.ct{margin:0;font-size:17px;font-weight:600;letter-spacing:-0.01em}
+.cs{margin:6px 0 0;font-size:14px;line-height:1.5;color:#5C5C66}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+button{font:inherit;cursor:pointer}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500}
+.fld input,.fld select{font:inherit;font-weight:400;min-height:42px;padding:0 12px;border:1px solid #D9D9DF;border-radius:8px;background:#FFFFFF;color:#17171A}
+.fld small{font-weight:400;font-size:12px;color:#5C5C66}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+    <a class="navl" href="#">API docs</a>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 24px">
+  <div>
+    <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">New comparison</h1>
+    <p style="margin: 8px 0 0; font-size: 16px; color: #45454D; max-width: 760px">Pick the models, the baseline you use today, and what to test. You see the cost before anything runs.</p>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+    <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+      <section class="card" aria-labelledby="h-models">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+          <h2 id="h-models" class="ct">1 · Models</h2>
+          <span style="font-size: 13px; color: #5C5C66">From <span class="mono">targets.yaml</span> · {{selCount}} selected</span>
+        </div>
+        <p class="cs">The baseline is the model you use today. Every other model is judged against it.</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 16px">
+          <sc-for list="{{targets}}" as="t" hint-placeholder-count="6">
+            <div style="{{t.box}}">
+              <button type="button" onClick="{{t.toggle}}" aria-pressed="{{t.on}}" disabled="{{t.off}}" style="all: unset; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; min-height: 44px; flex: 1">
+                <span style="{{t.check}}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5"></path></svg></span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                  <span style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600"><span style="{{t.dot}}"></span>{{t.name}}</span>
+                  <span class="mono" style="font-size: 12px; color: #5C5C66">{{t.model}}</span>
+                  <span style="{{t.keyStyle}}">{{t.key}}</span>
+                </span>
+              </button>
+              <sc-if value="{{t.canBase}}" hint-placeholder-val="{{true}}">
+                <button type="button" onClick="{{t.makeBase}}" style="{{t.baseBtn}}">{{t.baseText}}</button>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-deck">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+          <h2 id="h-deck" class="ct">2 · What to test</h2>
+          <span style="font-size: 13px; color: #5C5C66">{{caseCount}} cases in {{dimCount}} dimensions</span>
+        </div>
+        <p class="cs">Start from a use case, then add or drop dimensions.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px">
+          <sc-for list="{{presets}}" as="p" hint-placeholder-count="5">
+            <button type="button" onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="{{p.style}}">{{p.name}}</button>
+          </sc-for>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-top: 16px">
+          <sc-for list="{{dims}}" as="d" hint-placeholder-count="12">
+            <button type="button" onClick="{{d.toggle}}" aria-pressed="{{d.on}}" style="{{d.style}}">
+              <span style="{{d.check}}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5"></path></svg></span>
+              <span style="flex: 1; text-align: left">{{d.name}}</span>
+              <span style="font-size: 12px; color: #5C5C66; font-variant-numeric: tabular-nums">{{d.n}}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="margin-top: 12px; font-size: 13px; color: #5C5C66">Your own packs in <span class="mono">benchmarks/custom/</span> appear here too.</div>
+      </section>
+
+      <section class="card" aria-labelledby="h-opt">
+        <h2 id="h-opt" class="ct">3 · Options</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px">
+          <label class="fld">Repeats<input type="number" min="1" max="10" value="1"><small>More than 1 also measures consistency.</small></label>
+          <label class="fld">Budget per run (USD)<input type="number" min="0" step="1" value="10"><small>Stops a run that would go over.</small></label>
+          <label class="fld">Parallel calls per model<input type="number" min="1" max="64" value="8"><small>Lower it if you hit rate limits.</small></label>
+          <label class="fld">Judge for open-ended tasks
+            <select><option>mistral-large-3 (auto)</option><option>claude-opus-5-5 (same vendor as a model under test)</option></select>
+            <small>Picked from a vendor you're not comparing.</small>
+          </label>
+        </div>
+        <label style="display: inline-flex; align-items: center; gap: 10px; margin-top: 16px; min-height: 44px; font-size: 14px"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: #17171A"> Reuse cached answers (no re-billing, but latency is not re-measured)</label>
+      </section>
+    </div>
+
+    <aside aria-labelledby="h-sum" style="flex: 1 1 320px; min-width: 0; position: sticky; top: 16px; background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+      <h2 id="h-sum" class="ct">Before you run</h2>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{chosen}}" as="c" hint-placeholder-count="3">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px">
+            <span style="display: inline-flex; align-items: center; gap: 8px; min-width: 0"><span style="{{c.dot}}"></span>{{c.name}}</span>
+            <span style="{{c.roleStyle}}">{{c.role}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border-top: 1px solid #EEEEF1; padding-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+        <div><div style="font-size: 12px; color: #5C5C66">Estimated cost</div><div style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{cost}}</div></div>
+        <div><div style="font-size: 12px; color: #5C5C66">Estimated time</div><div style="font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums">{{time}}</div></div>
+        <div><div style="font-size: 12px; color: #5C5C66">API calls</div><div style="font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums">{{calls}}</div></div>
+        <div><div style="font-size: 12px; color: #5C5C66">Already cached</div><div style="font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums">{{cached}}</div></div>
+      </div>
+      <sc-if value="{{small}}" hint-placeholder-val="{{false}}">
+        <div style="background: #FFF7E6; color: #5A3B00; border-radius: 10px; padding: 10px 12px; font-size: 13px">Under 10 cases per dimension can't produce a verdict. Add dimensions or repeats.</div>
+      </sc-if>
+      <sc-if value="{{tooFew}}" hint-placeholder-val="{{false}}">
+        <div style="background: #F1F1F4; color: #33333A; border-radius: 10px; padding: 10px 12px; font-size: 13px">Pick at least two models to get a verdict.</div>
+      </sc-if>
+      <a href="Run.dc.html" style="{{startStyle}}">Start comparison</a>
+      <div style="font-size: 12px; color: #5C5C66; text-align: center">Within your $10 budget per run. You can cancel at any time.</div>
+    </aside>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: { 'claude-sonnet-5-5': true, 'gpt-6.1-sol': true, 'gemini-3-flash': true }, base: 'claude-sonnet-5-5', preset: 'full', dims: null };
+  }
+  renderVals() {
+    var self = this, s = this.state;
+    var dot = function (c) { return 'display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;background:' + c; };
+    var check = function (on) { return 'flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;' + (on ? 'background:#17171A;border:1px solid #17171A' : 'background:#FFFFFF;border:1px solid #C9C9D1'); };
+    var T = [
+      { name: 'claude-sonnet-5-5', model: 'anthropic/claude-sonnet-5-5', color: '#D9774F', key: 'ANTHROPIC_API_KEY set', ok: true, k: 7.42 },
+      { name: 'gpt-6.1-sol', model: 'openai/gpt-6.1-sol', color: '#0F8A6A', key: 'OPENAI_API_KEY set', ok: true, k: 2.68 },
+      { name: 'gemini-3-flash', model: 'gemini/gemini-3-flash', color: '#3D6FE0', key: 'GEMINI_API_KEY set', ok: true, k: 0.94 },
+      { name: 'claude-opus-5-5', model: 'anthropic/claude-opus-5-5', color: '#D9774F', key: 'ANTHROPIC_API_KEY set', ok: true, k: 21.5 },
+      { name: 'mistral-large-3', model: 'openrouter/mistral-large-3', color: '#8A63D2', key: 'OPENROUTER_API_KEY set', ok: true, k: 3.1 },
+      { name: 'llama-5-70b', model: 'together_ai/llama-5-70b', color: '#5C5C66', key: 'TOGETHERAI_API_KEY missing', ok: false, k: 0.6 }
+    ];
+    var D = [['reasoning', 'Reasoning', 60], ['coding', 'Coding', 65], ['instruction_following', 'Instruction following', 60], ['structured_output', 'Structured output', 83], ['tool_calling', 'Tool calling', 64], ['long_context', 'Long context', 60], ['factuality', 'Factuality', 60], ['calibration', 'Calibration', 60], ['summarization', 'Summarization', 60], ['robustness', 'Robustness', 70], ['multilingual', 'Multilingual', 60], ['software_delivery', 'Software delivery', 61]];
+    var P = [
+      ['full', 'Full deck', D.map(function (d) { return d[0]; })],
+      ['coding', 'Coding assistant', ['reasoning', 'coding', 'instruction_following', 'software_delivery']],
+      ['support', 'Customer support', ['tool_calling', 'instruction_following', 'factuality', 'multilingual', 'robustness']],
+      ['extract', 'Data extraction', ['structured_output', 'robustness', 'long_context']],
+      ['rag', 'Research / RAG', ['long_context', 'factuality', 'summarization', 'calibration']]
+    ];
+    var activeDims = s.dims || (P.filter(function (p) { return p[0] === s.preset; })[0] || P[0])[2];
+    var on = {}; activeDims.forEach(function (d) { on[d] = true; });
+
+    var targets = T.map(function (t) {
+      var sel = !!s.sel[t.name] && t.ok, isBase = s.base === t.name;
+      return {
+        name: t.name, model: t.model, dot: dot(t.ok ? t.color : '#B5B5BD'), key: t.key, on: sel ? 'true' : 'false', off: !t.ok,
+        keyStyle: 'font-size:12px;font-weight:500;' + (t.ok ? 'color:#11663D' : 'color:#A1271C'),
+        check: check(sel),
+        box: 'display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:10px;' + (sel ? 'border:1.5px solid #17171A;background:#FFFFFF' : 'border:1px solid #E4E4E8;background:' + (t.ok ? '#FFFFFF' : '#FAFAFB')) + (t.ok ? '' : ';opacity:.75'),
+        canBase: sel,
+        baseText: isBase ? 'Baseline' : 'Make baseline',
+        baseBtn: 'align-self:flex-start;min-height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:600;' + (isBase ? 'background:#17171A;color:#FFFFFF;border:1px solid #17171A' : 'background:#FFFFFF;color:#33333A;border:1px solid #D9D9DF'),
+        toggle: function () { if (!t.ok) return; var n = Object.assign({}, s.sel); n[t.name] = !n[t.name]; self.setState({ sel: n }); },
+        makeBase: function () { self.setState({ base: t.name }); }
+      };
+    });
+
+    var presets = P.map(function (p) {
+      var act = !s.dims && s.preset === p[0];
+      return { name: p[1], on: act ? 'true' : 'false', pick: function () { self.setState({ preset: p[0], dims: null }); },
+        style: 'min-height:40px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:600;' + (act ? 'background:#17171A;color:#FFFFFF;border:1px solid #17171A' : 'background:#FFFFFF;color:#33333A;border:1px solid #D9D9DF') };
+    });
+    var dims = D.map(function (d) {
+      var o = !!on[d[0]];
+      return { name: d[1], n: d[2], on: o ? 'true' : 'false', check: check(o),
+        style: 'display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:8px;font-size:14px;font-weight:500;color:#17171A;' + (o ? 'background:#F6F6F7;border:1px solid #C9C9D1' : 'background:#FFFFFF;border:1px solid #E4E4E8'),
+        toggle: function () { var cur = activeDims.slice(), i = cur.indexOf(d[0]); if (i >= 0) cur.splice(i, 1); else cur.push(d[0]); self.setState({ dims: cur }); } };
+    });
+
+    var cases = D.filter(function (d) { return on[d[0]]; }).reduce(function (a, d) { return a + d[2]; }, 0);
+    var chosenT = T.filter(function (t) { return t.ok && s.sel[t.name]; });
+    var calls = cases * chosenT.length;
+    var costN = chosenT.reduce(function (a, t) { return a + t.k * cases / 1000; }, 0) * 0.72 + (cases ? 0.38 : 0);
+    var mins = Math.max(1, Math.round(calls / 8 * 2.2 / 60 / Math.max(1, chosenT.length) * 1.4));
+    var chosen = chosenT.slice().sort(function (a, b) { return (b.name === s.base) - (a.name === s.base); }).map(function (t) {
+      var b = t.name === s.base;
+      return { name: t.name, dot: dot(t.color), role: b ? 'Baseline' : 'Candidate',
+        roleStyle: b ? 'font-size:12px;font-weight:600;color:#FFFFFF;background:#17171A;border-radius:999px;padding:2px 10px' : 'font-size:12px;font-weight:600;color:#45454D;border:1px solid #D9D9DF;border-radius:999px;padding:1px 9px' };
+    });
+    var ready = chosenT.length >= 2 && cases > 0;
+    return {
+      targets: targets, presets: presets, dims: dims, chosen: chosen,
+      selCount: chosenT.length, caseCount: cases, dimCount: activeDims.length,
+      calls: calls.toLocaleString('en-US'), cached: Math.round(calls * 0.28).toLocaleString('en-US'),
+      cost: '$' + costN.toFixed(2), time: '~' + mins + ' min',
+      small: false, tooFew: chosenT.length < 2,
+      startStyle: 'display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;' + (ready ? 'background:#17171A;color:#FFFFFF' : 'background:#E4E4E8;color:#5C5C66;pointer-events:none')
+    };
+  }
+}
+</script>
+</body>
+</html>

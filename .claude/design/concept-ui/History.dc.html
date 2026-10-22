@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Past comparisons</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px;border-radius:8px;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid #17171A;background:#17171A;color:#FFFFFF}
+.btn:hover{background:#33333A;color:#FFFFFF}
+.row{display:grid;grid-template-columns:minmax(120px,0.8fr) minmax(260px,2.2fr) minmax(120px,1fr) minmax(220px,1.6fr) minmax(80px,0.6fr) minmax(130px,0.9fr);gap:16px;align-items:center;padding:14px 20px;border-bottom:1px solid #EEEEF1;text-decoration:none;color:#17171A}
+a.row:hover{background:#FAFAFB;color:#17171A}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+    <a class="navl" href="#">API docs</a>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 20px">
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div>
+      <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">Past comparisons</h1>
+      <p style="margin: 8px 0 0; font-size: 16px; color: #45454D">Every report stays here. Re-opening one costs nothing.</p>
+    </div>
+    <a class="btn" href="Choose.dc.html">New comparison</a>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 8px">
+    <label style="flex: 1 1 280px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; background: #FFFFFF; border: 1px solid #D9D9DF; border-radius: 8px">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#5C5C66" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5L14 14"></path></svg>
+      <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search comparisons</span>
+      <input type="search" placeholder="Search by model or benchmark" style="flex: 1; border: none; outline: none; font: inherit; font-size: 14px; background: transparent; color: #17171A">
+    </label>
+    <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+      <button type="button" onClick="{{f.pick}}" aria-pressed="{{f.on}}" style="{{f.style}}">{{f.name}}</button>
+    </sc-for>
+  </div>
+
+  <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 12px; overflow-x: auto">
+    <div style="min-width: 1000px">
+      <div class="row" style="background: #FAFAFB; font-size: 13px; color: #5C5C66; padding-top: 10px; padding-bottom: 10px">
+        <span>When</span><span>Models (baseline first)</span><span>Tested</span><span>Outcome</span><span style="text-align: right">Spend</span><span>Status</span>
+      </div>
+      <sc-for list="{{items}}" as="r" hint-placeholder-count="7">
+        <a class="row" href="Main.dc.html">
+          <span><div style="font-weight: 500; font-size: 14px">{{r.date}}</div><div style="font-size: 12px; color: #5C5C66">{{r.time}}</div></span>
+          <span style="display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px">
+            <sc-for list="{{r.models}}" as="m" hint-placeholder-count="2"><span style="display: inline-flex; align-items: center; gap: 6px"><span style="{{m.dot}}"></span>{{m.name}}</span></sc-for>
+          </span>
+          <span style="font-size: 14px; color: #33333A">{{r.deck}}</span>
+          <span style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start"><span style="{{r.chip}}">{{r.verdict}}</span><span style="font-size: 12px; color: #5C5C66">{{r.note}}</span></span>
+          <span style="text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600">{{r.spend}}</span>
+          <span style="{{r.statusStyle}}">{{r.status}}</span>
+        </a>
+      </sc-for>
+    </div>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { f: 'all' }; }
+  renderVals() {
+    var self = this;
+    var C = { 'claude-sonnet-5-5': '#D9774F', 'claude-opus-5-5': '#D9774F', 'gpt-6.1-sol': '#0F8A6A', 'gpt-6.1-mini': '#0F8A6A', 'gemini-3-flash': '#3D6FE0', 'gemini-3-pro': '#3D6FE0', 'mistral-large-3': '#8A63D2' };
+    var dot = function (c) { return 'display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;background:' + c; };
+    var chip = function (bg, fg) { return 'display:inline-flex;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:' + bg + ';color:' + fg; };
+    var V = { switch: chip('#E3F3EA', '#11663D'), keep: chip('#EEEEF1', '#45454D'), none: chip('#FFF1D6', '#7A4A00') };
+    var S = { done: ['Complete', '#11663D'], budget: ['Budget reached', '#7A4A00'], cancel: ['Cancelled', '#5C5C66'], failed: ['Failed', '#A1271C'] };
+    var R = [
+      ['Oct 20', '14:32', ['claude-sonnet-5-5', 'gpt-6.1-sol', 'gemini-3-flash'], 'Full deck', 'switch', 'Switch to gpt-6.1-sol', '+16.3 pts, 64% cheaper', '$8.86', 'done'],
+      ['Oct 18', '09:10', ['claude-sonnet-5-5', 'claude-opus-5-5'], 'Coding assistant', 'keep', 'Keep claude-sonnet-5-5', 'No measurable gain at 3× the cost', '$11.40', 'done'],
+      ['Oct 17', '16:45', ['gpt-6.1-mini', 'gemini-3-flash', 'mistral-large-3'], 'Data extraction', 'switch', 'Switch to gemini-3-flash', 'Tie on quality, cheapest', '$1.12', 'done'],
+      ['Oct 15', '11:02', ['claude-sonnet-5-5', 'gemini-3-pro'], 'Full deck', 'none', 'Partial report', 'Stopped at $10 budget, 71% done', '$10.00', 'budget'],
+      ['Oct 14', '18:20', ['claude-sonnet-5-5', 'gpt-6.1-sol'], 'Customer support', 'none', 'No report', 'Cancelled after 2 minutes', '$0.41', 'cancel'],
+      ['Oct 12', '10:05', ['gpt-6.1-mini', 'llama-5-70b'], 'Coding assistant', 'none', 'No report', 'TOGETHERAI_API_KEY missing', '$0.00', 'failed'],
+      ['Oct 09', '15:30', ['claude-sonnet-5-5', 'gpt-6.1-mini'], 'Full deck', 'keep', 'Keep claude-sonnet-5-5', 'gpt-6.1-mini worse on 4 dimensions', '$6.02', 'done']
+    ];
+    var keep = { all: function () { return true; }, done: function (r) { return r[8] === 'done'; }, partial: function (r) { return r[8] !== 'done'; } };
+    var filters = [['all', 'All'], ['done', 'Complete'], ['partial', 'Partial or failed']].map(function (f) {
+      var on = self.state.f === f[0];
+      return { name: f[1], on: on ? 'true' : 'false', pick: function () { self.setState({ f: f[0] }); },
+        style: 'min-height:44px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:600;' + (on ? 'background:#17171A;color:#FFFFFF;border:1px solid #17171A' : 'background:#FFFFFF;color:#33333A;border:1px solid #D9D9DF') };
+    });
+    var items = R.filter(keep[self.state.f]).map(function (r) {
+      return { date: r[0], time: r[1], deck: r[3], verdict: r[5], note: r[6], spend: r[7], chip: V[r[4]],
+        models: r[2].map(function (m) { return { name: m, dot: dot(C[m] || '#9A9AA3') }; }),
+        status: S[r[8]][0], statusStyle: 'font-size:13px;font-weight:600;color:' + S[r[8]][1] };
+    });
+    return { filters: filters, items: items };
+  }
+}
+</script>
+</body>
+</html>

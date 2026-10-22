@@ -18,7 +18,7 @@ updated: 2026-10-05
 | Run | One target × one benchmark execution. Status `running` / `done` / `budget_exceeded` / `failed` |
 | Result | One case × one repeat: score 0–1, passed, tokens, latency, cost, error, cached |
 | Baseline / incumbent | The model a candidate is compared against (defaults to the first `--target`) |
-| Verdict | Candidate vs baseline: `better` (CI > 0), `worse` (CI < 0), `inconclusive`, `insufficient_data` (< 10 paired cases) |
+| Verdict | Candidate vs baseline: `better` (CI > 0), `worse` (CI < 0), `equivalent` (90% CI inside ±3 pts), `inconclusive`, `insufficient_data` (< 10 paired cases), `incomplete` (> 10% errors on a side) |
 | Regression | A case the baseline passed and the candidate failed |
 | Statistical tie | Targets not significantly different from the quality leader; the cheapest tie is recommended |
 | Decision profile | Weights over dimensions (`profiles.yaml`); unmeasured dimensions are reported as missing coverage |

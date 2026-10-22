@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Project editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F6F6F7}
+a{color:#1F4FD1}a:hover{color:#163A9E}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.navl{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px;font-weight:500;color:#45454D;text-decoration:none;border-radius:8px}
+.navl:hover{color:#17171A;background:#F1F1F4}
+.card{background:#FFFFFF;border:1px solid #E4E4E8;border-radius:12px;padding:24px;min-width:0}
+.ct{margin:0;font-size:17px;font-weight:600;letter-spacing:-0.01em}
+.cs{margin:6px 0 0;font-size:14px;line-height:1.5;color:#5C5C66}
+button{font:inherit;cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #D9D9DF;background:#FFFFFF;color:#17171A}
+.btn:hover{background:#F6F6F7;color:#17171A}
+.btn.pri{background:#17171A;border-color:#17171A;color:#FFFFFF}
+.btn.pri:hover{background:#33333A;color:#FFFFFF}
+.btn[disabled]{background:#F1F1F4;color:#8A8A93;border-color:#E4E4E8;cursor:not-allowed}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:500;min-width:0}
+.fld input,.fld select,.fld textarea{font:inherit;font-weight:400;min-height:42px;padding:8px 12px;border:1px solid #D9D9DF;border-radius:8px;background:#FFFFFF;color:#17171A;box-sizing:border-box;width:100%}
+.fld textarea{resize:vertical;line-height:1.5}
+.fld small{font-weight:400;font-size:12px;color:#5C5C66}
+table.ct2{width:100%;border-collapse:collapse;font-size:14px}
+table.ct2 th,table.ct2 td{padding:10px 14px;border-bottom:1px solid #EEEEF1;text-align:left;vertical-align:top}
+.tag{display:inline-flex;font-size:12px;font-weight:500;color:#45454D;background:#F1F1F4;border-radius:6px;padding:2px 8px}
+</style>
+</helmet>
+<div style="font-family: Inter, system-ui, sans-serif; color: #17171A; background: #F6F6F7; min-height: 100vh; font-size: 15px; line-height: 1.5; position: relative">
+
+<header style="background: #FFFFFF; border-bottom: 1px solid #E4E4E8">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: #17171A; font-weight: 700; font-size: 16px; min-height: 44px">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="11" width="5" height="10" rx="1.5" fill="#D9774F"></rect><rect x="8.5" y="4" width="5" height="17" rx="1.5" fill="#0F8A6A"></rect><rect x="16" y="8" width="5" height="13" rx="1.5" fill="#3D6FE0"></rect></svg>
+      ModelCompare
+    </a>
+    <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 2px; flex: 1 1 auto">
+      <a class="navl" href="Choose.dc.html">Compare</a>
+      <a class="navl" href="#">Models</a>
+      <a class="navl" href="Projects.dc.html" aria-current="page" style="color: #17171A; background: #F1F1F4">Projects</a>
+      <a class="navl" href="Settings.dc.html">Settings</a>
+    </nav>
+    <span style="font-size: 12px; font-weight: 600; color: #7A4A00; background: #FFF1D6; border-radius: 999px; padding: 3px 10px">Sample data</span>
+  </div>
+</header>
+
+<main style="max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 24px">
+  <div>
+    <div style="font-size: 13px; color: #5C5C66"><a href="Projects.dc.html" style="color: #5C5C66">Projects</a> / support-triage</div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px">
+      <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 700; letter-spacing: -0.025em">Support triage</h1>
+      <span style="{{statusStyle}}">{{statusText}}</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+    <div style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+      <section class="card" aria-labelledby="h-det">
+        <h2 id="h-det" class="ct">Details</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px">
+          <label class="fld" style="grid-column: span 2">Name<input value="Support triage" onInput="{{touch}}"></label>
+          <label class="fld">Dimension<select onChange="{{touch}}"><option>structured_output</option><option>tool_calling</option><option>custom</option></select><small>Rolls up into the scorecard.</small></label>
+          <label class="fld">Pass threshold<input type="number" min="0" max="1" step="0.05" value="1" onInput="{{touch}}"><small>Score a case needs to pass, 0–1.</small></label>
+          <label class="fld" style="grid-column: 1 / -1">Description<input value="Route customer emails to a queue and flag refunds." onInput="{{touch}}"></label>
+          <label class="fld" style="grid-column: 1 / -1">System prompt<textarea class="mono" rows="3" style="font-size: 13px" onInput="{{touch}}">Return only JSON with keys category (billing | shipping | account | other) and refund_requested (boolean).</textarea></label>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="h-sc">
+        <h2 id="h-sc" class="ct">Scorers</h2>
+        <p class="cs">How every case is graded unless the case picks its own.</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin-top: 16px">
+          <sc-for list="{{scorers}}" as="s" hint-placeholder-count="8">
+            <button type="button" onClick="{{s.toggle}}" aria-pressed="{{s.pressed}}" style="{{s.style}}">
+              <span style="{{s.check}}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5"></path></svg></span>
+              <span style="display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0">
+                <span class="mono" style="font-size: 13px; font-weight: 500">{{s.name}}</span>
+                <span style="font-size: 12px; color: #5C5C66; font-weight: 400">{{s.desc}}</span>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{schemaOn}}" hint-placeholder-val="{{true}}">
+          <label class="fld" style="margin-top: 16px">json_schema parameters<input class="mono" style="font-size: 13px" value='{"required": ["category", "refund_requested"]}' onInput="{{touch}}"><small>JSON. Leave empty to only check the answer parses.</small></label>
+        </sc-if>
+      </section>
+
+      <section class="card" aria-labelledby="h-cases" style="padding: 0; overflow: hidden">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px 12px">
+          <div>
+            <h2 id="h-cases" class="ct">Cases <span style="color: #5C5C66; font-weight: 500">· 42</span></h2>
+            <p class="cs">Select a case to edit it. 50 or more cases make verdicts trustworthy.</p>
+          </div>
+          <div style="display: flex; gap: 8px"><button type="button" class="btn" onClick="{{touch}}">Add case</button></div>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="ct2" style="min-width: 720px">
+            <thead><tr style="background: #FAFAFB; font-size: 13px; color: #5C5C66"><th style="font-weight: 500; width: 40px">#</th><th style="font-weight: 500">Id</th><th style="font-weight: 500">Input</th><th style="font-weight: 500">Expected</th><th style="font-weight: 500">Scorer</th></tr></thead>
+            <tbody>
+              <sc-for list="{{cases}}" as="c" hint-placeholder-count="6">
+                <tr style="{{c.rowStyle}}">
+                  <td style="color: #5C5C66; font-variant-numeric: tabular-nums">{{c.n}}</td>
+                  <td><button type="button" onClick="{{c.open}}" aria-expanded="{{c.expanded}}" class="mono" style="all: unset; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: #1F4FD1; min-height: 24px">{{c.id}}</button>
+                    <sc-if value="{{c.bad}}" hint-placeholder-val="{{false}}"><div style="font-size: 12px; color: #A1271C; margin-top: 2px">{{c.error}}</div></sc-if>
+                  </td>
+                  <td style="max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #33333A">{{c.input}}</td>
+                  <td class="mono" style="font-size: 12.5px; color: #45454D; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.expected}}</td>
+                  <td><span class="tag">{{c.scorer}}</span></td>
+                </tr>
+                <sc-if value="{{c.isOpen}}" hint-placeholder-val="{{false}}">
+                  <tr><td colspan="5" style="background: #FAFAFB; padding: 16px 24px 20px">
+                    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+                      <label class="fld">Id<input class="mono" style="font-size: 13px" value="{{c.id}}" onInput="{{touch}}"></label>
+                      <label class="fld">Tags<input placeholder="comma, separated" value="billing" onInput="{{touch}}"></label>
+                      <label class="fld" style="grid-column: 1 / -1">Input<textarea rows="3" onInput="{{touch}}">{{c.input}}</textarea></label>
+                      <label class="fld">Expected<textarea class="mono" rows="2" style="font-size: 13px" onInput="{{touch}}">{{c.expected}}</textarea></label>
+                      <label class="fld">Scorer<select onChange="{{touch}}"><option>Project default</option><option>json_schema</option><option>exact</option><option>llm_judge</option></select></label>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 12px"><button type="button" class="btn" style="color: #A1271C" onClick="{{touch}}">Remove case</button></div>
+                  </td></tr>
+                </sc-if>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <div style="padding: 12px 24px; font-size: 14px; border-top: 1px solid #EEEEF1"><a href="#h-cases">Show all 42 cases</a></div>
+      </section>
+    </div>
+
+    <aside aria-label="Project actions" style="flex: 1 1 300px; min-width: 0; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px">
+      <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <button type="button" class="btn pri" style="min-height: 48px; font-size: 15px" onClick="{{save}}">Save project</button>
+        <button type="button" class="btn" disabled="{{dirty}}">Run on models</button>
+        <sc-if value="{{dirty}}" hint-placeholder-val="{{false}}"><div style="font-size: 12px; color: #5C5C66; text-align: center">Save your changes to run them.</div></sc-if>
+        <button type="button" class="btn" onClick="{{openDraft}}">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.5l1.6 3.9 3.9 1.6-3.9 1.6L8 12.5 6.4 8.6 2.5 7l3.9-1.6z"></path></svg>
+          Draft cases with AI
+        </button>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+        <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #5C5C66">Checks</div>
+        <div style="display: flex; gap: 8px; align-items: center"><span style="color: #11663D; font-weight: 700">✓</span>42 cases, ids unique</div>
+        <div style="display: flex; gap: 8px; align-items: center"><span style="color: #11663D; font-weight: 700">✓</span>Every case has a scorer</div>
+        <div style="display: flex; gap: 8px; align-items: flex-start; color: #7A1D15"><span style="font-weight: 700">!</span><span>Case 3: expected is not valid JSON. <a href="#h-cases">Fix it</a></span></div>
+      </div>
+      <div style="background: #FFFFFF; border: 1px solid #E4E4E8; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 14px; color: #45454D">Deleting removes the project file. Past runs stay in History.</div>
+        <button type="button" class="btn" style="color: #A1271C">Delete project</button>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<sc-if value="{{draftOpen}}" hint-placeholder-val="{{false}}">
+  <div style="position: absolute; inset: 0; background: rgba(23,23,26,.45); display: flex; align-items: flex-start; justify-content: center; padding: 120px 16px">
+    <div role="dialog" aria-modal="true" aria-labelledby="dlg-h" style="width: 100%; max-width: 560px; background: #FFFFFF; border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 24px 48px rgba(23,23,26,.2)">
+      <div>
+        <h2 id="dlg-h" class="ct" style="font-size: 20px">Draft cases with AI</h2>
+        <p class="cs">A model writes cases from your description. You review every one before saving.</p>
+      </div>
+      <label class="fld">Describe the project<textarea rows="3">Classify inbound support emails into billing, shipping, account or other, and flag refund requests.</textarea></label>
+      <label class="fld">Examples<textarea class="mono" rows="3" style="font-size: 13px" placeholder="input =&gt; expected">Charged twice for order 991 =&gt; {"category": "billing", "refund_requested": true}</textarea><small>Optional. One per line, input =&gt; expected.</small></label>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <label class="fld">Number of cases<input type="number" min="1" max="50" value="20"></label>
+        <label class="fld">Drafting model<select><option>claude-opus-5-5</option><option>gpt-6.1-sol</option></select></label>
+      </div>
+      <div style="font-size: 13px; color: #5C5C66">About $0.04. Drafted cases replace the empty ones and keep the ones you wrote.</div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px">
+        <button type="button" class="btn" onClick="{{closeDraft}}">Cancel</button>
+        <button type="button" class="btn pri" onClick="{{closeDraft}}">Draft 20 cases</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { dirty: true, open: 0, sc: { json_schema: true }, draft: false }; }
+  renderVals() {
+    var self = this, s = this.state;
+    var check = function (on) { return 'flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:6px;margin-top:1px;' + (on ? 'background:#17171A;border:1px solid #17171A' : 'background:#FFFFFF;border:1px solid #C9C9D1'); };
+    var SC = [['exact', 'Answer matches exactly'], ['contains', 'Answer contains the text'], ['regex', 'Answer matches a pattern'], ['numeric', 'Number within tolerance'], ['json_schema', 'Valid JSON, fields match'], ['tool_call', 'Right function and arguments'], ['refusal', 'Refuses when it should'], ['llm_judge', 'A judge model grades it']];
+    var scorers = SC.map(function (x) {
+      var on = !!s.sc[x[0]];
+      return { name: x[0], desc: x[1], pressed: on ? 'true' : 'false', check: check(on),
+        style: 'display:flex;gap:10px;align-items:flex-start;min-height:44px;padding:12px;border-radius:10px;color:#17171A;' + (on ? 'background:#FFFFFF;border:1.5px solid #17171A' : 'background:#FFFFFF;border:1px solid #E4E4E8'),
+        toggle: function () { var n = Object.assign({}, s.sc); n[x[0]] = !n[x[0]]; self.setState({ sc: n, dirty: true }); } };
+    });
+    var C = [
+      ['refund_01', 'Customer says: charged twice for order 991, wants a refund', '{"category": "billing", "refund_requested": true}', 'Default', ''],
+      ['ship_02', 'Where is my package? Tracking has not moved in 5 days', '{"category": "shipping", "refund_requested": false}', 'Default', ''],
+      ['refund_03', 'I want my money back, the blender arrived broken', '{"category": "billing", refund_requested: true}', 'Default', 'Expected is not valid JSON'],
+      ['acct_04', 'Cannot log in after resetting my password', '{"category": "account", "refund_requested": false}', 'Default', ''],
+      ['other_05', 'Do you ship to Iceland?', '{"category": "shipping", "refund_requested": false}', 'exact', ''],
+      ['refund_06', 'Cancel my subscription and refund this month', '{"category": "billing", "refund_requested": true}', 'Default', '']
+    ];
+    var cases = C.map(function (c, i) {
+      return { n: i + 1, id: c[0], input: c[1], expected: c[2], scorer: c[3], bad: !!c[4], error: c[4], isOpen: s.open === i, expanded: s.open === i ? 'true' : 'false',
+        rowStyle: c[4] ? 'background:#FDF3F2' : (s.open === i ? 'background:#FAFAFB' : ''),
+        open: function () { self.setState({ open: s.open === i ? -1 : i }); } };
+    });
+    return {
+      scorers: scorers, cases: cases, schemaOn: !!s.sc.json_schema, dirty: s.dirty, draftOpen: s.draft,
+      statusText: s.dirty ? 'Unsaved changes' : 'Saved',
+      statusStyle: 'font-size:12px;font-weight:600;border-radius:999px;padding:3px 10px;' + (s.dirty ? 'color:#7A4A00;background:#FFF1D6' : 'color:#11663D;background:#E3F3EA'),
+      touch: function () { if (!self.state.dirty) self.setState({ dirty: true }); },
+      save: function () { self.setState({ dirty: false }); },
+      openDraft: function () { self.setState({ draft: true }); },
+      closeDraft: function () { self.setState({ draft: false }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

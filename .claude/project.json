@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "integrationBranch": "main",
+  "productionBranch": "main",
+  "ticketSystem": "github",
+  "install": "cd engine && .venv/bin/pip install -e '.[dev]' && cd ../web && npm ci",
+  "verify": "cd engine && .venv/bin/pytest -q && cd ../web && npm run lint && npm run build",
+  "formatter": "none",
+  "app": {
+    "kind": "web",
+    "start": "cd engine && .venv/bin/modelcompare serve --port 8765",
+    "stop": null,
+    "health": [
+      "http://127.0.0.1:8765/api/targets"
+    ],
+    "webUrl": "http://127.0.0.1:8765",
+    "env": {
+      "MODELCOMPARE_HOME": ".modelcompare-qa",
+      "MODELCOMPARE_TARGETS": "targets.qa.yaml",
+      "MODELCOMPARE_CUSTOM_DIR": ".modelcompare-qa/custom",
+      "MODELCOMPARE_KEYS_FILE": ".modelcompare-qa/keys.test",
+      "MODELCOMPARE_CATALOG_FIXTURES": "tests/fixtures/catalog",
+      "LITELLM_MODE": "PRODUCTION",
+      "LITELLM_LOCAL_MODEL_COST_MAP": "True"
+    },
+    "setup": [
+      "cd web && npm ci && npm run build",
+      "cd engine && .venv/bin/modelcompare run -t mock-a -t mock-b -b benchmarks/standard/reasoning/math_word_problems.yaml -f targets.qa.yaml -y",
+      "cd engine && .venv/bin/python scripts/seed_qa.py"
+    ],
+    "notes": "QA runs on :8765 with mock targets, an isolated data dir and an isolated keys file, so it never touches the real DB or the real engine env file. targets.qa.yaml (mock targets only) lands in M1; MODELCOMPARE_KEYS_FILE is honoured from M3. Setup builds web/out, which the server mounts at /."
+  },
+  "e2e": null,
+  "coverage": {
+    "command": null,
+    "threshold": 80
+  },
+  "environments": {},
+  "autonomy": {
+    "allowMerge": false
+  },
+  "requiredChecks": []
+}

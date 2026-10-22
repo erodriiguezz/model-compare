@@ -19,6 +19,7 @@ class LiteLLMTarget(Target):
             "messages": messages,
             "max_tokens": self.cfg.max_tokens,
             "num_retries": 3,
+            "drop_params": True,
             **self.cfg.extra,
         }
         if self.cfg.temperature is not None:
@@ -27,8 +28,16 @@ class LiteLLMTarget(Target):
             kwargs["tools"] = tools
 
         start = time.perf_counter()
+        fallback = False
         try:
-            resp = await litellm.acompletion(**kwargs)
+            try:
+                resp = await litellm.acompletion(**kwargs)
+            except Exception as e:
+                if "temperature" not in kwargs or not _temperature_unsupported(litellm, e):
+                    raise
+                kwargs.pop("temperature")
+                fallback = True
+                resp = await litellm.acompletion(**kwargs)
         except Exception as e:  # provider errors are results, not crashes
             return Completion(error=f"{type(e).__name__}: {e}", latency_s=time.perf_counter() - start)
         latency = time.perf_counter() - start
@@ -60,7 +69,19 @@ class LiteLLMTarget(Target):
             output_tokens=out_tok,
             latency_s=latency,
             cost_usd=cost,
+            finish_reason=getattr(resp.choices[0], "finish_reason", None),
+            temperature_fallback=fallback,
         )
+
+
+def _temperature_unsupported(litellm: Any, e: Exception) -> bool:
+    msg = str(e).lower()
+    if "temperature" not in msg:
+        return False
+    unsupported = getattr(litellm, "UnsupportedParamsError", None)
+    if unsupported and isinstance(e, unsupported):
+        return True
+    return any(p in msg for p in ("unsupported", "not support", "does not support", "not supported"))
 
 
 def model_metadata(model: str) -> dict[str, Any]:

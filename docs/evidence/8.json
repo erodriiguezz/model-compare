@@ -1,0 +1,61 @@
+{
+  "issue": 8,
+  "title": "Projects API and AI draft",
+  "branch": "feat/dashboard-v2-redesign-p8-projects-api",
+  "commit": "68f53ae4c6e24ee07eac80623b3bbdf59d1c4abe",
+  "plan": ".claude/plans/8-dashboard-v2-projects-api.md",
+  "size": "M",
+  "touchesApi": true,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "68f53ae4c6e24ee07eac80623b3bbdf59d1c4abe",
+    "at": "2026-10-21T00:33:07.851Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-8.1",
+        "tests": 2
+      },
+      {
+        "id": "AC-8.2",
+        "tests": 1
+      },
+      {
+        "id": "AC-8.3",
+        "tests": 1
+      },
+      {
+        "id": "AC-8.4",
+        "tests": 2
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (2 High) → all fixed; lead blocked test_quality too",
+    "document": "docs/reviews/8.md"
+  },
+  "cost": {
+    "estTokens": 280000,
+    "actualTokens": 102794848,
+    "toolCalls": 50,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-21T00:33:52.241Z"
+}

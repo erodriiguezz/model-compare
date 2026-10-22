@@ -1,0 +1,67 @@
+{
+  "issue": 4,
+  "title": "Settings — provider keys",
+  "branch": "feat/dashboard-v2-redesign-p4b-settings",
+  "commit": "37db9842de3b56ec870bddbfd582fde657bb85cc",
+  "plan": ".claude/plans/4-dashboard-v2-settings.md",
+  "size": "M",
+  "touchesApi": true,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "37db9842de3b56ec870bddbfd582fde657bb85cc",
+    "at": "2026-10-20T21:35:30.665Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-4.1",
+        "tests": 1
+      },
+      {
+        "id": "AC-4.2",
+        "tests": 3
+      },
+      {
+        "id": "AC-4.3",
+        "tests": 3
+      },
+      {
+        "id": "AC-4.4",
+        "tests": 1
+      },
+      {
+        "id": "AC-4.5",
+        "tests": 7
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (1 High) → round 2 approve; follow-up: Host/Origin for rest of /api",
+    "document": "docs/reviews/4.md"
+  },
+  "cost": {
+    "estTokens": 280000,
+    "actualTokens": 45042364,
+    "toolCalls": 23,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-20T21:35:48.168Z"
+}

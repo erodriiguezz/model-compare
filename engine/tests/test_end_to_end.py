@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from typer.testing import CliRunner
 
 from modelcompare import db
@@ -9,7 +11,10 @@ from modelcompare.cli import app
 from modelcompare.html_report import render_html
 from modelcompare.report import build_report, latest_runs
 from modelcompare.runner import run_benchmark
-from modelcompare.schema import Benchmark, TargetConfig
+from modelcompare.runner import score_case
+from modelcompare.schema import Benchmark, Case, Completion, TargetConfig
+from modelcompare.scorers import ScoreContext, ScorerError, run_scorer
+from modelcompare.targets.mock import MockTarget
 
 N = 20
 
@@ -64,7 +69,8 @@ async def test_tie_recommends_cheaper(db_url):
     rec = rep["recommendations"][0]
     assert set(rec["statistical_ties"]) == {"pricey", "cheap"}
     assert rec["recommended"] == "cheap"
-    assert rep["headline"][0]["overall"] == "inconclusive"
+    assert rep["headline"][0]["overall"] == "equivalent"
+    assert rep["benchmarks"][0]["comparisons"][0]["verdict"] == "equivalent"
 
 
 async def test_cache_hits_cost_nothing(db_url):
@@ -118,3 +124,186 @@ def test_cli_run_and_compare(db_url, tmp_path):
     assert res.exit_code == 0, res.output
     assert "new vs old: BETTER" in res.output
     assert out.exists() and out.with_suffix(".json").exists()
+
+
+def with_errors(t: TargetConfig, cases: set[int], msg="BadRequestError: temperature unsupported") -> TargetConfig:
+    t.extra["errors"] = {f"q{i}": msg for i in cases}
+    return t
+
+
+async def test_errors_excluded_and_incomplete(db_url):
+    """AC-1.1 / AC-1.2: errored calls are not scored or paired; >10% errors on a side is incomplete."""
+    base = mock("base", set(range(N)))
+    flaky = with_errors(mock("flaky", set(range(N))), set(range(5)))  # 25% errors, all others correct
+    b = bench()
+    await run_benchmark(base, b, db_url=db_url)
+    await run_benchmark(flaky, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "flaky"]), baseline="base")
+
+    bm = rep["benchmarks"][0]
+    sm = bm["summaries"]["flaky"]
+    assert sm["n_errors"] == 5 and sm["n_cases"] == 15 and sm["mean_score"] == 1.0  # errors are not zeros
+    assert sm["error_reasons"][0] == {"reason": "BadRequestError: temperature unsupported", "count": 5}
+    assert rep["errors"]["flaky"]["arith"]["n_errors"] == 5 and "base" not in rep["errors"]
+    cmp = bm["comparisons"][0]
+    assert cmp["n"] == 15 and cmp["delta"] == 0
+    assert cmp["verdict"] == "incomplete" and rep["headline"][0]["overall"] == "incomplete"
+    assert rep["overall"]["flaky"]["verdict"] == "incomplete"
+    dec = rep["summary"]["decisions"][0]
+    assert "Fix errors and re-run" in dec["line"] and "Fix errors and re-run" in dec["overall_verdict_text"]
+    assert "Fix errors and re-run" in render_html(rep)
+
+
+async def test_few_errors_stay_comparable(db_url):
+    """AC-1.2: at or under 10% errors the comparison is still scored, on non-errored pairs only."""
+    base = mock("base", set(range(N)))
+    flaky = with_errors(mock("flaky", set(range(N))), {0, 1})  # exactly 10%
+    b = bench()
+    await run_benchmark(base, b, db_url=db_url)
+    await run_benchmark(flaky, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "flaky"]), baseline="base")
+    cmp = rep["benchmarks"][0]["comparisons"][0]
+    assert cmp["n"] == 18 and cmp["verdict"] != "incomplete"
+    assert rep["errors"]["flaky"]["arith"]["n_errors"] == 2
+
+
+async def test_saturation_flag(db_url):
+    """AC-1.4: every compared target at >=0.95 flags the benchmark as too easy."""
+    easy_a, easy_b = mock("a", set(range(N))), mock("b", set(range(N)))
+    hard = mock("c", set(range(10)))
+    b = bench()
+    for t in (easy_a, easy_b, hard):
+        await run_benchmark(t, b, db_url=db_url)
+    with db.session(db_url) as s:
+        sat = build_report(s, latest_runs(s, ["a", "b"]), baseline="a")
+        mixed = build_report(s, latest_runs(s, ["a", "c"]), baseline="a")
+    assert sat["benchmarks"][0]["saturated"] is True
+    assert sat["benchmarks"][0]["saturation_message"] == "Too easy to separate these models"
+    assert any("Too easy to separate these models" in w for w in sat["warnings"])
+    assert "Too easy to separate these models" in render_html(sat)
+    assert mixed["benchmarks"][0]["saturated"] is False
+
+
+async def test_single_target_is_never_saturated(db_url):
+    """AC-1.4: saturation needs at least two compared targets."""
+    await run_benchmark(mock("solo", set(range(N))), bench(), db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["solo"]))
+    assert rep["benchmarks"][0]["saturated"] is False
+
+
+async def test_run_records_temperature_fallback_even_when_cached(db_url):
+    """AC-1.5: the run's target_config records the fallback, also on a cached replay."""
+    t = mock("m", set(range(N)))
+    t.extra["temperature_fallback"] = True
+    plain = mock("plain", set(range(N)))
+    b = bench()
+    for target, expected in ((t, True), (t, True), (plain, None)):  # second pass replays from cache
+        out = await run_benchmark(target, b, db_url=db_url)
+        with db.session(db_url) as s:
+            assert s.get(db.Run, out.run_id).target_config.get("temperature_fallback") is expected
+    assert out.results and not any(r.completion.temperature_fallback for r in out.results)
+
+
+async def test_headline_incomplete_caps_other_verdicts(db_url):
+    """AC-1.2: one incomplete benchmark makes the candidate's headline incomplete, even if another is better."""
+    base_ok = mock("base", set(range(10)))
+    cand = mock("cand", set(range(N)))
+    cand_flaky = with_errors(mock("cand", set(range(N))), set(range(5)))
+    for name, c in (("good", cand), ("broken", cand_flaky)):
+        b = bench(name)
+        await run_benchmark(base_ok, b, db_url=db_url)
+        await run_benchmark(c, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["base", "cand"]), baseline="base")
+    verdicts = {b["name"]: b["comparisons"][0]["verdict"] for b in rep["benchmarks"]}
+    assert verdicts == {"good": "better", "broken": "incomplete"}
+    assert rep["headline"][0]["overall"] == "incomplete"
+
+
+async def test_failing_target_is_not_recommended_or_cheap(db_url):
+    """Errored calls cost nothing, so a failing model must not look cheap or get recommended."""
+    ok = mock("ok", set(range(N)), price=(10.0, 30.0))
+    dead = with_errors(mock("dead", set(range(N)), price=(0.1, 0.1)), set(range(15)))
+    b = bench()
+    await run_benchmark(ok, b, db_url=db_url)
+    await run_benchmark(dead, b, db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["ok", "dead"]), baseline="ok")
+    rec = rep["recommendations"][0]
+    assert rec["recommended"] == "ok" and rec["not_recommendable"] == ["dead"]
+    sm = rep["benchmarks"][0]["summaries"]["dead"]
+    assert sm["cost_per_case"] == pytest.approx(sm["cost_usd"] / 5)  # per successful call
+
+
+class SeqJudge(MockTarget):
+    """Judge stub: replies from a list, repeating the last one; counts calls."""
+
+    def __init__(self, replies):
+        super().__init__(TargetConfig(name="j", kind="mock", model="mock/j"))
+        self.replies, self.calls = replies, 0
+
+    async def complete(self, messages, tools=None, case_id=None):
+        r = self.replies[min(self.calls, len(self.replies) - 1)]
+        self.calls += 1
+        return Completion(error=r[6:]) if r.startswith("error:") else Completion(text=r)
+
+
+@pytest.mark.parametrize("reply,expected", [
+    ("Score: 8/10", 8), ("8/10", 8), ('{"score": 8}', 8), ("**8**/10", 8), ("SCORE: 8", 8), ("Score: **8**", 8),
+])
+async def test_judge_parses_score_variants(reply, expected):
+    d = await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=SeqJudge([reply])))
+    assert d.reason == f"{expected}/10"
+
+
+async def test_judge_no_score_retries_once_then_errors():
+    j = SeqJudge(["no idea"])
+    with pytest.raises(ScorerError, match="judge gave no score"):
+        await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=j))
+    assert j.calls == 2
+    j = SeqJudge(["hmm", "SCORE: 9"])
+    d = await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {}, ScoreContext(judge=j))
+    assert d.reason == "9/10" and j.calls == 2
+
+
+def judged_bench(scorers):
+    return Benchmark(name="j", dimension="reasoning", scorers=scorers,
+                     cases=[{"id": f"q{i}", "input": "q", "expected": 1} for i in range(N)])
+
+
+def judge_cfg(reply):
+    return TargetConfig(name="j", kind="mock", model="mock/j", extra={"default": reply})
+
+
+async def test_judge_failure_is_error_not_zero(db_url):
+    """A judge that fails is a scoring error: excluded from score and pairing, counted, and flags incomplete."""
+    b = judged_bench([{"type": "llm_judge"}])
+    ok, bad = mock("ok", set()), mock("bad", set())
+    ok.extra["responses"] = bad.extra["responses"] = {}
+    ok.extra["default"] = bad.extra["default"] = "answer"
+    await run_benchmark(ok, b, judge_cfg=judge_cfg("SCORE: 10"), db_url=db_url)
+    await run_benchmark(bad, b, judge_cfg=judge_cfg("no idea"), db_url=db_url)
+    with db.session(db_url) as s:
+        rep = build_report(s, latest_runs(s, ["ok", "bad"]), baseline="ok")
+        r = s.query(db.Result).filter(db.Result.error.isnot(None)).first()
+        assert r.text == "answer"
+    sm = rep["benchmarks"][0]["summaries"]["bad"]
+    assert sm["n_errors"] == N and sm["n_cases"] == 0
+    assert sm["error_reasons"][0]["reason"] == "judge gave no score"
+    assert rep["errors"]["bad"]["j"]["n_errors"] == N
+    assert rep["benchmarks"][0]["comparisons"][0]["verdict"] == "incomplete"
+
+
+async def test_judge_provider_error_is_scorer_error():
+    with pytest.raises(ScorerError, match="judge error: RateLimitError"):
+        await run_scorer("llm_judge", Completion(text="a"), Case(id="c", input="q"), {},
+                         ScoreContext(judge=SeqJudge(["error:RateLimitError"])))
+
+
+async def test_multi_scorer_with_failed_judge_is_error():
+    b = judged_bench([{"type": "numeric"}, {"type": "llm_judge"}])
+    _, score, err = await score_case(Completion(text="ANSWER: 1"), b.cases[0], b, ScoreContext(judge=SeqJudge(["??"])))
+    assert err == "judge gave no score" and score == 0.0

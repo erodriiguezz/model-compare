@@ -13,15 +13,18 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | --- | --- |
 | `schema.py` | Pydantic models: `TargetConfig`, `Benchmark`, `Case`, `ScorerSpec`, `Completion`, `CaseResult`; benchmark fingerprint |
 | `bench_loader.py` | Resolves `standard` / `custom` / `<dimension>` / dir / file into benchmarks |
+| `projects.py` | Custom benchmark CRUD as YAML in `MODELCOMPARE_CUSTOM_DIR`, slug/path guard, mock-able AI draft |
+| `catalog.py` | Per-provider model lists via httpx, chat filter, LiteLLM price/context, 10-min cache; `/api/models` |
 | `targets/` | `Target` ABC; `LiteLLMTarget` (all real providers, pricing metadata); `MockTarget` |
 | `scorers/` | Registry via `@scorer(name)`; `deterministic.py`, `code_exec.py` (subprocess, timeout), `judge.py` (`llm_judge`) |
 | `runner.py` | Runs a benchmark: concurrency, cache key (sha256 of request), budget cap, weighted scoring, pre-run cost estimate |
-| `stats.py` | Pure-Python paired bootstrap (seeded, 5000 iters), exact McNemar, Wilson CI; `MIN_CASES_FOR_VERDICT = 10` |
+| `stats.py` | Pure-Python paired bootstrap (seeded, 5000 iters), exact McNemar, Wilson CI; `MIN_CASES_FOR_VERDICT = 10`, `EQUIV_MARGIN = 0.03` (TOST-style `equivalent`) |
 | `recommend.py` | Per-dimension recommendations, statistical ties, Pareto front, profile rankings |
 | `report.py` | Builds the comparison report from the latest runs: headline, regressions, warnings |
 | `html_report.py` | Self-contained HTML render (radar chart, side-by-side outputs) |
 | `db.py` | SQLModel tables `Run`, `Result`, `CacheEntry` |
-| `cli.py` / `api.py` | Typer CLI and FastAPI app exposing the same operations |
+| `cli.py` / `api.py` | Typer CLI and FastAPI app; API under `/api` plus root aliases; the dashboard is the Next app |
+| `web/` (Next.js) | Static export in `web/out`, served at `/` by FastAPI; build with `npm run build` |
 
 ## Data flow
 `targets.yaml` + benchmark YAML → `runner.run_benchmark` → target completion (or cache hit) → scorers → `Run`/`Result` rows → `report.build_report` → `stats` + `recommend` → JSON/HTML.
@@ -32,7 +35,7 @@ Single Python package, `engine/modelcompare` (Python ≥ 3.11, hatchling, ~2.2k 
 | Database | SQLite at `.modelcompare/modelcompare.db` | `MODELCOMPARE_DB_URL` — Postgres is a supported target but has no tests yet |
 | Data dir | `.modelcompare/` | `MODELCOMPARE_HOME` |
 | Targets file | `targets.yaml` (from `targets.example.yaml`) | `-f` / `MODELCOMPARE_TARGETS` |
-| API keys | Environment or `.env` via python-dotenv | — |
+| API keys | Environment, the env file, or Settings page (writes the env file) | `MODELCOMPARE_KEYS_FILE` |
 
 Schema is created with `SQLModel.metadata.create_all`; there are no migrations.
 

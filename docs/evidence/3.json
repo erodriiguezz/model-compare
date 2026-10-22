@@ -1,0 +1,67 @@
+{
+  "issue": 3,
+  "title": "Port run, report and history to Next.js",
+  "branch": "feat/dashboard-v2-redesign-p3d-cleanup",
+  "commit": "29f0a605905ac1e3195246cbbbfd0d906aca6123",
+  "plan": ".claude/plans/3-dashboard-v2-port.md",
+  "size": "M",
+  "touchesApi": false,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "29f0a605905ac1e3195246cbbbfd0d906aca6123",
+    "at": "2026-10-20T15:29:13.074Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-3.1",
+        "tests": 7
+      },
+      {
+        "id": "AC-3.2",
+        "tests": 2
+      },
+      {
+        "id": "AC-3.3",
+        "tests": 3
+      },
+      {
+        "id": "AC-3.4",
+        "tests": 1
+      },
+      {
+        "id": "AC-3.5",
+        "tests": 5
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Round 1 request changes (2 High) → round 2 approve; RunRequest bounds open as follow-up",
+    "document": "docs/reviews/3.md"
+  },
+  "cost": {
+    "estTokens": 300000,
+    "actualTokens": 32328663,
+    "toolCalls": 42,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-20T21:09:58.303Z"
+}

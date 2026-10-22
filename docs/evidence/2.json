@@ -1,0 +1,63 @@
+{
+  "issue": 2,
+  "title": "Next.js shell and design system",
+  "branch": "feat/dashboard-v2-redesign-p2-shell",
+  "commit": "246113df85af49aa468e5eb998bb36ccb56dc695",
+  "plan": ".claude/plans/2-dashboard-v2-shell.md",
+  "size": "M",
+  "touchesApi": true,
+  "autonomy": "pr",
+  "approval": {
+    "by": "Ernesto",
+    "at": "2026-10-19"
+  },
+  "tests": {
+    "commit": "246113df85af49aa468e5eb998bb36ccb56dc695",
+    "at": "2026-10-20T14:09:26.198Z",
+    "passed": true,
+    "steps": {
+      "verify": "pass",
+      "app": "pass",
+      "api": "pass",
+      "browser": "pass",
+      "screenshots": "pass",
+      "ui": "pass",
+      "ac": "pass",
+      "diffcov": "warn"
+    },
+    "acceptanceCriteria": "pass",
+    "criteria": [
+      {
+        "id": "AC-2.1",
+        "tests": 2
+      },
+      {
+        "id": "AC-2.2",
+        "tests": 1
+      },
+      {
+        "id": "AC-2.3",
+        "tests": 3
+      },
+      {
+        "id": "AC-2.4",
+        "tests": 1
+      }
+    ],
+    "diffCoverage": "not-measured",
+    "api": "pass",
+    "browser": "pass",
+    "target": "local"
+  },
+  "review": {
+    "local": "Approve; 3 Medium / 6 Low all fixed",
+    "document": "docs/reviews/2.md"
+  },
+  "cost": {
+    "estTokens": 300000,
+    "actualTokens": 9650647,
+    "toolCalls": 55,
+    "handoff": false
+  },
+  "writtenAt": "2026-10-20T14:11:23.202Z"
+}
