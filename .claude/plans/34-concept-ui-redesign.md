@@ -187,6 +187,12 @@ none
 - 390 counted lines · reviewer: Needs a decision (1 High: benchmark instead of dimension toggles, settled by the AC as written and fixed in 6bbeede); every Medium and Low item fixed
 - Review doc: `docs/reviews/34-p2.md`
 
+### p3 — report top (`fbde510`)
+- verify pass · API smoke pass · browser 183/183 · UI audit 0 serious, 10 minor · diff coverage not measured
+- AC-34.5 → `concept-ui.spec.ts:255`, `:349`, `:357` ✔ · AC-34.6 → `:295` ✔ · AC-34.7 → `:324` ✔
+- 386 counted lines (the Suggestions.tsx deletion moved to p4 to stay under 400) · reviewer: Request changes (2 High: headline by target order, 0 regressions shown as "—"), both fixed with every Medium and Low item
+- Review doc: `docs/reviews/34-p3.md`
+
 ## 6. Retro
 
 ## 7. Hand-off
