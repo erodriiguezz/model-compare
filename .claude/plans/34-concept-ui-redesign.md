@@ -181,6 +181,12 @@ none
 - Review doc: `docs/reviews/34-p1.md`
 - Note: a stale fake Anthropic key in the isolated QA keys file turned three Models and judge specs red; removed through `DELETE /api/settings/keys/anthropic`. Not a code issue.
 
+### p2 — Choose and Run (`c242fff`)
+- verify pass · API smoke pass · browser 174/174 · UI audit 0 serious, 10 minor · diff coverage not measured
+- AC-34.2 → `concept-ui.spec.ts:144` ✔ · AC-34.3 (amended, Grill 5) → `:161` + restored one-model journey in `run-flow.spec.ts` ✔ · AC-34.4 → `:218` ✔
+- 390 counted lines · reviewer: Needs a decision (1 High: benchmark instead of dimension toggles, settled by the AC as written and fixed in 6bbeede); every Medium and Low item fixed
+- Review doc: `docs/reviews/34-p2.md`
+
 ## 6. Retro
 
 ## 7. Hand-off
