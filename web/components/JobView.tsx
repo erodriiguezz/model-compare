@@ -1,12 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { getJSON, pct, postJSON, TERMINAL, type Job } from "@/lib/api";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { fmtTime, getJSON, pct, postJSON, TERMINAL, usd, type Job } from "@/lib/api";
+import { vendorColor } from "@/lib/vendor";
 import CaseExplorer from "./CaseExplorer";
 import { Chip, ReportTable } from "./ReportTable";
 import { Empty, ErrorState, Loading } from "./States";
 
 const POLL_MS = 1000;
+const GLYPH = { done: "✓", running: "•", queued: "–", warn: "!", error: "!" };
+type Cell = { state: keyof typeof GLYPH; text: string; share: number };
+
+function timeLeft(job: Job) {
+  const elapsed = (Date.now() - new Date(/Z|\+/.test(job.started_at) ? job.started_at : `${job.started_at}Z`).getTime()) / 1000;
+  if (!job.done_calls || elapsed <= 0) return "—";
+  const s = Math.round((elapsed * (job.total_calls - job.done_calls)) / job.done_calls);
+  return s < 90 ? `~${Math.max(s, 1)} s` : `~${Math.round(s / 60)} min`;
+}
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; job: Job; retrying?: boolean };
 
 /** Polls a job until it ends, then shows its report. */
@@ -63,39 +73,95 @@ export default function JobView({ id }: { id: string }) {
   const capabilities = dims.has(undefined) ? job.benchmarks.length : dims.size;
   const firstError = job.runs.find((r) => r.first_error)?.first_error;
 
+  const names = job.benchmarks.length ? job.benchmarks : [...new Set(rows.map((r) => r.benchmark))];
+  const per = job.targets.length ? job.total_calls / job.targets.length : 0;
+  const spent = job.runs.reduce((n, r) => n + r.cost_usd, 0);
+  const cell = (target: string, benchmark: string): Cell => {
+    const r = job.runs.find((x) => x.target === target && x.benchmark === benchmark);
+    if (r) {
+      const bad = r.n_results > 0 && r.n_errors * 2 > r.n_results; // errors are the majority: the score means little
+      if (r.status === "budget_exceeded") return { state: "error", text: `Budget hit · ${pct(r.passed, r.n_results)}`, share: 1 };
+      if (r.status === "cancelled" || r.status === "failed") return { state: "error", text: r.status === "failed" ? "Failed" : "Cancelled", share: 1 };
+      if (bad) return { state: "error", text: `${r.n_errors} error${r.n_errors === 1 ? "" : "s"}`, share: 1 };
+      return r.n_errors ? { state: "warn", text: `${pct(r.passed, r.n_results)} · ${r.n_errors} error${r.n_errors === 1 ? "" : "s"}`, share: 1 } : { state: "done", text: pct(r.passed, r.n_results), share: 1 };
+    }
+    const l = job.live.find((x) => x.target === target && x.benchmark === benchmark);
+    return l ? { state: l.errors ? "warn" : "running", text: `Running ${l.done}/${l.total}${l.errors ? ` · ${l.errors} errors` : ""}`, share: l.total ? l.done / l.total : 0 } : { state: "queued", text: "Queued", share: 0 };
+  };
+  const percent = job.total_calls ? Math.round((100 * job.done_calls) / job.total_calls) : 0;
+  const stat = (label: string, value: ReactNode, big = false) => <div><dt className="small muted">{label}</dt><dd className={big ? "stat-big" : "stat"}>{value}</dd></div>;
+
   return (
     <>
-      <section className="card" aria-labelledby="job-h">
+      <section className="card run-head" aria-labelledby="job-h">
         <div className="between">
-          <h2 id="job-h">Comparison {job.id} <Chip text={job.status} />{!active && job.status !== "done" && <span className="muted"> (partial results)</span>}</h2>
-          {active && <button type="button" className="btn secondary" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
+          <div>
+            <h2 id="job-h">Comparison {job.id} <Chip text={job.status} />{!active && job.status !== "done" && <span className="muted"> (partial results)</span>}</h2>
+            <p className="muted small">Started {fmtTime(job.started_at)} · baseline {job.baseline ?? "none"}</p>
+          </div>
+          {active && <button type="button" className="btn secondary destructive-text" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
         </div>
-        <div className="bar" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
+        <dl className="stats">
+          {stat("Progress", `${percent}%`, true)}
+          {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
+          {stat("Spent (finished runs)", usd(spent))}
+          {stat("Time left", active ? timeLeft(job) : "—")}
+        </dl>
+        <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
           <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
         </div>
-        {active
-          ? <p className="muted">{job.done_calls}/{job.total_calls} calls · {job.targets.join(", ")}</p>
-          : (
-            <p className="muted" data-job-summary>
-              {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
-              <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
-            </p>
-          )}
+        {!active && (
+          <p className="muted" data-job-summary>
+            {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
+            <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
+          </p>
+        )}
         {state.retrying && <p className="muted" role="status">Reconnecting…</p>}
         {job.error && <p role="alert" className="danger">{job.error}</p>}
         {cancelError && <p role="alert" className="danger">{cancelError}</p>}
         {done >= 30 && errs / done > 0.2 && (
           <p className="danger">{pct(errs, done)} of calls are failing, so scores will be meaningless.{firstError && <> First error: <code>{firstError.slice(0, 200)}</code></>} Consider stopping.</p>
         )}
-        {rows.length > 0 && (active || showProgress) && (
-          <div className="table-wrap" tabIndex={0}><table>
-            <thead><tr><th>Model</th><th>Benchmark</th><th className="num">Progress</th><th className="num">Passed</th><th className="num">Errors</th></tr></thead>
-            <tbody>{rows.map((r) => (
-              <tr key={r.key}><td>{r.target}</td><td>{r.benchmark}</td><td className="num">{r.done}/{r.total}</td>
-                <td className="num">{r.passed}/{r.done}</td><td className="num">{r.errors}</td></tr>))}</tbody>
-          </table></div>
-        )}
       </section>
+      {names.length > 0 && (active || showProgress) && (
+        <div className="run-cols">
+          <section className="card" aria-labelledby="h-grid">
+            <h2 id="h-grid">By benchmark</h2>
+            <p className="muted">Pass rate so far. Numbers settle as runs finish.</p>
+            <div className="table-wrap" tabIndex={0}>
+              <table className="grid">
+                <thead><tr><th>Benchmark</th>{job.targets.map((t) => <th key={t}><span className="models-cell"><span className="dot" style={{ background: vendorColor(t) }} />{t}</span></th>)}</tr></thead>
+                <tbody>{names.map((b) => (
+                  <tr key={b}><th scope="row">{b}</th>{job.targets.map((t) => {
+                    const c = cell(t, b);
+                    return (
+                      <td key={t} data-state={c.state}>
+                        <span className="cell"><span className="cell-icon" aria-hidden="true">{GLYPH[c.state]}</span><span>{c.state === "done" && <span className="sr-only">Done </span>}{c.text}</span></span>
+                        {c.state !== "queued" && c.share < 1 && <div className="bar mini"><div style={{ width: `${100 * c.share}%`, background: vendorColor(t) }} /></div>}
+                      </td>
+                    );
+                  })}</tr>))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section className="card" aria-labelledby="h-models">
+            <h2 id="h-models">By model</h2>
+            {job.targets.map((t) => {
+              const mine = rows.filter((r) => r.target === t);
+              const d = mine.reduce((n, r) => n + r.done, 0);
+              const e = mine.reduce((n, r) => n + r.errors, 0);
+              return (
+                <div key={t} className="model-prog">
+                  <div className="between"><span className="models-cell"><span className="dot" style={{ background: vendorColor(t) }} />{t}</span><span className="muted num">{d} / {Math.round(per)}</span></div>
+                  <div className="bar"><div style={{ width: `${per ? Math.min(100, (100 * d) / per) : 0}%`, background: vendorColor(t) }} /></div>
+                  <p className="muted small">Pass rate so far {pct(mine.reduce((n, r) => n + r.passed, 0), d)} · {e} error{e === 1 ? "" : "s"}</p>
+                </div>
+              );
+            })}
+          </section>
+        </div>
+      )}
       {!active && (job.run_ids.length ? <ReportTable jobId={job.id}><CaseExplorer runs={job.runs} /></ReportTable> : <Empty title="No finished runs">This comparison ended ({job.status}) before any run completed.</Empty>)}
     </>
   );

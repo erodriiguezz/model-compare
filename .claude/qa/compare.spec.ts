@@ -109,13 +109,13 @@ test('[AC-7.5] a finished job collapses its progress so the decision is the firs
   await page.goto(JOB);
   const summary = page.locator('[data-job-summary]');
   await expect(summary).toContainText(/done · \d+\/\d+ calls · 5 models · 6 capabilities/);
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
   const top = (await page.getByRole('region', { name: 'Suggestions' }).boundingBox())!.y;
   expect(top).toBeLessThan(800);
   await page.getByRole('button', { name: 'Show progress' }).click();
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toBeVisible();
   await page.getByRole('button', { name: 'Hide progress' }).click();
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
 });
 
 test('[AC-7.4] the suggestions panel lists errors first, then decisions, then data advice', async ({ page }) => {

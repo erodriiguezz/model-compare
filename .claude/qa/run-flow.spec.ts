@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const pick = async (page: Page, models: string[]) => {
   for (const m of models) await page.getByRole('checkbox', { name: new RegExp(`^${m}\\b`) }).check();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
 };
 
@@ -12,7 +13,7 @@ test('[AC-3.1] two models and a benchmark: estimate, run, progress updates, repo
   await page.goto('/compare/');
   await expect(page.getByTestId('estimate')).toContainText('Pick a model');
   await pick(page, ['mock-a', 'mock-slow']);
-  await expect(page.getByTestId('estimate')).toContainText(/Estimate: 30 calls/);
+  await expect(page.getByTestId('est-calls')).toHaveText('30');
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   const job = page.getByRole('region', { name: /Comparison/ });
@@ -134,7 +135,7 @@ test('[AC-3.1] run options feed the estimate and the request, and a cost confirm
   await page.getByLabel('Budget per run (USD)').fill('5');
   await page.getByLabel('Parallel calls per model').fill('4');
   await page.getByRole('checkbox', { name: 'Reuse cached answers' }).uncheck();
-  await expect(page.getByTestId('estimate')).toContainText('Estimate: 60 calls');
+  await expect(page.getByTestId('est-calls')).toHaveText('60');
   await page.getByRole('button', { name: 'Run comparison' }).click();
   const confirm = page.getByRole('group', { name: 'Confirm cost' });
   await expect(confirm).toContainText('may cost up to $2.50');

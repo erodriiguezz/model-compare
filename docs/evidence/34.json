@@ -1,8 +1,8 @@
 {
   "issue": 34,
   "title": "Concept UI redesign — Compare, Projects and Settings",
-  "branch": "feat/concept-ui-redesign-p1-shell",
-  "commit": "798a2a6103867faccf552181e7b86949d4e6d0c7",
+  "branch": "feat/concept-ui-redesign-p2-choose-run",
+  "commit": "c242fff1ca57013d8972ed9e49c4d7fed1b0d6f7",
   "plan": ".claude/plans/34-concept-ui-redesign.md",
   "size": "L",
   "touchesApi": false,
@@ -12,8 +12,8 @@
     "at": "2026-10-21"
   },
   "tests": {
-    "commit": "798a2a6103867faccf552181e7b86949d4e6d0c7",
-    "at": "2026-10-22T02:46:00.031Z",
+    "commit": "c242fff1ca57013d8972ed9e49c4d7fed1b0d6f7",
+    "at": "2026-10-22T13:34:01.230Z",
     "passed": false,
     "steps": {
       "verify": "pass",
@@ -37,15 +37,15 @@
       },
       {
         "id": "AC-34.2",
-        "tests": 0
+        "tests": 1
       },
       {
         "id": "AC-34.3",
-        "tests": 0
+        "tests": 1
       },
       {
         "id": "AC-34.4",
-        "tests": 0
+        "tests": 1
       },
       {
         "id": "AC-34.5",
@@ -98,14 +98,14 @@
     "target": "local"
   },
   "review": {
-    "local": "p1: Request changes → 1 High fixed (798a2a6); Medium/Low fixed except empty-state copy",
+    "local": "p2: High (dimension toggles) fixed in 6bbeede; all Medium/Low fixed",
     "document": null
   },
   "cost": {
     "estTokens": 1500000,
-    "actualTokens": 15169748,
-    "toolCalls": 152,
-    "handoff": true
+    "actualTokens": 25645818,
+    "toolCalls": 42,
+    "handoff": false
   },
-  "writtenAt": "2026-10-22T02:46:53.019Z"
+  "writtenAt": "2026-10-22T13:35:10.780Z"
 }
