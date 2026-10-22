@@ -9,7 +9,7 @@ const SPEC = {
   latency: { key: "latency_p50", fmt: (v: number) => `${v.toFixed(1)} s`, axis: "Median latency (s)", title: "Quality vs latency", chart: "latency-scatter", note: "Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both quality and speed.", sr: "Overall pass rate and median latency per model" },
 } as const;
 type Pt = { name: string; x: number; quality: number; label: string };
-const LINE = 14, GAP = 14, CHAR = 6.6;
+const LINE = 17, GAP = 14, CHAR = 6.6;
 
 /**
  * One label per cluster of neighbouring models, so names never pile up: the names sit as lines beside the
