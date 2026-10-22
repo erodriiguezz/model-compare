@@ -206,6 +206,12 @@ none
 - 217 counted lines · reviewer (whole p4): Mediums for this half fixed (toggles, focusable outputs, Score change label, rowgroup headers, projects wait, full evidence test)
 - Review doc: `docs/reviews/34-p4b.md`
 
+### p5 — Projects list and editor (`64e23cd`)
+- verify pass · API smoke pass · browser 202/202 · UI audit 0 serious, 9 minor · diff coverage not measured
+- AC-34.13 → `concept-ui.spec.ts:569`, `:592`, `:622`, `:634`, `:650`, `:668`, `:688`, `:713` ✔ · AC-34.15 (Projects) → `:728`, `:741` ✔
+- 300 counted lines · reviewer: Request changes (1 High: the 390 action bar covered focused fields), fixed with every Medium and Low item; the report-load race got a 15 s spec wait, and server caching is suggested as a follow-up
+- Review doc: `docs/reviews/34-p5.md`
+
 ## 6. Retro
 
 ## 7. Hand-off
