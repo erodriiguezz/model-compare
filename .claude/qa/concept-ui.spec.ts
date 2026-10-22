@@ -157,24 +157,26 @@ test('[AC-34.2] a missing-key model card is disabled and links to Settings; Make
   await expect(card(page, 'mock-a').getByRole('button', { name: 'Make baseline' })).toBeVisible();
 });
 
-test('[AC-34.3] a preset changes the toggled dimensions and the estimate; Start is disabled with one model and says why', async ({ page }) => {
+test('[AC-34.3] a preset changes the toggled dimensions and the estimate; Start is disabled with no model and says why; one model shows the scorecard note', async ({ page }) => {
   await mockChoose(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/compare/');
   const run = page.getByRole('button', { name: 'Run comparison' });
+  await expect(run).toBeDisabled();
+  await expect(page.getByText('Pick at least one model to run.')).toBeVisible();
   await card(page, 'mock-a').getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Coding assistant' }).click();
   await expect(page.getByRole('checkbox', { name: /^std-coding-basic\b/ })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /^std-extract-json\b/ })).not.toBeChecked();
-  await expect(page.getByText('Pick at least two models to get a verdict.')).toBeVisible();
-  await expect(run).toBeDisabled();
+  await expect(page.getByTestId('estimate')).toContainText('one model gives a scorecard; select two for a verdict');
+  await expect(run).toBeEnabled();
   await card(page, 'mock-b').getByRole('checkbox').check();
   await expect(page.getByTestId('est-calls')).toHaveText('40');
   await expect(page.getByTestId('est-cached')).toContainText('10');
   await expect(page.getByTestId('est-time')).toHaveText('~2 min');
   await expect(run).toBeEnabled();
-  await expect(page.getByText('Pick at least two models to get a verdict.')).toHaveCount(0);
+  await expect(page.getByTestId('estimate')).not.toContainText('one model gives a scorecard');
   await shot(page, 'choose-1280');
   await page.getByRole('button', { name: 'Data extraction' }).click();
   await expect(page.getByRole('checkbox', { name: /^std-extract-json\b/ })).toBeChecked();

@@ -82,7 +82,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined,
     repeats: opts.repeats === "" ? undefined : Number(opts.repeats), budget_usd: opts.budget === "" ? undefined : Number(opts.budget), concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
   const ready = targets.length >= 1 && benches.length > 0 && (!needsJudge || !!judgeName);
-  const tooFew = targets.length < 2;
+  const none = targets.length === 0;
   const key = JSON.stringify(body);
   const est = estimate?.key === key && !("error" in estimate.value) ? estimate.value : null;
 
@@ -208,9 +208,10 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             {!ready && (needsJudge && !judgeName ? (judgesLoading ? "Loading judges…" : "These benchmarks need a judge model that is not under test.") : "Pick a model and a benchmark to see an estimate.")}
             {ready && estimate?.key !== key && "Estimating…"}
             {ready && estimate?.key === key && "error" in estimate.value && estimate.value.error}
+            {ready && targets.length === 1 && " one model gives a scorecard; select two for a verdict"}
           </p>
         </div>
-        {tooFew && <p className="notice" id="start-reason">Pick at least two models to get a verdict.</p>}
+        {none && <p className="notice" id="start-reason">Pick at least one model to run.</p>}
         {startError && <p role="alert" className="danger">{startError}</p>}
         {confirmKey === key && est ? (
           <div className="confirm" role="group" aria-label="Confirm cost">
@@ -219,7 +220,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             <button type="submit" className="btn" disabled={starting}>{starting ? "Starting…" : "Confirm and run"}</button>
             <button type="button" className="btn secondary" onClick={() => setConfirmKey("")}>Back</button>
           </div>
-        ) : <button type="submit" className="btn start" disabled={!est || starting || tooFew} aria-describedby={tooFew ? "start-reason" : undefined}>Run comparison</button>}
+        ) : <button type="submit" className="btn start" disabled={!est || starting} aria-describedby={none ? "start-reason" : undefined}>Run comparison</button>}
         <p className="muted small center">{opts.budget ? `Capped at $${opts.budget} per run. ` : ""}You can cancel at any time.</p>
       </aside>
     </form>

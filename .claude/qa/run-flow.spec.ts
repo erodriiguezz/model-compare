@@ -172,11 +172,14 @@ test('[AC-3.3] the case explorer shows each case and the report links open the H
 const slowJob = async (request: import('@playwright/test').APIRequestContext) =>
   (await (await request.post('/api/runs', { data: { targets: ['mock-a', 'mock-slow'], benchmarks: ['std-reasoning-math'], use_cache: false } })).json()).job_id as string;
 
-test('[AC-3.1] one model keeps Run disabled and says two are needed for a verdict', async ({ page }) => {
+test('[AC-3.1] one model gives a scorecard without a verdict', async ({ page }) => {
   await page.goto('/compare/');
   await pick(page, ['mock-a']);
-  await expect(page.getByText('Pick at least two models to get a verdict.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Run comparison' })).toBeDisabled();
+  await expect(page.getByTestId('estimate')).toContainText('one model gives a scorecard; select two for a verdict');
+  await page.getByRole('button', { name: 'Run comparison' }).click();
+  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
+  await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toContainText('mock-a', { timeout: 30_000 });
+  await expect(page.getByText('One model gives a scorecard; add a second for a verdict.')).toBeVisible();
 });
 
 test('[AC-3.1] a benchmark that needs a judge keeps Run disabled until a judge exists', async ({ page }) => {
