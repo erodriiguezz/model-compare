@@ -173,6 +173,12 @@ none
 - /models/ — tokens only (check for visual breakage)
 
 ## 5. Evidence
+### p1 — shell, tokens, states, History (`798a2a6`)
+- verify pass (pytest, lint, build) · API smoke pass · browser 171/171 · UI audit 0 serious, 10 minor · diff coverage not measured (`coverage.command` null)
+- AC-34.1 → `concept-ui.spec.ts:24`, `:112` ✔ · AC-34.12 → `:37`, `:74` ✔ · AC-34.15 (History) → `:83`, `:102` ✔
+- 371 counted lines (pr-size M) · reviewer: Request changes (1 High: History hid outcome, spend and status at 390 px). Fixed in 798a2a6 with the Medium and Low items, except the empty-state copy
+- Review doc: `docs/reviews/34-p1.md`
+- Note: a stale fake Anthropic key in the isolated QA keys file turned three Models and judge specs red; removed through `DELETE /api/settings/keys/anthropic`. Not a code issue.
 
 ## 6. Retro
 
