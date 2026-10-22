@@ -847,9 +847,10 @@ test('[AC-34.9] scatter labels do not overlap when every model has the same late
   await openReport(page, REPORT);
   const chart = speed(page).locator('[data-chart="latency-scatter"]');
   await expect(chart.locator('.recharts-wrapper')).toBeVisible();
-  const boxes = (await chart.locator('svg text').evaluateAll((els) => els
-    .filter((e) => e.closest('.recharts-scatter'))
-    .map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, x: r.x, y: r.y, w: r.width, h: r.height }; })));
+  const names = await chart.locator('.sr-only tbody tr td:first-child').allTextContents();
+  const boxes = await chart.locator('svg text').evaluateAll((els, models) => els
+    .filter((e) => models.some((m) => (e.textContent ?? '').startsWith(m)))
+    .map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, x: r.x, y: r.y, w: r.width, h: r.height }; }), names);
   expect(boxes.length).toBeGreaterThan(1);
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
     const a = boxes[i], b = boxes[j];
