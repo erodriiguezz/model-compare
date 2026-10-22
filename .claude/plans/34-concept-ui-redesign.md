@@ -193,6 +193,13 @@ none
 - 386 counted lines (the Suggestions.tsx deletion moved to p4 to stay under 400) · reviewer: Request changes (2 High: headline by target order, 0 regressions shown as "—"), both fixed with every Medium and Low item
 - Review doc: `docs/reviews/34-p3.md`
 
+### p4a — capability cards, cost and speed (`c52e270`)
+- p4 was split into p4a and p4b: the full p4 diff was 515 counted lines
+- verify pass · API smoke pass · browser 188/188 · UI audit 0 serious, 10 minor · diff coverage not measured
+- AC-34.8 → `concept-ui.spec.ts:383` + capture test ✔ · AC-34.9 → AC-34.9 tests + capture test ✔
+- 325 counted lines · reviewer (whole p4): Request changes (1 High: `.tile` collision broke Choose selection), fixed together with the Mediums for this half
+- Review doc: `docs/reviews/34-p4a.md`
+
 ## 6. Retro
 
 ## 7. Hand-off

@@ -1,8 +1,8 @@
 {
   "issue": 34,
   "title": "Concept UI redesign — Compare, Projects and Settings",
-  "branch": "feat/concept-ui-redesign-p3-report-top",
-  "commit": "fbde510b79306231019ad522e37bb144d2c9bf26",
+  "branch": "feat/concept-ui-redesign-p4a-capabilities",
+  "commit": "c52e2707041f3be2a9cf7616cab63788871f64c1",
   "plan": ".claude/plans/34-concept-ui-redesign.md",
   "size": "L",
   "touchesApi": false,
@@ -12,8 +12,8 @@
     "at": "2026-10-21"
   },
   "tests": {
-    "commit": "fbde510b79306231019ad522e37bb144d2c9bf26",
-    "at": "2026-10-22T14:18:08.148Z",
+    "commit": "c52e2707041f3be2a9cf7616cab63788871f64c1",
+    "at": "2026-10-22T15:03:08.504Z",
     "passed": false,
     "steps": {
       "verify": "pass",
@@ -57,11 +57,11 @@
       },
       {
         "id": "AC-34.8",
-        "tests": 0
+        "tests": 2
       },
       {
         "id": "AC-34.9",
-        "tests": 0
+        "tests": 3
       },
       {
         "id": "AC-34.10",
@@ -98,14 +98,14 @@
     "target": "local"
   },
   "review": {
-    "local": "p3: 2 High (headline order, regressions) fixed; all Medium/Low fixed",
+    "local": "p4a: High (.tile collision) fixed; Mediums for this half fixed",
     "document": null
   },
   "cost": {
     "estTokens": 1500000,
-    "actualTokens": 37133529,
-    "toolCalls": 95,
+    "actualTokens": 56048774,
+    "toolCalls": 26,
     "handoff": false
   },
-  "writtenAt": "2026-10-22T14:19:10.303Z"
+  "writtenAt": "2026-10-22T15:03:42.635Z"
 }
