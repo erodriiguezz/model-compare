@@ -5,42 +5,51 @@ import { join } from 'node:path';
 // Needs the QA seed (engine/scripts/seed_qa.py): qa-every-verdict covers every verdict in 5 capabilities.
 const JOB = '/compare/?job=qa-every-verdict';
 const SHOTS = join(process.env.PWD ?? process.cwd(), '.claude', 'artifacts', 'screenshots', '7');
-const token = (page: Page, name: string) => page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name);
+/** Opens a finished report. The server builds it in about a second, more under parallel workers, so wait past the default 5 s. */
+const openReport = async (page: Page, url: string) => {
+  await page.goto(url);
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible({ timeout: 15_000 });
+};
+const caps = (page: Page) => page.getByRole('region', { name: 'Capabilities' });
+const cards = (page: Page) => caps(page).getByRole('article');
+const evidence = (page: Page) => page.getByRole('region', { name: 'Evidence' });
+const color = (page: Page, v: string) => page.evaluate((n) => { const e = document.createElement('i'); e.style.color = `var(${n})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; }, v);
 const noPageScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
-test('[AC-7.1] one ranked bar chart per capability, sorted, with CI whiskers in provider colours', async ({ page }) => {
-  await page.goto(JOB);
-  const charts = page.locator('[data-chart="ranked-bars"]');
-  await expect(charts).toHaveCount(6);
-  const first = charts.first();
-  await expect(first.getByRole('img')).toHaveAttribute('aria-label', /qa-better .*%/);
-  await expect(first.locator('.recharts-errorBar').first()).toBeAttached();
+test('[AC-7.1] one capability card per dimension, bars sorted, with CI whiskers in vendor colours', async ({ page, request }) => {
+  // Vendor colours follow the model name, so give two models names that map to anthropic and openai.
+  const body = (await (await request.get('/api/jobs/qa-every-verdict/report')).text()).replaceAll('qa-better', 'claude-better').replaceAll('qa-base', 'gpt-base');
+  await page.route('**/api/jobs/qa-every-verdict/report', (route) => route.fulfill({ body, contentType: 'application/json' }));
+  await openReport(page, JOB);
+  await expect(cards(page)).toHaveCount(6);
+  const first = cards(page).first();
+  await expect(first.getByRole('list', { name: / score$/ })).toContainText('claude-better');
+  await expect(first.locator('.whisker').first()).toBeAttached();
 
-  // The accessible table lists the same bars; scores must be in descending order in every chart.
-  for (const chart of await charts.all()) {
-    const scores = await chart.locator('.sr-only tbody tr td:nth-child(2)').allTextContents();
-    const nums = scores.map((s) => parseFloat(s));
+  // Bars are listed best first in every card.
+  for (const card of await cards(page).all()) {
+    const nums = (await card.getByRole('list', { name: / score$/ }).locator('.value').allTextContents()).map((s) => parseFloat(s));
     expect(nums.length).toBeGreaterThan(1);
     expect(nums).toEqual([...nums].sort((a, b) => b - a));
   }
 
-  // Bars carry the provider token colours (openai baseline, anthropic candidate), not hardcoded ones.
-  const fills = await first.locator('.recharts-bar-rectangle path, .recharts-bar-rectangle rect').evaluateAll((els) => els.map((e) => e.getAttribute('fill')));
-  expect(fills).toContain(await token(page, '--provider-anthropic'));
-  expect(fills).toContain(await token(page, '--provider-openai'));
+  // Bars carry the vendor token colours (openai baseline, anthropic candidate), not hardcoded ones.
+  const fills = await first.locator('.fill').evaluateAll((els) => els.map((e) => getComputedStyle(e).backgroundColor));
+  expect(fills).toContain(await color(page, '--vendor-anthropic'));
+  expect(fills).toContain(await color(page, '--vendor-openai'));
 });
 
-test('[AC-7.1] bar charts fit a 390px screen', async ({ page }) => {
+test('[AC-7.1] capability cards fit a 390px screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(JOB);
-  await expect(page.locator('[data-chart="ranked-bars"]')).toHaveCount(6);
+  await openReport(page, JOB);
+  await expect(cards(page)).toHaveCount(6);
   expect(await noPageScroll(page)).toBe(true);
-  const box = await page.locator('[data-chart="ranked-bars"]').first().boundingBox();
+  const box = await cards(page).first().boundingBox();
   expect(box!.width).toBeLessThanOrEqual(390);
 });
 
 test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights the Pareto front', async ({ page }) => {
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const scatter = page.locator('[data-chart="cost-scatter"]');
   await expect(scatter).toBeVisible();
   await expect(scatter.getByRole('img')).toHaveAttribute('aria-label', /pass rate .* \$ per 1k tasks/i);
@@ -56,7 +65,7 @@ test('[AC-7.3] the scatter plots quality against $ per 1k tasks and highlights t
 
 test('[AC-7.3] the scatter fits a 390px screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   await expect(page.locator('[data-chart="cost-scatter"]')).toBeVisible();
   expect(await noPageScroll(page)).toBe(true);
 });
@@ -75,29 +84,28 @@ test('[AC-7.3] an incomplete model is never on the Pareto front and is marked in
 
 test('[AC-7.1] an incomplete bar is flagged and has no whisker', async ({ page }) => {
   await page.goto('/compare/?job=qa-incomplete');
-  const chart = page.locator('[data-chart="ranked-bars"]');
-  await expect(chart).toHaveCount(1);
-  await expect(chart.locator('.sr-only tbody tr', { hasText: 'qa-flaky' })).toContainText('Incomplete');
-  await expect(chart.locator('.recharts-wrapper')).toContainText(/qa-flaky\s*\(incomplete\)/);
-  await expect(chart.locator('.recharts-errorBar')).toHaveCount(1); // the baseline only
+  await expect(cards(page)).toHaveCount(1);
+  const flaky = cards(page).getByRole('listitem').filter({ hasText: 'qa-flaky' }).first();
+  await expect(flaky.locator('.fill.hatched')).toBeAttached();
+  await expect(flaky).toContainText(/qa-flaky\s*\(incomplete\)/);
+  await expect(cards(page).locator('.whisker')).toHaveCount(1); // the baseline only
 });
 const LABELS = ['Better', 'Worse', 'Tie', 'Inconclusive', 'Incomplete'];
 
-test('[AC-7.2] the verdict matrix shows all five verdict labels and marks the baseline', async ({ page }) => {
-  await page.goto(JOB);
-  const matrix = page.getByRole('region', { name: 'Verdict matrix' });
-  await expect(matrix).toBeVisible();
-  for (const label of LABELS) await expect(matrix.locator('td', { hasText: new RegExp(`^${label}`) }).first()).toBeVisible();
-  const base = matrix.locator('tbody tr', { has: page.getByRole('rowheader', { name: /qa-base/ }) });
-  await expect(base.getByRole('rowheader')).toContainText('baseline');
-  await expect(matrix.locator('tbody tr')).toHaveCount(5);
+test('[AC-7.2] the capability cards show all five verdict labels and mark the baseline', async ({ page }) => {
+  await openReport(page, JOB);
+  await expect(caps(page)).toBeVisible();
+  for (const label of LABELS) await expect(caps(page).locator('.verdicts .chip', { hasText: new RegExp(`^${label}$`) }).first()).toBeVisible();
+  const bars = cards(page).first().getByRole('list', { name: / score$/ }).getByRole('listitem');
+  await expect(bars).toHaveCount(5);
+  await expect(bars.filter({ hasText: 'qa-base' })).toContainText('baseline');
   // The legend spells out every label, so colour is never the only cue.
-  for (const label of LABELS) await expect(matrix.locator('.legend')).toContainText(label);
+  for (const label of LABELS) await expect(caps(page).getByRole('list', { name: 'Verdict legend' })).toContainText(label);
 });
 
-test('[AC-7.2] insufficient data reads n<10 in the matrix instead of a point change', async ({ page }) => {
-  await page.goto(JOB);
-  const cell = page.getByRole('region', { name: 'Verdict matrix' }).locator('td[data-verdict="insufficient_data"]');
+test('[AC-7.2] insufficient data reads n<10 in the cards instead of a point change', async ({ page }) => {
+  await openReport(page, JOB);
+  const cell = caps(page).locator('.verdicts li').filter({ has: page.locator('[data-verdict="insufficient_data"]') });
   await expect(cell).toHaveCount(1);
   await expect(cell).toContainText('Inconclusive');
   await expect(cell).toContainText('n<10');
@@ -106,21 +114,21 @@ test('[AC-7.2] insufficient data reads n<10 in the matrix instead of a point cha
 
 test('[AC-7.5] a finished job collapses its progress so the decision is the first thing on screen', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(JOB);
+  await openReport(page, JOB);
   const summary = page.locator('[data-job-summary]');
   await expect(summary).toContainText(/done · \d+\/\d+ calls · 5 models · 6 capabilities/);
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
-  const top = (await page.getByRole('region', { name: 'Suggestions' }).boundingBox())!.y;
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
+  const top = (await page.getByRole('region', { name: 'Recommendation' }).boundingBox())!.y;
   expect(top).toBeLessThan(800);
   await page.getByRole('button', { name: 'Show progress' }).click();
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toBeVisible();
   await page.getByRole('button', { name: 'Hide progress' }).click();
-  await expect(page.getByRole('columnheader', { name: 'Progress' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
 });
 
-test('[AC-7.4] the suggestions panel lists errors first, then decisions, then data advice', async ({ page }) => {
-  await page.goto(JOB);
-  const panel = page.getByRole('region', { name: 'Suggestions' });
+test('[AC-7.4] the recommendation panel lists errors first, then decisions, then data advice', async ({ page }) => {
+  await openReport(page, JOB);
+  const panel = page.getByRole('region', { name: 'Recommendation' });
   const items = panel.locator('ol > li');
   await expect(items.first()).toContainText('Fix errors');
   await expect(panel).toContainText(/cheaper is qa-tie \(saves \$[\d.]+ \/ 1k tasks/);
@@ -133,38 +141,35 @@ test('[AC-7.4] the suggestions panel lists errors first, then decisions, then da
   expect(kinds.map(rank)).toEqual([...kinds.map(rank)].sort());
 });
 
-test('[AC-7.5] regressions list the cases that got worse and details stay collapsed', async ({ page }) => {
-  await page.goto(JOB);
+test('[AC-7.5] regressions list the cases that got worse, collapsed, and the evidence is already open', async ({ page }) => {
+  await openReport(page, JOB);
   const reg = page.getByRole('region', { name: 'Regressions' });
-  await expect(reg).toContainText('qa-worse');
+  await expect(reg.getByRole('button', { name: /qa-worse/ })).toHaveAttribute('aria-pressed', 'true');
   await reg.getByRole('button', { name: /Show all/ }).click();
-  await expect(reg).toContainText('qa-worse · qa-reasoning');
-  const details = page.locator('details', { has: page.getByText('Details', { exact: true }) });
-  await expect(details).not.toHaveAttribute('open', '');
-  await details.getByText('Details', { exact: true }).click();
-  await expect(page.getByRole('region', { name: 'qa-reasoning' })).toBeVisible();
+  await expect(reg.locator('summary', { hasText: 'qa-reasoning' }).first()).toBeVisible();
+  await expect(reg.locator('details.reg[open]')).toHaveCount(0);
+  await expect(evidence(page).getByRole('rowgroup', { name: 'qa-reasoning' })).toBeVisible();
 });
 
 test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and no broken charts', async ({ page }) => {
   await page.goto('/compare/?job=qa-incomplete');
-  await expect(page.getByRole('region', { name: 'Suggestions' }).locator('ol > li')).toHaveCount(1);
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors: qa-flaky');
-  await expect(page.getByRole('region', { name: 'Verdict matrix' }).locator('td', { hasText: /^Incomplete/ })).toBeVisible();
-  await expect(page.locator('[data-chart="ranked-bars"]')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Recommendation' }).locator('ol > li')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toContainText('Fix errors: qa-flaky');
+  await expect(caps(page).locator('.verdicts .chip', { hasText: /^Incomplete/ })).toBeVisible();
+  await expect(cards(page)).toHaveCount(1);
   await expect(page.locator('.recharts-wrapper').first()).toBeVisible();
   await expect(page.getByText('NaN')).toHaveCount(0);
 });
 
 test('every call errored on a benchmark: the report renders "No paired cases" and never NaN', async ({ page }) => {
   await page.goto('/compare/?job=qa-all-errors');
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors');
-  await page.getByText('Details', { exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toContainText('Fix errors');
   await expect(page.getByText('2 capabilities')).toBeVisible();
-  const matrix = page.getByRole('region', { name: 'Verdict matrix' });
-  await expect(matrix.getByRole('columnheader', { name: /tool/i })).toBeVisible();
-  await expect(matrix.locator('td', { hasText: /^Incomplete/ })).toBeVisible();
-  await expect(page.locator('[data-chart="ranked-bars"][data-dimension="tool_calling"]')).toContainText('No scored cases');
-  const bench = page.getByRole('region', { name: 'qa-allerr-tools' });
+  const tools = cards(page).filter({ has: page.getByRole('heading', { name: /tool/i }) });
+  await expect(tools).toBeVisible();
+  await expect(tools.locator('.chip', { hasText: /^Incomplete/ })).toBeVisible();
+  await expect(tools).toContainText('No scored cases');
+  const bench = evidence(page).getByRole('rowgroup', { name: 'qa-allerr-tools' });
   await expect(bench).toContainText('No paired cases');
   await expect(bench).toContainText('Incomplete');
   await expect(page.locator('.recharts-wrapper').first()).toBeVisible();
@@ -190,7 +195,7 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
   const alert = page.locator('[data-state="error"]');
   await expect(alert).toContainText('Could not load the report');
   await alert.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
 });
 
 test('[AC-7.5] with no runs yet, Compare points to Models', async ({ page }) => {
@@ -207,17 +212,17 @@ test('[AC-7.5] with no runs yet, Compare points to Models', async ({ page }) => 
 for (const [name, width] of [['1280', 1280], ['390', 390]] as const) {
   test(`[AC-7.5] report screenshots at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(JOB);
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await openReport(page, JOB);
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await expect(page.locator('[data-chart="cost-scatter"] .recharts-wrapper')).toBeVisible();
     expect(await noPageScroll(page)).toBe(true);
     mkdirSync(SHOTS, { recursive: true });
     await page.screenshot({ path: join(SHOTS, `compare-${name}.png`), fullPage: true });
     await page.goto('/compare/?job=qa-incomplete');
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `incomplete-${name}.png`), fullPage: true });
     await page.goto('/compare/?job=qa-all-errors');
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `all-errors-${name}.png`), fullPage: true });
     await page.route('**/api/runs?*', (route) => route.fulfill({ json: [] }));
     await page.goto('/compare/');

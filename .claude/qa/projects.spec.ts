@@ -33,17 +33,19 @@ test('[AC-9.1] the list shows name, dimension, case count and last run; a broken
     await r.fulfill({ json: [...rows, { slug: 'broken', name: 'broken', dimension: null, n_cases: 0, valid: false, error: 'ValidationError: cases is required' }] });
   });
   await page.goto('/projects/');
-  const row = page.getByRole('row', { name: /qa-nine-list/ });
-  await expect(row).toContainText('knowledge');
-  await expect(row.getByRole('cell').nth(2)).toHaveText('3');
-  await expect(row.getByRole('cell').nth(3)).toContainText('mock-b'); // newest run wins
-  const broken = page.getByRole('row', { name: /broken/ });
+  const row = page.getByRole('article', { name: /qa-nine-list/ });
+  const seen = async () => { // the card shows its dimension, case count and newest run
+    await expect(row.getByText('knowledge')).toBeVisible();
+    await expect(row.getByText('3 cases')).toBeVisible();
+    await expect(row.getByText(/mock-b/)).toBeVisible();
+  };
+  await seen();
+  const broken = page.getByRole('article', { name: /broken/ });
   await expect(broken).toContainText('ValidationError: cases is required');
-  await expect(broken.locator('.chip')).toHaveText('invalid');
+  await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
   await shot(page, 'projects-list');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(row.locator('.show-sm')).toBeVisible(); // narrow screens keep dimension and last run under the name
-  await expect(row.locator('.show-sm')).toContainText('mock-b');
+  await seen(); // narrow screens keep dimension and last run on the card
   await shot(page, 'projects-list-390');
 });
 
@@ -108,7 +110,7 @@ test('[AC-9.2] create a project with cases and a scorer, edit and delete cases, 
   expect((await (await request.get('/api/projects/qa-nine-new')).json()).cases[0].expected).toBe('Paris, France');
 
   await page.goto('/projects/');
-  await expect(page.getByRole('row', { name: /qa-nine-new/ })).toContainText('reasoning');
+  await expect(page.getByRole('article', { name: /qa-nine-new/ })).toContainText('reasoning');
 
   await page.getByRole('link', { name: 'qa-nine-new' }).click();
   await page.getByRole('button', { name: 'Delete project' }).click();
@@ -403,8 +405,7 @@ test('[AC-9.4] Run on selected models opens Compare with the project and models 
   await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).not.toBeChecked();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 });
-  await expect(page.getByText('qa-nine-run').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'qa-nine-run' })).toBeVisible({ timeout: 30_000 });
 });
 
 test('[AC-9.3] Enter inside the Draft dialog never saves the project behind it', async ({ page, request }) => {

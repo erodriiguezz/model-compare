@@ -6,8 +6,8 @@ const SHOTS = join(process.env.PWD ?? process.cwd(), '.claude', 'artifacts', 'sc
 const FAKE = 'sk-test-000000000000a1b2';
 const VIEWPORTS = [{ name: '1280', width: 1280, height: 800 }, { name: '390', width: 390, height: 844 }];
 const shot = async (page: Page, name: string) => { mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true }); };
-const matrix = (page: Page) => page.getByRole('region', { name: 'Verdict matrix' });
-const suggestions = (page: Page) => page.getByRole('region', { name: 'Suggestions' });
+const capabilities = (page: Page) => page.getByRole('region', { name: 'Capabilities' });
+const recommendation = (page: Page) => page.getByRole('region', { name: 'Recommendation' });
 
 test.afterEach(async ({ request }) => {
   await request.delete('/api/settings/keys/gemini');
@@ -34,11 +34,12 @@ test('[AC-9.5] Settings key (masked) -> Models lists that provider -> select moc
   await page.getByRole('checkbox', { name: /^mock-a(\s|$)/ }).check();
   await page.getByRole('checkbox', { name: /^mock-b(\s|$)/ }).check();
   await page.getByRole('link', { name: 'Compare selected' }).click();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
-  await expect(matrix(page)).toBeVisible({ timeout: 30_000 });
-  await expect(suggestions(page)).toBeVisible();
+  await expect(capabilities(page)).toBeVisible({ timeout: 30_000 });
+  await expect(recommendation(page)).toBeVisible();
 });
 
 test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -> save -> run on two mock models -> Compare', async ({ page, request }) => {
@@ -66,8 +67,8 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
   await expect(page.getByRole('checkbox', { name: /^qa-e2e-drafted\b/ })).toBeChecked();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
-  await expect(matrix(page)).toBeVisible({ timeout: 30_000 });
-  await expect(suggestions(page)).toBeVisible();
+  await expect(capabilities(page)).toBeVisible({ timeout: 30_000 });
+  await expect(recommendation(page)).toBeVisible();
   await expect(page.getByText('qa-e2e-drafted').first()).toBeVisible();
 });
 
@@ -75,13 +76,13 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
 const JOB = 'qa-every-verdict';
 const EMPTY_JOB = { id: JOB, targets: [], baseline: null, status: 'done', error: null, started_at: '2026-01-01T00:00:00', benchmarks: [], total_calls: 0, done_calls: 0, run_ids: [], runs: [], live: [] };
 const PAGES = [
-  { name: 'projects', url: '/projects/', api: '**/api/projects', loading: /Loading projects/, empty: { body: [], text: 'No projects yet' }, error: 'Could not load projects', ready: (p: Page) => expect(p.getByRole('row', { name: /qa-nine-shot/ })).toBeVisible() },
+  { name: 'projects', url: '/projects/', api: '**/api/projects', loading: /Loading projects/, empty: { body: [], text: 'No projects yet' }, error: 'Could not load projects', ready: (p: Page) => expect(p.getByRole('article', { name: /qa-nine-shot/ })).toBeVisible() },
   { name: 'editor', url: '/projects/edit/?new=1', api: '**/api/scorers', loading: /Loading project/, empty: null, error: 'Could not load the project', ready: (p: Page) => expect(p.getByText('No cases yet')).toBeVisible() },
   { name: 'settings', url: '/settings/', api: '**/api/settings/keys', loading: /Loading keys/, empty: { body: [{ provider: 'openai', var: 'OPENAI_API_KEY', set: false, masked: null, source: null }], text: 'No keys yet' }, error: 'Provider keys could not be loaded', ready: (p: Page) => expect(p.locator('.key-list')).toBeVisible() },
-  { name: 'history', url: '/history/', api: '**/api/jobs', loading: /Loading history/, empty: { body: [], text: 'No runs yet', also: ['**/api/runs', []] as const }, error: 'Could not load history', ready: (p: Page) => expect(p.getByRole('region', { name: 'Comparisons' })).toBeVisible() },
+  { name: 'history', url: '/history/', api: '**/api/jobs', loading: /Loading history/, empty: { body: [], text: 'No comparisons yet', also: ['**/api/runs', []] as const }, error: 'Could not load history', ready: (p: Page) => expect(p.getByRole('region', { name: 'Comparisons' })).toBeVisible() },
   { name: 'models', url: '/models/', api: '**/api/models', loading: /Loading models/, empty: { body: { providers: [{ provider: 'openai', var: 'OPENAI_API_KEY', key_ok: false, reason: 'no key', models: [] }], cached_at: '2026-01-01T00:00:00+00:00' }, text: 'No models yet', also: ['**/api/targets/status', []] as const }, error: 'Could not load models', ready: (p: Page) => expect(p.locator('[data-group="configured"]')).toBeVisible() },
   { name: 'compare', url: '/compare/', api: '**/api/targets/status', loading: /Loading targets and benchmarks/, empty: { body: [], text: 'No targets configured' }, error: 'Could not load targets and benchmarks', ready: (p: Page) => expect(p.getByRole('button', { name: 'Run comparison' })).toBeVisible() },
-  { name: 'report', url: `/compare/?job=${JOB}`, api: `**/api/jobs/${JOB}`, loading: /Loading job/, empty: { body: EMPTY_JOB, text: 'No finished runs' }, error: 'Could not load this comparison', ready: (p: Page) => expect(matrix(p)).toBeVisible() },
+  { name: 'report', url: `/compare/?job=${JOB}`, api: `**/api/jobs/${JOB}`, loading: /Loading job/, empty: { body: EMPTY_JOB, text: 'No finished runs' }, error: 'Could not load this comparison', ready: (p: Page) => expect(capabilities(p)).toBeVisible() },
 ];
 
 for (const vp of VIEWPORTS) {

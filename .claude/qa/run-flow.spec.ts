@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const pick = async (page: Page, models: string[]) => {
   for (const m of models) await page.getByRole('checkbox', { name: new RegExp(`^${m}\\b`) }).check();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
 };
 
@@ -12,15 +13,14 @@ test('[AC-3.1] two models and a benchmark: estimate, run, progress updates, repo
   await page.goto('/compare/');
   await expect(page.getByTestId('estimate')).toContainText('Pick a model');
   await pick(page, ['mock-a', 'mock-slow']);
-  await expect(page.getByTestId('estimate')).toContainText(/Estimate: 30 calls/);
+  await expect(page.getByTestId('est-calls')).toHaveText('30');
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   const job = page.getByRole('region', { name: /Comparison/ });
   await expect(job.locator('[data-verdict="running"]')).toBeVisible({ timeout: 10_000 });
   const bar = page.getByRole('progressbar', { name: 'Progress' });
   await expect.poll(async () => Number(await bar.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
-  const report = page.getByRole('region', { name: 'std-reasoning-math' });
+  const report = page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'std-reasoning-math' });
   await expect(report).toBeVisible({ timeout: 30_000 });
   await expect(report.locator('[data-verdict="equivalent"]')).toBeVisible();
   await expect(job.locator('[data-verdict="done"]')).toBeVisible();
@@ -43,8 +43,7 @@ test('[AC-3.1] a model that errors shows an incomplete verdict and its error rea
   await page.goto('/compare/');
   await pick(page, ['mock-a', 'mock-errors']);
   await page.getByRole('button', { name: 'Run comparison' }).click();
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // the per-benchmark tables sit under Details since M7
-  const report = page.getByRole('region', { name: 'std-reasoning-math' });
+  const report = page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'std-reasoning-math' });
   await expect(report.locator('[data-verdict="incomplete"]')).toBeVisible({ timeout: 30_000 });
   await expect(report).toContainText('provider unavailable');
 });
@@ -66,10 +65,9 @@ test('[AC-3.3] past jobs are listed and opening one shows its report', async ({ 
   await page.goto('/history/');
   await expect(page.getByRole('navigation', { name: 'Main' }).locator('[aria-current="page"]')).toHaveText('Compare');
   await expect(page.getByRole('navigation', { name: 'Compare sections' }).locator('[aria-current="page"]')).toHaveText('History');
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
-  await page.locator(`a[href="/history/?job=${job_id}"]`).click();
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
-  await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
+  await page.locator(`a[href="/compare/?job=${job_id}"]`).click();
+  await expect(page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'std-reasoning-math' })).toBeVisible();
 });
 
 test('[AC-3.5] loading while the job is fetched', async ({ page }) => {
@@ -86,8 +84,8 @@ test('[AC-3.5] empty history links to a new run', async ({ page }) => {
   await page.route('**/api/jobs', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/runs', (route) => route.fulfill({ json: [] }));
   await page.goto('/history/');
-  await expect(page.getByRole('heading', { name: 'No runs yet' })).toBeVisible();
-  await page.getByRole('link', { name: 'Start your first comparison' }).click();
+  await expect(page.getByRole('heading', { name: 'No comparisons yet' })).toBeVisible();
+  await page.getByRole('link', { name: 'Start a comparison' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Compare' })).toBeVisible();
 });
 
@@ -98,7 +96,7 @@ test('[AC-3.5] history shows an error with retry when the API fails', async ({ p
   await expect(page.locator('[data-state="error"]')).toContainText('Could not load history');
   down = false;
   await page.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('heading', { name: 'Comparisons' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Comparisons', exact: true })).toBeVisible();
 });
 
 test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
@@ -108,7 +106,7 @@ test('[AC-3.5] no targets configured is an empty state', async ({ page }) => {
 });
 
 test('[AC-3.3] history caps long lists and shows all on request', async ({ page }) => {
-  const jobs = Array.from({ length: 30 }, (_, i) => ({ id: `j${i}`, targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'done', done_calls: 30, total_calls: 30, started_at: '2026-10-19T10:00:00' }));
+  const jobs = Array.from({ length: 30 }, (_, i) => ({ id: `j${i}`, targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'done', done_calls: 30, total_calls: 30, run_ids: [], benchmarks: ['std-reasoning-math'], started_at: '2026-10-19T10:00:00' }));
   await page.route('**/api/jobs', (route) => route.fulfill({ json: jobs }));
   await page.goto('/history/');
   const section = page.getByRole('region', { name: 'Comparisons' });
@@ -134,7 +132,7 @@ test('[AC-3.1] run options feed the estimate and the request, and a cost confirm
   await page.getByLabel('Budget per run (USD)').fill('5');
   await page.getByLabel('Parallel calls per model').fill('4');
   await page.getByRole('checkbox', { name: 'Reuse cached answers' }).uncheck();
-  await expect(page.getByTestId('estimate')).toContainText('Estimate: 60 calls');
+  await expect(page.getByTestId('est-calls')).toHaveText('60');
   await page.getByRole('button', { name: 'Run comparison' }).click();
   const confirm = page.getByRole('group', { name: 'Confirm cost' });
   await expect(confirm).toContainText('may cost up to $2.50');
@@ -177,8 +175,7 @@ test('[AC-3.1] one model gives a scorecard without a verdict', async ({ page }) 
   await pick(page, ['mock-a']);
   await expect(page.getByTestId('estimate')).toContainText('one model gives a scorecard; select two for a verdict');
   await page.getByRole('button', { name: 'Run comparison' }).click();
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
-  await expect(page.getByRole('region', { name: 'std-reasoning-math' })).toContainText('mock-a', { timeout: 30_000 });
+  await expect(page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'std-reasoning-math' })).toContainText('mock-a', { timeout: 30_000 });
   await expect(page.getByText('One model gives a scorecard; add a second for a verdict.')).toBeVisible();
 });
 

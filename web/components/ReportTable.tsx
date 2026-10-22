@@ -3,12 +3,17 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
-import CostScatter from "./CostScatter";
-import RankedBars from "./RankedBars";
+import DecisionPanel from "./DecisionPanel";
+import KeyMetrics, { slowestP95 } from "./KeyMetrics";
+import QualityScatter from "./QualityScatter";
+import SectionTabs from "./SectionTabs";
+import BarList from "./ui/BarList";
+import CapabilityGrid from "./CapabilityGrid";
+import CostSpeed from "./CostSpeed";
+import Evidence from "./Evidence";
 import Regressions from "./Regressions";
-import Suggestions from "./Suggestions";
-import VerdictMatrix from "./VerdictMatrix";
-import type { Decision, Dimension, FlaggedItem, Marker, Suggestion } from "@/lib/report";
+import { vendorColor } from "@/lib/vendor";
+import type { Bench, Decision, Dimension, FlaggedItem, Marker, Profile, Suggestion } from "@/lib/report";
 
 const TONES: Record<string, [string, string]> = {
   better: ["Better", "ok"], mixed: ["Mixed", "warn"], worse: ["Worse", "bad"], equivalent: ["Equivalent", "info"], inconclusive: ["Inconclusive", "muted"],
@@ -23,21 +28,20 @@ export function Chip({ text }: { text: string }) {
   return known ? <span className={`chip ${known[1]}`} data-verdict={text}>{known[0]}</span> : <span className="chip muted" data-verdict={text}>{text}</span>;
 }
 
-type Summary = { mean_score: number; pass_rate: number; n_errors: number; n_calls: number };
-type Comparison = { candidate: string; verdict: string; delta: number | null; ci: [number | null, number | null]; n: number };
-type Bench = { name: string; dimension: string; summaries: Record<string, Summary>; comparisons: Comparison[]; saturated: boolean; saturation_message: string | null };
 type Report = {
   baseline: string; warnings: string[]; benchmarks: Bench[];
   errors: Record<string, Record<string, { reasons: { reason: string; count: number }[] }>>;
-  headline: { candidate: string; baseline: string; overall: string }[];
   dimensions: Record<string, Dimension>;
   summary?: { decisions: Decision[]; markers: Record<string, Marker> };
   suggestions?: Suggestion[];
   flagged?: Record<string, { items: FlaggedItem[] }>;
+  profiles?: Profile[];
+  total_cost_usd?: Record<string, number>;
 };
+const TABS = [["decision", "Decision"], ["overview", "Key metrics"], ["quality", "Quality"], ["capabilities", "Capabilities"], ["cost", "Cost"], ["speed", "Speed"], ["regressions", "Regressions"], ["evidence", "Evidence"]]
+  .map(([id, label]) => ({ href: `#${id}`, label }));
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; report: Report };
 
-const pts = (v: number | null) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${(100 * v).toFixed(1)}`);
 export function ReportTable({ jobId, children }: { jobId: string; children?: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -54,57 +58,33 @@ export function ReportTable({ jobId, children }: { jobId: string; children?: Rea
   if (state.status === "error") return <><ErrorState message={state.message} onRetry={retry} />{children}</>;
   const { report: r } = state;
   const vendors = Object.fromEntries(Object.values(r.dimensions).flatMap((d) => Object.entries(d.targets).map(([t, v]) => [t, v.vendor])));
+  const candidates = r.summary ? Object.keys(r.summary.markers).filter((t) => t !== r.baseline) : Object.keys(r.flagged ?? {});
   return (
     <>
-      <section className="card" aria-labelledby="report-h">
-        <div className="between">
-          <h2 id="report-h">Report · baseline {r.baseline}</h2>
-          <span className="links"><a href={`/api/jobs/${jobId}/report.html`} target="_blank" rel="noopener">Open report</a><a href={`/api/jobs/${jobId}/report`} target="_blank" rel="noopener">JSON</a></span>
-        </div>
-        {r.headline.length === 0 && <p className="muted">One model gives a scorecard; add a second for a verdict.</p>}
-        {r.warnings.length > 0 && <ul className="warnings">{r.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-      </section>
-      {r.suggestions && <Suggestions items={r.suggestions} />}
-      {r.summary && <VerdictMatrix baseline={r.baseline} decisions={r.summary.decisions} />}
-      <RankedBars dimensions={r.dimensions} baseline={r.baseline} />
-      {r.summary && <CostScatter markers={r.summary.markers} vendors={vendors} />}
-      {r.flagged && <Regressions flagged={r.flagged} baseline={r.baseline} />}
-      <details className="details">
-        <summary>Details</summary>
-        <div className="details-body">
-      {r.headline.length > 0 && (
-        <section className="card" aria-labelledby="plain-h">
-          <h2 id="plain-h">In plain words</h2>
-          {r.headline.map((h) => <p key={h.candidate}>{h.candidate} vs {h.baseline}: <Chip text={h.overall} /></p>)}
-          {r.summary?.decisions.map((d) => <p key={d.candidate} className="muted">{d.line}</p>)}
-        </section>
+      <DecisionPanel jobId={jobId} baseline={r.baseline} decisions={r.summary?.decisions ?? []} suggestions={r.suggestions ?? []} profiles={r.profiles ?? []} warnings={r.warnings} markers={r.summary?.markers ?? {}} />
+      {r.summary && (
+        <>
+          <div className="report-tabs"><SectionTabs active="" tabs={TABS} label="Report sections" crumb="" /></div>
+          <KeyMetrics baseline={r.baseline} markers={r.summary.markers} decisions={r.summary.decisions} costs={r.total_cost_usd ?? {}} slowestP95={slowestP95(r.benchmarks)}
+            />
+          <section id="quality" className="report-section" aria-labelledby="quality-h">
+            <h2 id="quality-h" className="sec">Quality</h2>
+            <div className="split">
+              <QualityScatter markers={r.summary.markers} vendors={vendors} />
+              <section className="card" aria-labelledby="passrate-h">
+                <h3 id="passrate-h">Overall pass rate <span className="muted small">Higher is better</span></h3>
+                <p className="muted small">Share of every case each model ran that it passed.</p>
+                <BarList label="Overall pass rate" sorted items={Object.entries(r.summary.markers).flatMap(([t, m]) => (m.task_success == null ? [] : [{
+                  label: m.incomplete ? `${t} (incomplete)` : t, value: m.task_success, display: `${(100 * m.task_success).toFixed(1)}%`, color: vendorColor(t) }]))} />
+              </section>
+            </div>
+          </section>
+        </>
       )}
-      {r.benchmarks.map((b) => (
-        <section key={b.name} className="card" aria-labelledby={`bench-${b.name}`}>
-          <h2 id={`bench-${b.name}`}>{b.name} <span className="muted">{b.dimension}</span></h2>
-          {b.saturated && <p className="note">{b.saturation_message}</p>}
-          <div className="table-wrap" tabIndex={0}><table>
-            <thead><tr><th>Model</th><th className="num">Score</th><th className="num">Pass rate</th><th className="num">Errors</th><th>Verdict</th><th className="num">Change vs baseline (pts)</th></tr></thead>
-            <tbody>{Object.entries(b.summaries).map(([t, s]) => {
-              const c = b.comparisons.find((x) => x.candidate === t);
-              const allErrored = s.n_calls > 0 && s.n_errors === s.n_calls;
-              const reasons = r.errors[t]?.[b.name]?.reasons ?? [];
-              return (
-                <tr key={t}>
-                  <td>{t}{t === r.baseline && <span className="muted"> (baseline)</span>}</td>
-                  <td className="num">{allErrored ? "—" : `${(100 * s.mean_score).toFixed(0)}%`}</td>
-                  <td className="num">{allErrored ? "—" : `${(100 * s.pass_rate).toFixed(0)}%`}</td>
-                  <td className="num">{s.n_errors}/{s.n_calls}{reasons.map((e) => <div key={e.reason} className="muted">{e.reason} ×{e.count}</div>)}</td>
-                  <td>{c ? <Chip text={c.verdict} /> : <span className="muted">—</span>}</td>
-                  <td className="num">{!c ? "—" : c.delta == null ? <span className="muted">No paired cases — every call errored</span> : <>{pts(c.delta)} <span className="muted">({pts(c.ci[0])} to {pts(c.ci[1])}, n={c.n})</span></>}</td>
-                </tr>
-              );
-            })}</tbody>
-          </table></div>
-        </section>
-      ))}
-        </div>
-      </details>
+      <CapabilityGrid dimensions={r.dimensions} baseline={r.baseline} decisions={r.summary?.decisions ?? []} />
+      {r.summary && <CostSpeed markers={r.summary.markers} costs={r.total_cost_usd ?? {}} slowestP95={slowestP95(r.benchmarks)} vendors={vendors} />}
+      {r.flagged && candidates.length > 0 && <Regressions flagged={r.flagged} baseline={r.baseline} candidates={candidates} />}
+      <Evidence benchmarks={r.benchmarks} baseline={r.baseline} errors={r.errors} />
       {children}
     </>
   );

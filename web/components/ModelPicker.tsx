@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getJSON, type Catalog, type Target } from "@/lib/api";
+import { vendorColor } from "@/lib/vendor";
 
 export type Choice = { id: string; note: string; group: string };
 
@@ -49,6 +51,27 @@ export function ModelChecks({ choices, value, onChange }: { choices: Choice[]; v
           ))}
         </fieldset>
       ))}
+    </div>
+  );
+}
+
+/** One selectable model on the Choose screen: vendor dot, key status, and a baseline marker or control. */
+export function ModelCard({ id, model, status, off, checked, baseline, onToggle, onBaseline }: {
+  id: string; model: string; status: string; off: boolean; checked: boolean; baseline: boolean; onToggle: () => void; onBaseline: () => void;
+}) {
+  return (
+    <div role="group" aria-label={id} className="tile" data-on={checked} data-off={off}>
+      <label className="tile-label">
+        <input type="checkbox" checked={checked} disabled={off} onChange={onToggle} aria-describedby={baseline ? `baseline-${id}` : undefined} />
+        <span className="tile-body">
+          <span className="tile-name"><span className="dot" style={{ background: vendorColor(model || id) }} />{id}</span>
+          <span className="mono muted small">{model}</span>
+          <span className={`small ${off ? "danger" : "key-ok"}`}>{status}</span>
+        </span>
+      </label>
+      {off && <Link href="/settings/" className="small">Add key in Settings</Link>}
+      {baseline && <span className="chip tile-flag" id={`baseline-${id}`}>Baseline</span>}
+      {checked && !baseline && <button type="button" className="link-btn tile-flag" onClick={onBaseline}>Make baseline</button>}
     </div>
   );
 }
