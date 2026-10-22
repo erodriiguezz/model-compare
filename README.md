@@ -28,6 +28,8 @@ API keys are read from the environment, or from a `.env` file in the directory y
 
 ## Web dashboard
 
+Mockup - https://claude.ai/artifact/CpdRB5qTRLRzp4RxLS1X85#page-dcb81aee8d83
+
 ```bash
 (cd web && npm ci && npm run build)            # once, and after changing web/: exports web/out
 cd engine && .venv/bin/modelcompare serve      # open http://127.0.0.1:8000
