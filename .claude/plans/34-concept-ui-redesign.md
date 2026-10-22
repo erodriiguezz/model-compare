@@ -200,6 +200,12 @@ none
 - 325 counted lines · reviewer (whole p4): Request changes (1 High: `.tile` collision broke Choose selection), fixed together with the Mediums for this half
 - Review doc: `docs/reviews/34-p4a.md`
 
+### p4b — regressions side by side, evidence (`87eed8f`, rebased on p4a)
+- verify pass · API smoke pass · browser 192/192 · UI audit 0 serious, 10 minor · diff coverage not measured
+- AC-34.10 → AC-34.10 toggle and long-output tests + capture test ✔ · AC-34.11 → every-comparison evidence test + capture test ✔
+- 217 counted lines · reviewer (whole p4): Mediums for this half fixed (toggles, focusable outputs, Score change label, rowgroup headers, projects wait, full evidence test)
+- Review doc: `docs/reviews/34-p4b.md`
+
 ## 6. Retro
 
 ## 7. Hand-off

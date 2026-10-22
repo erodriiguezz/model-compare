@@ -455,13 +455,95 @@ test('[AC-34.9] a model with no successful call is not cheapest or fastest; an i
 });
 
 for (const width of [1280, 390]) {
-  test(`[AC-34.8] [AC-34.9] capabilities, cost and speed fit ${width}px and are captured`, async ({ page }) => {
+  test(`[AC-34.8] [AC-34.9] [AC-34.10] [AC-34.11] the full report fits ${width}px and is captured`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(REPORT);
     await expect(speed(page).locator('[data-chart="latency-scatter"] .recharts-wrapper')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const nav = page.getByRole('navigation', { name: 'Report sections' });
-    for (const tab of ['Capabilities', 'Cost', 'Speed']) await expect(nav.getByRole('link', { name: tab })).toBeVisible();
+    for (const tab of ['Capabilities', 'Cost', 'Speed', 'Regressions', 'Evidence']) await expect(nav.getByRole('link', { name: tab })).toBeVisible();
     await shot(page, `report-full-${width}`);
   });
 }
+
+const regressionsOf = (page: Page) => page.getByRole('region', { name: 'Regressions' });
+
+test('[AC-34.10] one toggle per candidate; switching changes the list; a regression opens to both outputs and the reason', async ({ page, request }) => {
+  const report = await loadReport(request);
+  const item = report.flagged['qa-worse'].items.find((i: { kind: string }) => i.kind === 'regression');
+  item.candidate.reasons = ['expected "42" but got "ANSWER: 0"'];
+  await mockReport(page, report);
+  await page.goto(REPORT);
+  const reg = regressionsOf(page);
+  const toggle = (name: RegExp) => reg.getByRole('group', { name: 'Candidates' }).getByRole('button', { name });
+  await expect(reg.getByRole('group', { name: 'Candidates' }).getByRole('button')).toHaveCount(4);
+  await expect(toggle(/qa-tie · 0/)).toBeVisible();
+  await expect(toggle(/qa-worse/)).toHaveAttribute('aria-pressed', 'true'); // the candidate with most regressions opens first
+  await expect(reg.locator('details.reg')).toHaveCount(8);
+  await toggle(/qa-better/).click();
+  await expect(toggle(/qa-better/)).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle(/qa-worse/)).toHaveAttribute('aria-pressed', 'false');
+  await expect(reg.locator('details.reg')).toHaveCount(5);
+  await toggle(/qa-tie/).click();
+  await expect(reg.getByText('No case that qa-base passed fails on qa-tie.')).toBeVisible();
+  await toggle(/qa-worse/).click();
+  const row = reg.locator('details.reg', { hasText: `${item.benchmark} · ${item.case_id}` });
+  await expect(row).not.toHaveAttribute('open', '');
+  await row.locator('summary').click();
+  await expect(row).toHaveAttribute('open', '');
+  await expect(row.locator('pre')).toHaveCount(2);
+  await expect(row).toContainText('qa-base · baseline');
+  await expect(row).toContainText('qa-worse · candidate');
+  await expect(row).toContainText('Why it failed: expected "42" but got "ANSWER: 0"');
+  await expect(row.getByLabel('qa-worse output')).toContainText(item.candidate.text);
+});
+
+for (const width of [1280, 390]) {
+  test(`[AC-34.10] a long output scrolls inside its box, is focusable and does not scroll the page at ${width}px`, async ({ page, request }) => {
+    const report = await loadReport(request);
+    const item = report.flagged['qa-worse'].items.find((i: { kind: string }) => i.kind === 'regression');
+    item.candidate.text = Array.from({ length: 120 }, (_, i) => `line ${i} ${'x'.repeat(i === 3 ? 400 : 10)}`).join('\n');
+    await mockReport(page, report);
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(REPORT);
+    const row = regressionsOf(page).locator('details.reg', { hasText: `${item.benchmark} · ${item.case_id}` });
+    await row.locator('summary').click();
+    const out = row.getByLabel('qa-worse output');
+    expect(await out.evaluate((e) => e.scrollHeight > e.clientHeight)).toBe(true);
+    await out.focus();
+    await expect(out).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  });
+}
+
+test('[AC-34.11] every evidence row shows n, change, CI, p, McNemar p, W/T/L and verdict from the benchmarks; the report links return HTML and JSON', async ({ page, request }) => {
+  const report = await loadReport(request);
+  await page.goto(REPORT);
+  const evidence = page.getByRole('region', { name: 'Evidence' });
+  await expect(evidence.getByRole('columnheader')).toHaveText(['Model', 'Pass rate', 'n', 'Score change (pts)', '95% CI (pts)', 'p', 'McNemar p', 'W/T/L', 'Verdict']);
+  const pts = (v: number) => `${v >= 0 ? '+' : ''}${(100 * v).toFixed(1)}`;
+  const p = (v: number) => (v < 0.001 ? '<0.001' : v.toFixed(3));
+  let checked = 0;
+  for (const b of report.benchmarks) {
+    const group = evidence.getByRole('rowgroup', { name: b.name });
+    await expect(group.getByRole('row')).toHaveCount(1 + Object.keys(b.summaries).length);
+    for (const c of b.comparisons) {
+      const cells = group.getByRole('row').filter({ has: page.getByRole('rowheader', { name: new RegExp(`^${c.candidate}`) }) }).locator('td');
+      await expect(cells.nth(1), `${b.name}/${c.candidate} n`).toHaveText(String(c.n));
+      await expect(cells.nth(2), `${b.name}/${c.candidate} change`).toHaveText(pts(c.delta));
+      await expect(cells.nth(3), `${b.name}/${c.candidate} CI`).toHaveText(`${pts(c.ci[0])} to ${pts(c.ci[1])}`);
+      await expect(cells.nth(4), `${b.name}/${c.candidate} p`).toHaveText(p(c.p_value));
+      await expect(cells.nth(5), `${b.name}/${c.candidate} McNemar`).toHaveText(p(c.mcnemar_p));
+      await expect(cells.nth(6), `${b.name}/${c.candidate} W/T/L`).toHaveText(`${c.wins}/${c.ties}/${c.losses}`);
+      await expect(cells.nth(7).locator(`[data-verdict="${c.verdict}"]`), `${b.name}/${c.candidate} verdict`).toBeVisible();
+      checked += 1;
+    }
+  }
+  expect(checked).toBe(21);
+  await expect(evidence).toContainText('Fewer than 10 shared cases gives no verdict.');
+  const html = await request.get(await page.getByRole('link', { name: 'Open report' }).getAttribute('href') as string);
+  expect(html.status()).toBe(200);
+  expect(html.headers()['content-type']).toContain('text/html');
+  const json = await request.get(await page.getByRole('link', { name: 'JSON' }).getAttribute('href') as string);
+  expect((await json.json()).baseline).toBe('qa-base');
+});
