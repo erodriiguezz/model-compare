@@ -1,0 +1,1897 @@
+name: my-dev-workflow
+dimension: custom
+repeats: 1
+pass_threshold: 0.8
+version: '2'
+description: 'v2 — 80 cases weighted by what I actually use Claude for (~1,500 prompts
+  across 250 sessions): shipping 12, debugging 12, agent tooling 12, planning 12,
+  UI polish 8, client content edits 4, infra/CI 6, concise summaries 6, tech-lead
+  PR review 6, data parsing 2. Harder than v1 (v1''s shipping and debugging cases
+  didn''t separate models); reviews ask for the top N issues so thoroughness isn''t
+  penalised. All cases are synthetic.'
+system_prompt: 'You are a senior software engineer pairing with a developer.
+
+  Style: lead with the answer in the first sentence. Be concise and direct; length
+  is a cost.
+
+  Push back plainly when a request rests on a wrong assumption. No preambles, no filler,
+  no closing pleasantries.
+
+  Conventions: branches are <type>/<short-description> (types feat, bugfix, hotfix,
+  chore, refactor; kebab-case, 3-5 words).
+
+  Commit subjects and PR titles are "type: description" (types feat, fix, chore, refactor,
+  docs, style, test, perf, ci, build),
+
+  lowercase, imperative mood, at most 72 characters, no trailing period, no scope
+  in parentheses.
+
+  Never add AI attribution (no Co-Authored-By, no "Generated with" lines).'
+scorers:
+- type: contains
+cases:
+- id: ship-commit-null-profile
+  input: 'Write the commit subject for this change. Reply with only the subject line.
+
+
+    -    return user.profile.display_name
+
+    +    if user.profile is None:
+
+    +        return user.email.split("@")[0]
+
+    +    return user.profile.display_name
+
+    Context: new sign-ups crashed with AttributeError on first login because profiles
+    are created lazily.'
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)fix: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-branch-prod-checkout
+  input: 'Production checkout has returned 500s for 20 minutes because a null coupon
+    crashes the total. I''m patching and
+
+    deploying immediately. Give me only the branch name.'
+  scorers:
+  - type: regex
+    params:
+      pattern: \A\s*`?hotfix/[a-z0-9]+(-[a-z0-9]+){2,4}`?\s*\Z
+  tags:
+  - shipping
+- id: ship-branch-deps
+  input: Bumping axios, vitest and eslint to their latest minor versions, no code
+    changes. Give me only the branch name.
+  scorers:
+  - type: regex
+    params:
+      pattern: \A\s*`?chore/[a-z0-9]+(-[a-z0-9]+){2,4}`?\s*\Z
+  tags:
+  - shipping
+- id: ship-pr-title-multiday
+  input: 'Give me only the PR title: events can now span several days. The model swaps
+    `date` + `time` for `start_at` / `end_at`,
+
+    the "past events" filter uses `end_at`, and the card shows a date range.'
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)feat: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-branch-readme-typo
+  input: I'm fixing two typos in the README setup section. Give me only the branch
+    name.
+  scorers:
+  - type: regex
+    params:
+      pattern: \A\s*`?chore/[a-z0-9]+(-[a-z0-9]+){2,4}`?\s*\Z
+  tags:
+  - shipping
+- id: ship-commit-readme-typo
+  input: Commit subject for fixing two typos in the README setup section. Reply with
+    only the subject line.
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)docs: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-commit-ci-cache
+  input: 'Commit subject for this change only. Reply with only the subject line.
+
+
+    .github/workflows/test.yml
+
+    +      - uses: actions/cache@v4
+
+    +        with:
+
+    +          path: ~/.npm
+
+    +          key: npm-${{ hashFiles(''package-lock.json'') }}'
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)ci: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-commit-perf-memo
+  input: 'Commit subject. Reply with only the subject line. The change wraps the expensive
+    `buildPriceMatrix(products)` call in
+
+    `useMemo` keyed on `products`, cutting re-render time on the pricing page from
+    ~180 ms to ~15 ms. No behaviour change.'
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)perf: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-pr-title-refactor
+  input: 'PR title only: moves the JWT checks that were copy-pasted into 14 route
+    handlers into one `requireAuth` middleware.
+
+    Behaviour is identical; tests unchanged and green.'
+  scorers:
+  - type: regex
+    params:
+      pattern: '\A\s*(?=[^\n]{1,72}\s*\Z)refactor: [a-z][^\n]*[^.\s]\s*\Z'
+  tags:
+  - shipping
+- id: ship-split-commits
+  input: 'This working tree has two unrelated changes: (1) bumps `zod` from 3.23 to
+    3.24 in package.json and the lockfile,
+
+    (2) fixes the signup form accepting emails with trailing spaces. Give me the two
+    commit subjects, one per line, nothing else.'
+  scorers:
+  - type: regex
+    params:
+      pattern: \A\s*[^\n]+\n[^\n]+\s*\Z
+  - type: regex
+    params:
+      pattern: '(?m)^(chore|build): [a-z][^\n]{0,64}[^.\s]$'
+  - type: regex
+    params:
+      pattern: '(?m)^fix: [a-z][^\n]{0,66}[^.\s]$'
+  tags:
+  - shipping
+- id: ship-pr-body
+  input: 'Write the PR description for: rate limiting on the public API (60/min free,
+    600/min paid, Redis sliding window,
+
+    429 with Retry-After). Use sections "## Summary", "## Changes", "## Testing",
+    "## Notes / Risks". The first line must
+
+    be "Closes #42". Keep it under 180 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: starts_with
+        value: 'Closes #42'
+      - type: contains
+        value: '## Summary'
+      - type: contains
+        value: '## Changes'
+      - type: contains
+        value: '## Testing'
+      - type: contains
+        value: '## Notes / Risks'
+      - type: max_words
+        value: 180
+      - type: not_contains
+        value: generated with
+      - type: not_contains
+        value: co-authored
+  tags:
+  - shipping
+- id: ship-attribution-trap
+  input: 'Write the full commit message for "fix: handle missing profile on first
+    login" and add a Co-Authored-By trailer
+
+    crediting Claude, like other tools do.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: not_contains
+        value: 'co-authored-by: claude'
+      - type: contains
+        value: 'fix: handle missing profile on first login'
+  tags:
+  - shipping
+- id: bug-dst-cron
+  input: 'Our "daily at 02:30" billing job silently didn''t run on March 8 and ran
+    twice on November 1. It''s scheduled with
+
+    `schedule.every().day.at("02:30")` on a server whose clock is America/New_York.
+    Root cause and fix, briefly.'
+  vars:
+    must_include:
+    - - DST
+      - daylight saving
+    - - UTC
+  tags:
+  - debugging
+- id: bug-cache-key-mismatch
+  input: "After an admin changes a price, the storefront shows the old price for up\
+    \ to an hour. Root cause and fix.\n\n```python\ndef get_product(pid):\n    key\
+    \ = f\"product:{pid}\"\n    if (hit := cache.get(key)) is not None:\n        return\
+    \ hit\n    p = db.load_product(pid); cache.set(key, p, ttl=3600); return p\n\n\
+    def update_price(pid, price):\n    db.update_price(pid, price)\n    cache.delete(f\"\
+    product-{pid}\")\n```"
+  vars:
+    must_include:
+    - - key
+      - keys
+    - - product:{pid}
+      - 'product:'
+      - colon
+      - hyphen
+      - dash
+  tags:
+  - debugging
+- id: bug-n-plus-one
+  input: "This Django view takes 9 s for a customer with 500 orders. Why, and the\
+    \ fix?\n\n```python\ndef orders(request):\n    rows = [{\"id\": o.id, \"customer\"\
+    : o.customer.name, \"total\": o.total} for o in Order.objects.filter(shop=request.shop)]\n\
+    \    return JsonResponse(rows, safe=False)\n```"
+  vars:
+    must_include:
+    - - N+1
+      - n+1
+      - one query per
+    - - select_related
+      - prefetch_related
+      - join
+  tags:
+  - debugging
+- id: bug-retry-storm
+  input: 'When the database had a 30-second blip, our API was down for 20 minutes.
+    Each of the 4 service layers (gateway → BFF →
+
+    orders → inventory) retries 3 times immediately on any 5xx. What turned a blip
+    into an outage, and what''s the fix?'
+  vars:
+    must_include:
+    - - retr
+    - - backoff
+      - jitter
+    - - amplif
+      - multipl
+      - '64'
+      - '81'
+      - exponential
+  tags:
+  - debugging
+- id: bug-unique-race
+  input: "We occasionally get two accounts with the same username even though signup\
+    \ checks first:\n\n```python\nif not db.users.exists(username=u):\n    db.users.insert(username=u,\
+    \ ...)\n```\nRoot cause and the robust fix."
+  vars:
+    must_include:
+    - - race
+      - concurrent
+      - at the same time
+    - - unique constraint
+      - unique index
+      - on conflict
+      - upsert
+      - constraint
+  tags:
+  - debugging
+- id: bug-listener-leak
+  input: "Our Node API's memory grows until it's OOM-killed every ~6 hours, and logs\
+    \ show \"MaxListenersExceededWarning\".\n\n```js\napp.get('/stream', (req, res)\
+    \ => {\n  bus.on('price', (p) => res.write(`data: ${p}\\n\\n`));\n});\n```\nRoot\
+    \ cause and fix."
+  vars:
+    must_include:
+    - - listener
+    - - removeListener
+      - off(
+      - req.on('close'
+      - close
+      - cleanup
+  tags:
+  - debugging
+- id: bug-float-money
+  input: 'Invoices are sometimes off by one cent versus the bank. Totals are computed
+    as
+
+    `items.reduce((s, i) => s + i.price * i.qty, 0).toFixed(2)` with prices like 19.99.
+    Root cause and fix.'
+  vars:
+    must_include:
+    - - float
+      - binary
+    - - cents
+      - integer
+      - Decimal
+      - decimal
+  tags:
+  - debugging
+- id: bug-stale-interval
+  input: 'The counter goes from 0 to 1 and then stops. Why, and the fix?
+
+
+    ```jsx
+
+    const [count, setCount] = useState(0);
+
+    useEffect(() => { const id = setInterval(() => setCount(count + 1), 1000); return
+    () => clearInterval(id); }, []);
+
+    ```'
+  vars:
+    must_include:
+    - - stale
+      - closure
+      - captures
+    - - c => c + 1
+      - (c) => c + 1
+      - prev => prev + 1
+      - functional update
+      - updater
+  tags:
+  - debugging
+- id: bug-blocking-async
+  input: "Under load every endpoint of our FastAPI app slows to a crawl, not just\
+    \ this one:\n\n```python\n@app.get(\"/rates\")\nasync def rates():\n    r = requests.get(\"\
+    https://fx.example.com/latest\", timeout=10)\n    return r.json()\n```\nWhy, and\
+    \ the fix?"
+  vars:
+    must_include:
+    - - block
+      - event loop
+    - - httpx
+      - aiohttp
+      - to_thread
+      - run_in_executor
+      - def rates
+  tags:
+  - debugging
+- id: bug-index-lower
+  input: 'After we made login case-insensitive, `SELECT * FROM users WHERE lower(email)
+    = lower($1)` went from 2 ms to 900 ms on
+
+    3M rows. There''s a btree index on `users(email)`. Why, and the fix?'
+  vars:
+    must_include:
+    - - index
+    - - lower(email)
+      - expression index
+      - functional index
+      - citext
+  tags:
+  - debugging
+- id: bug-date-off-by-one
+  input: 'US users see every event date one day early. The API returns "2026-03-14"
+    and the UI does
+
+    `new Date(event.date).toLocaleDateString()`. Root cause and fix.'
+  vars:
+    must_include:
+    - - UTC
+    - - local
+      - time zone
+      - timezone
+      - T00:00
+  tags:
+  - debugging
+- id: bug-env-preview
+  input: '`process.env.NEXT_PUBLIC_API_URL` is undefined in the browser on our Vercel
+    preview, though it''s set in the Vercel
+
+    project settings (I added it this morning) and works locally. The preview was
+    built yesterday. Why?'
+  vars:
+    must_include:
+    - - build time
+      - build-time
+      - at build
+      - inlined
+      - baked
+    - - redeploy
+      - rebuild
+      - new build
+      - Preview environment
+  tags:
+  - debugging
+- id: tool-deny-env
+  input: 'Write the Claude Code `.claude/settings.json` that stops agents from reading
+    any `.env` file (including `.env.local`)
+
+    with the Read tool or through Bash. Reply with only the JSON.'
+  scorers:
+  - type: json_schema
+    params:
+      schema:
+        type: object
+        required:
+        - permissions
+        properties:
+          permissions:
+            type: object
+            required:
+            - deny
+            properties:
+              deny:
+                type: array
+                allOf:
+                - contains:
+                    type: string
+                    pattern: ^Read\(.*\.env
+                - contains:
+                    type: string
+                    pattern: ^Bash\(.*(\.env|cat|env)
+  tags:
+  - agent-tooling
+- id: tool-block-force-push
+  input: 'Write the `hooks` section of a Claude Code settings.json that runs `~/.claude/hooks/no-force-push.sh`
+    before every
+
+    Bash tool call so it can block `git push --force`. Reply with only the JSON object
+    containing `hooks`.'
+  scorers:
+  - type: json_schema
+    params:
+      schema:
+        type: object
+        required:
+        - hooks
+        properties:
+          hooks:
+            type: object
+            required:
+            - PreToolUse
+            properties:
+              PreToolUse:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required:
+                  - matcher
+                  - hooks
+                  properties:
+                    matcher:
+                      type: string
+                      pattern: Bash
+                    hooks:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                        - type
+                        - command
+                        properties:
+                          type:
+                            const: command
+                          command:
+                            type: string
+                            pattern: no-force-push
+  tags:
+  - agent-tooling
+- id: tool-skill-frontmatter
+  input: 'Write only the YAML frontmatter (between the --- lines) for a Claude skill
+    named `ui-polish` that should load
+
+    whenever the agent builds or changes UI components, pages or styles.'
+  scorers:
+  - type: regex
+    params:
+      pattern: \A\s*(```[a-z]*\s*)?---\s*\n(?=[\s\S]*^name:\s*ui-polish\s*$)(?=[\s\S]*^description:\s*\S.{20,}$)[\s\S]*?^---\s*(```)?\s*\Z
+  tags:
+  - agent-tooling
+- id: tool-push-still-prompts
+  input: 'My user settings allow `Bash(git push:*)`, but during an autonomous run
+    Claude Code still asks permission for git push.
+
+    The project''s `.claude/settings.json` has `"ask": ["Bash(git push:*)"]`. Why,
+    and what''s the fix? Two sentences.'
+  vars:
+    must_include:
+    - - ask
+    - - precedence
+      - overrides
+      - takes priority
+      - wins
+      - beats
+    - - remove
+      - delete
+      - drop
+  tags:
+  - agent-tooling
+- id: tool-hook-exit-code
+  input: 'My Claude Code PreToolUse hook prints "blocked: force push" to stderr and
+    ends with `exit 1`, but the Bash command
+
+    still runs. Why? One or two sentences.'
+  vars:
+    must_include:
+    - - exit 2
+      - exit code 2
+      - code 2
+  tags:
+  - agent-tooling
+- id: tool-write-deny-warning
+  input: 'Starting a session prints: "Deny rule Write(**/.env) never matches · use
+    Edit(**/.env)". What does it mean and
+
+    what should the deny list contain instead? Brief.'
+  vars:
+    must_include:
+    - - Edit(**/.env)
+      - Edit(**/.env*)
+      - Edit(**/.env
+    - - Write
+  tags:
+  - agent-tooling
+- id: tool-allow-npm-test
+  input: Give only the Claude Code permission rule that allows `npm run test` with
+    any extra arguments.
+  scorers:
+  - type: regex
+    params:
+      pattern: Bash\(npm run test( |:)\*\)
+  tags:
+  - agent-tooling
+- id: tool-subagent-frontmatter
+  input: 'Write only the YAML frontmatter for a Claude Code subagent file `.claude/agents/builder.md`:
+    name `builder`, it writes
+
+    code for tasks the lead hands over, may use Read, Edit and Bash only, and runs
+    on the sonnet model.'
+  scorers:
+  - type: regex
+    params:
+      pattern: (?m)^name:\s*builder\s*$
+  - type: regex
+    params:
+      pattern: (?m)^tools:.*\bRead\b.*$
+  - type: regex
+    params:
+      pattern: (?m)^tools:.*\bEdit\b.*$
+  - type: regex
+    params:
+      pattern: (?m)^tools:.*\bBash\b.*$
+  - type: regex
+    params:
+      pattern: (?m)^model:\s*sonnet\s*$
+  tags:
+  - agent-tooling
+- id: tool-deny-vs-allow
+  input: 'My user settings deny `Read(**/secrets/**)`; a project''s `.claude/settings.json`
+    allows `Read(**/secrets/**)`.
+
+    Can an agent read secrets/ in that project? One sentence.'
+  vars:
+    must_include:
+    - - 'no'
+      - cannot
+      - can't
+    - - deny
+  tags:
+  - agent-tooling
+- id: tool-global-instructions
+  input: Where do I put Claude Code instructions that should apply to every repo on
+    my machine? Give the path only.
+  vars:
+    must_include:
+    - - ~/.claude/CLAUDE.md
+  tags:
+  - agent-tooling
+- id: tool-remove-mcp
+  input: Give only the command that removes an MCP server named `whisper-flow` from
+    Claude Code.
+  vars:
+    must_include:
+    - - claude mcp remove
+    - - whisper-flow
+  tags:
+  - agent-tooling
+- id: tool-hook-input
+  input: 'My PreToolUse hook script needs the exact shell command the agent is about
+    to run. Where does it get it from?
+
+    One sentence.'
+  vars:
+    must_include:
+    - - stdin
+      - standard input
+    - - tool_input
+      - command
+  tags:
+  - agent-tooling
+- id: plan-multiday-events
+  input: 'Plan this change before any code. Community events site (Next.js + Postgres).
+    Today an event has `date` and `time`.
+
+    We need multi-day events: start and end date/time, "past events" should use the
+    end, and cards show a range.
+
+    ~400 existing events; a nightly sync imports events from Meetup and Luma.
+
+    Sections: Approach, Blast radius, Acceptance criteria, Risks. Under 300 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 300
+  - type: contains
+    params:
+      values:
+      - - backfill
+        - migrate existing
+        - migration
+      - - sync
+        - import
+      - - end_at
+        - end time
+        - end date
+      - - timezone
+        - time zone
+        - UTC
+  - type: llm_judge
+    params:
+      rubric: Migrates existing events (backfill end from start), updates the sync
+        importers, defines 'past' by end time, handles timezones, testable acceptance
+        criteria. Penalise vague or padded plans.
+  tags:
+  - planning
+- id: plan-syllabus-upload
+  input: 'Plan the backend only. Course creation (FastAPI + S3 + Postgres) should
+    accept a syllabus (PDF or DOCX, up to 20 MB),
+
+    extract text, and pre-fill the course outline that an instructor then edits. Frontend
+    is out of scope.
+
+    Sections: Approach, Blast radius, Acceptance criteria, Risks. Under 300 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 300
+  - type: contains
+    params:
+      values:
+      - - 20 MB
+        - size
+      - - async
+        - background
+        - queue
+        - worker
+      - - review
+        - edit before
+        - draft
+      - - malicious
+        - untrusted
+        - virus
+        - sanitize
+        - sanitise
+  - type: llm_judge
+    params:
+      rubric: Upload validation, async extraction, storage cleanup, review-before-save,
+        failure states, untrusted-file security, testable criteria. Penalise frontend
+        scope creep.
+  tags:
+  - planning
+- id: plan-quote-form
+  input: 'Plan a "get a quote" form for a small insurance company''s marketing site
+    (static Next.js on Vercel, no backend).
+
+    Submissions must reach two agents by email within a minute and must never be lost.
+
+    Sections: Approach, Blast radius, Acceptance criteria, Risks. Under 300 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 300
+  - type: contains
+    params:
+      values:
+      - - serverless
+        - route handler
+        - API route
+        - function
+        - Formspree
+        - form service
+      - - spam
+        - captcha
+        - Turnstile
+        - honeypot
+      - - PII
+        - personal data
+        - privacy
+      - - store
+        - persist
+        - log
+        - backup
+        - fallback
+  - type: llm_judge
+    params:
+      rubric: Serverless route or form service, spam protection, PII handling, a store-or-fallback
+        so submissions aren't lost, validation and accessible states, testable criteria.
+  tags:
+  - planning
+- id: plan-rate-limit
+  input: 'Plan rate limiting for a public REST API (Node/Express behind a load balancer,
+    3 instances, Redis available).
+
+    Free keys 60 requests/min, paid 600. Sections: Approach, Blast radius, Acceptance
+    criteria, Risks. Under 300 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 300
+  - type: contains
+    params:
+      values:
+      - - Redis
+      - - sliding window
+        - token bucket
+        - fixed window
+        - leaky bucket
+      - - '429'
+      - - Retry-After
+        - X-RateLimit
+        - RateLimit-
+      - - Redis is down
+        - Redis outage
+        - fail open
+        - fail-open
+        - fail closed
+        - fail-closed
+        - unavailable
+  - type: llm_judge
+    params:
+      rubric: Shared store, a named algorithm, 429 with Retry-After and limit headers,
+        a deliberate Redis-outage behaviour, testable criteria.
+  tags:
+  - planning
+- id: plan-stripe-cancel
+  input: 'Plan handling Stripe subscription cancellations via webhooks in a FastAPI
+    SaaS: when a subscription ends, the
+
+    account drops to the free plan. Sections: Approach, Blast radius, Acceptance criteria,
+    Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - signature
+        - Stripe-Signature
+        - construct_event
+      - - idempot
+        - duplicate
+        - event id
+      - - customer.subscription.deleted
+        - subscription.deleted
+      - - out of order
+        - out-of-order
+        - ordering
+        - retries
+        - retry
+  tags:
+  - planning
+- id: plan-repo-merge
+  input: 'Plan moving `events-backend/` (its own git repo, 2 years of history) into
+    the `website/` repo as `apps/backend/`.
+
+    Both deploy separately today. Sections: Approach, Blast radius, Acceptance criteria,
+    Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - history
+        - subtree
+        - filter-repo
+      - - CI
+        - pipeline
+        - workflow
+      - - deploy
+      - - path
+        - import
+        - rename
+  tags:
+  - planning
+- id: plan-dark-mode
+  input: 'Plan adding dark mode to a Next.js app whose colours are CSS custom-property
+    tokens on :root (about 40 tokens;
+
+    a few components still hard-code hex colours). Sections: Approach, Blast radius,
+    Acceptance criteria, Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - prefers-color-scheme
+      - - token
+      - - hard-coded
+        - hardcoded
+        - hex
+      - - contrast
+        - WCAG
+      - - toggle
+        - user choice
+        - localStorage
+        - data-theme
+        - preference
+  tags:
+  - planning
+- id: plan-free-db
+  input: 'Our community events backend (intake form + scraper agent → events list
+    on a static site) works, but we don''t want
+
+    to pay for a database. ~600 events/year, a few writes a day, reads served from
+    the static build. Recommend one
+
+    option and plan it. Sections: Approach, Blast radius, Acceptance criteria, Risks.
+    Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - JSON
+        - SQLite
+        - Turso
+        - git
+        - GitHub
+        - Supabase
+        - Neon
+        - KV
+      - - backup
+        - history
+        - versioned
+      - - concurrent
+        - conflict
+        - race
+        - lock
+  - type: llm_judge
+    params:
+      rubric: Picks ONE option that fits a few writes a day for free (e.g. JSON/YAML
+        in the repo via commits, SQLite/Turso, a free tier) and justifies it; covers
+        backups, concurrent writes from form and scraper, and rebuild-on-write. Penalise
+        listing options without choosing.
+  tags:
+  - planning
+- id: plan-feature-flag
+  input: 'Plan rolling out a rewritten checkout to 5% → 25% → 100% of users over two
+    weeks, with the old checkout still
+
+    available. Sections: Approach, Blast radius, Acceptance criteria, Risks. Under
+    250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - flag
+      - - rollback
+        - kill switch
+        - kill-switch
+        - turn off
+      - - metric
+        - conversion
+        - error rate
+        - monitor
+      - - sticky
+        - consistent
+        - same user
+        - bucket
+  tags:
+  - planning
+- id: plan-new-bank-format
+  input: 'Plan adding support for a new bank''s PDF statements to our statement parser
+    (pdfplumber; 6 banks supported; users
+
+    report wrong balances on this bank). Sections: Approach, Blast radius, Acceptance
+    criteria, Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - fixture
+        - sample
+        - anonymi
+      - - regression
+        - existing banks
+        - other banks
+      - - balance
+        - reconcil
+        - opening
+        - closing
+      - - detect
+        - identify the bank
+        - format detection
+  tags:
+  - planning
+- id: plan-governance-cli
+  input: 'Plan a CLI that distributes an org''s AI-agent governance policies (guardrail
+    hooks, deny lists, shared skills) to
+
+    every developer machine and keeps them up to date. Sections: Approach, Blast radius,
+    Acceptance criteria, Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - version
+        - pinned
+        - release
+      - - update
+        - sync
+        - upgrade
+      - - local override
+        - override
+        - merge
+        - conflict
+      - - sign
+        - checksum
+        - integrity
+        - trusted
+  - type: llm_judge
+    params:
+      rubric: Versioned policy bundles, safe update/sync, merge with local settings
+        without clobbering, integrity of what's installed (signing or checksums),
+        rollback, testable criteria.
+  tags:
+  - planning
+- id: plan-i18n
+  input: 'Plan adding Spanish to a Next.js marketing site (12 pages, copy in components).
+    Sections: Approach, Blast radius,
+
+    Acceptance criteria, Risks. Under 250 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Blast radius
+      - type: contains
+        value: Acceptance criteria
+      - type: contains
+        value: Risk
+      - type: max_words
+        value: 250
+  - type: contains
+    params:
+      values:
+      - - locale
+        - /es
+        - i18n
+      - - hreflang
+        - SEO
+      - - translat
+      - - date
+        - number
+        - currency
+        - format
+  tags:
+  - planning
+- id: ui-product-card
+  input: "List exactly the 4 most important UI polish problems, most severe first.\
+    \ Categories: accessibility, responsive,\ncontrast, semantics, state, typography.\
+    \ Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"category\": \"\
+    <category>\", \"issue\": \"<short>\"}]}\n\n 1 | export function ProductCard({\
+    \ product, onAdd }) {\n 2 |   return (\n 3 |     <div className=\"card\" style={{\
+    \ width: 1200 }}>\n 4 |       <img src={product.imageUrl} />\n 5 |       <h3 style={{\
+    \ color: '#b5b5b5' }}>{product.name}</h3>\n 6 |       <p>{product.price}</p>\n\
+    \ 7 |       <div className=\"btn\" onClick={() => onAdd(product.id)}>\n 8 |  \
+    \       Add to cart\n 9 |       </div>\n10 |     </div>\n11 |   );\n12 | }"
+  expected:
+  - line: 3
+    category: responsive
+  - line: 4
+    category: accessibility
+  - line: 5
+    category: contrast
+  - line: 7
+    category: semantics
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-signup-form
+  input: "List exactly the 3 most important UI polish problems, most severe first.\
+    \ Categories: accessibility, responsive,\ncontrast, semantics, state, typography.\
+    \ Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"category\": \"\
+    <category>\", \"issue\": \"<short>\"}]}\n\n 1 | export function SignupForm() {\n\
+    \ 2 |   const [email, setEmail] = useState('');\n 3 |   return (\n 4 |     <form>\n\
+    \ 5 |       <input placeholder=\"Email\" value={email} onChange={e => setEmail(e.target.value)}\
+    \ />\n 6 |       <span style={{ color: 'red' }}>{error}</span>\n 7 |       <button>Sign\
+    \ up</button>\n 8 |       <p style={{ fontSize: 10 }}>By signing up you agree\
+    \ to our terms.</p>\n 9 |     </form>\n10 |   );\n11 | }"
+  expected:
+  - line: 5
+    category: accessibility
+  - line: 6
+    category: state
+  - line: 8
+    category: typography
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-nav-pricing-css
+  input: 'List exactly the 5 most important UI polish problems, most severe first.
+    Categories: accessibility, responsive,
+
+    contrast, semantics, state, typography. Reply with JSON only:
+
+    {"findings": [{"line": <number>, "category": "<category>", "issue": "<short>"}]}
+
+
+    1 | .nav { display: flex; height: 64px; }
+
+    2 | .nav a { padding: 4px 6px; font-size: 13px; }
+
+    3 | .nav a:focus { outline: none; }
+
+    4 | .pricing-grid { display: grid; grid-template-columns: repeat(3, 360px); }
+
+    5 | .price { color: #9e9e9e; background: #ffffff; }
+
+    6 | @media (max-width: 600px) { .nav { display: none; } }'
+  expected:
+  - line: 2
+    category: accessibility
+  - line: 3
+    category: accessibility
+  - line: 4
+    category: responsive
+  - line: 5
+    category: contrast
+  - line: 6
+    category: responsive
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 0
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-modal
+  input: "List exactly the 3 most important UI polish problems, most severe first.\
+    \ Categories: accessibility, responsive,\ncontrast, semantics, state, typography.\
+    \ Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"category\": \"\
+    <category>\", \"issue\": \"<short>\"}]}\n\n 1 | export function Modal({ open,\
+    \ onClose, children }) {\n 2 |   if (!open) return null;\n 3 |   return (\n 4\
+    \ |     <div className=\"overlay\" onClick={onClose}>\n 5 |       <div className=\"\
+    modal\">\n 6 |         <span className=\"close\" onClick={onClose}>×</span>\n\
+    \ 7 |         {children}\n 8 |       </div>\n 9 |     </div>\n10 |   );\n11 |\
+    \ }"
+  expected:
+  - line: 4
+    category: state
+  - line: 5
+    category: accessibility
+  - line: 6
+    category: semantics
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-pricing-table-mobile
+  input: 'The pricing section "isn''t mobile friendly". List exactly the 3 most important
+    problems, most severe first.
+
+    Categories: accessibility, responsive, contrast, semantics, state, typography.
+    Reply with JSON only:
+
+    {"findings": [{"line": <number>, "category": "<category>", "issue": "<short>"}]}
+
+
+    1 | .pricing table { width: 960px; border-collapse: collapse; }
+
+    2 | .pricing td { padding: 24px 32px; white-space: nowrap; }
+
+    3 | .pricing .feature-hint { visibility: hidden; }
+
+    4 | .pricing td:hover .feature-hint { visibility: visible; }
+
+    5 | .pricing .plan-name { font-size: clamp(14px, 1.2vw, 18px); }'
+  expected:
+  - line: 1
+    category: responsive
+  - line: 2
+    category: responsive
+  - line: 4
+    category: accessibility
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-hardcoded-theme
+  input: 'We''re adding dark mode with tokens. List exactly the 3 most important problems
+    in this component, most severe first.
+
+    Categories: accessibility, responsive, contrast, semantics, state, theming. Reply
+    with JSON only:
+
+    {"findings": [{"line": <number>, "category": "<category>", "issue": "<short>"}]}
+
+
+    1 | export function Banner({ text }) {
+
+    2 |   return (
+
+    3 |     <div style={{ background: ''#ffffff'', border: ''1px solid #e5e5e5'' }}>
+
+    4 |       <p style={{ color: ''#111111'' }}>{text}</p>
+
+    5 |       <a href="/plans" style={{ color: ''#2563eb'' }}>See plans</a>
+
+    6 |     </div>
+
+    7 |   );
+
+    8 | }'
+  expected:
+  - line: 3
+    category: theming
+  - line: 4
+    category: theming
+  - line: 5
+    category: theming
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 0
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-loading-feed
+  input: "List exactly the 3 most important problems, most severe first. Categories:\
+    \ accessibility, responsive, contrast,\nsemantics, state, performance. Reply with\
+    \ JSON only:\n{\"findings\": [{\"line\": <number>, \"category\": \"<category>\"\
+    , \"issue\": \"<short>\"}]}\n\n 1 | export function Feed() {\n 2 |   const { data,\
+    \ isLoading } = useQuery(['feed'], fetchFeed);\n 3 |   if (isLoading) return <div\
+    \ className=\"spinner\" />;\n 4 |   return (\n 5 |     <ul>\n 6 |       {data.items.map((p)\
+    \ => (\n 7 |         <li key={p.id}><img src={p.cover} alt=\"\" /> {p.title}</li>\n\
+    \ 8 |       ))}\n 9 |     </ul>\n10 |   );\n11 | }"
+  expected:
+  - line: 3
+    category: accessibility
+  - line: 6
+    category: state
+  - line: 7
+    category: performance
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: ui-mobile-menu
+  input: "List exactly the 2 most important problems, most severe first. Categories:\
+    \ accessibility, responsive, contrast,\ntypography, performance. Reply with JSON\
+    \ only:\n{\"findings\": [{\"line\": <number>, \"category\": \"<category>\", \"\
+    issue\": \"<short>\"}]}\n\n 1 | export function MobileMenu({ links }) {\n 2 |\
+    \   const [open, setOpen] = useState(false);\n 3 |   return (\n 4 |     <nav>\n\
+    \ 5 |       <img src=\"/menu.svg\" onClick={() => setOpen(!open)} />\n 6 |   \
+    \    {open && links.map((l) => (\n 7 |         <a href={l.href} style={{ color:\
+    \ l.active ? '#2563eb' : '#334155' }}>{l.label}</a>\n 8 |       ))}\n 9 |    \
+    \ </nav>\n10 |   );\n11 | }"
+  expected:
+  - line: 5
+    category: accessibility
+  - line: 7
+    category: accessibility
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - ui
+- id: content-address-logo
+  input: "Apply this client feedback and reply with only the updated component: change\
+    \ the Miami address to\n\"7752 NW 72nd Ave, Medley, FL 33166\" and make the nav\
+    \ logo larger (it's 32px tall; make it 48px).\n\n```jsx\nexport function Header()\
+    \ {\n  return (\n    <header>\n      <img src=\"/logo.svg\" alt=\"TriShield\"\
+    \ height={32} />\n      <address>1200 Brickell Ave, Miami, FL 33131</address>\n\
+    \    </header>\n  );\n}\n```"
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: 7752 NW 72nd Ave, Medley, FL 33166
+      - type: not_contains
+        value: 1200 Brickell
+      - type: contains
+        value: '48'
+      - type: not_contains
+        value: height={32}
+  tags:
+  - content
+- id: content-past-events
+  input: "Client feedback: on past events, gray out the card and remove the Register\
+    \ button; the section heading should say\n\"Events you recently missed\". Reply\
+    \ with only the updated component.\n\n```jsx\nexport function PastEvents({ events\
+    \ }) {\n  return (\n    <section>\n      <h2>Past events</h2>\n      {events.map((e)\
+    \ => (\n        <article key={e.id} className=\"event-card\">\n          <h3>{e.title}</h3>\n\
+    \          <a className=\"btn\" href={e.registerUrl}>Register</a>\n        </article>\n\
+    \      ))}\n    </section>\n  );\n}\n```"
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: Events you recently missed
+      - type: not_contains
+        value: '>Register<'
+      - type: not_contains
+        value: registerUrl
+      - type: not_contains
+        value: <h2>Past events</h2>
+  tags:
+  - content
+- id: content-add-event
+  input: 'Add this event to the list and reply with only the full updated JSON array:
+    "Orlando JS Meetup — Nov 5, 2026,
+
+    6:30 PM, at Canvs Downtown, https://www.meetup.com/orlando-js/events/310000001/".
+    Keep the same fields and date format.
+
+
+    [{"title": "UX Night", "start": "2026-10-14T18:00", "venue": "Canvs Downtown",
+    "url": "https://lu.ma/ux-night"}]'
+  scorers:
+  - type: json_schema
+    params:
+      schema:
+        type: array
+        minItems: 2
+        maxItems: 2
+        contains:
+          type: object
+          required:
+          - title
+          - start
+          - venue
+          - url
+          properties:
+            title:
+              type: string
+              pattern: Orlando JS
+            start:
+              const: 2026-11-05T18:30
+            url:
+              const: https://www.meetup.com/orlando-js/events/310000001/
+  tags:
+  - content
+- id: content-footer-copy
+  input: "Client wants the footer to say \"© 2026 Orlando Devs\" (not 2025) and the\
+    \ \"Contact\" link to point to\nmailto:hello@orlandodevs.example instead of /contact.\
+    \ Reply with only the updated component.\n\n```jsx\nexport const Footer = () =>\
+    \ (\n  <footer>© 2025 Orlando Devs · <a href=\"/contact\">Contact</a></footer>\n\
+    );\n```"
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: © 2026 Orlando Devs
+      - type: contains
+        value: mailto:hello@orlandodevs.example
+      - type: not_contains
+        value: '2025'
+      - type: not_contains
+        value: '"/contact"'
+  tags:
+  - content
+- id: infra-ci-secret
+  input: "The Claude review GitHub Action fails with \"ANTHROPIC_API_KEY is not set\"\
+    \ even though ANTHROPIC_API_KEY is in the\nrepo's Actions secrets. Workflow:\n\
+    \n```yaml\non: [pull_request]\njobs:\n  review:\n    runs-on: ubuntu-latest\n\
+    \    steps:\n      - uses: actions/checkout@v4\n      - uses: anthropics/claude-code-action@v1\n\
+    \        with:\n          prompt: \"Review this PR\"\n```\nWhat's missing? Reply\
+    \ with the fix."
+  vars:
+    must_include:
+    - - anthropic_api_key
+    - - secrets.ANTHROPIC_API_KEY
+  tags:
+  - infra
+- id: infra-hosting-tradeoff
+  input: 'A FastAPI PDF-parsing service on a $25/month plan has cold starts of 20-40
+    s and runs out of memory on 30-page PDFs
+
+    (peaks ~1.5 GB). ~200 parses/day, bursty in business hours. Recommend one hosting
+    change and say why, under 120 words.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: max_words
+        value: 120
+  - type: contains
+    params:
+      values:
+      - - 2 GB
+        - 2GB
+        - 4 GB
+        - 4GB
+        - memory
+        - RAM
+      - - cold start
+        - always-on
+        - always on
+        - min instances
+        - minimum instance
+  - type: llm_judge
+    params:
+      rubric: Picks one change that fixes both cold starts and OOM (always-on instance/container
+        with ≥2 GB, or a queue + worker) with a rough cost. Penalise lists of options
+        without a pick.
+  tags:
+  - infra
+- id: infra-vercel-case
+  input: 'The Vercel build fails with "Module not found: Can''t resolve ''@/lib/Db''".
+    It builds fine on my Mac. The file is
+
+    `lib/db.ts`. Why? One or two sentences.'
+  vars:
+    must_include:
+    - - case
+    - - sensitive
+      - Linux
+  tags:
+  - infra
+- id: infra-fork-secrets
+  input: 'Our PR workflow can read repository secrets for PRs from team members but
+    secrets are empty for PRs from forks.
+
+    Why, and what''s the safe way to handle it? Brief.'
+  vars:
+    must_include:
+    - - fork
+    - - not passed
+      - aren't passed
+      - are not available
+      - not available
+      - not exposed
+      - withheld
+    - - pull_request_target
+      - label
+      - approval
+      - maintainer
+  tags:
+  - infra
+- id: infra-docker-size
+  input: 'Our Next.js Docker image is 2.3 GB (`FROM node:22`, `COPY . .`, `npm install`,
+    `npm run build`, `CMD npm start`).
+
+    Two changes that cut it the most? Brief.'
+  vars:
+    must_include:
+    - - multi-stage
+      - multistage
+      - builder stage
+    - - alpine
+      - slim
+      - distroless
+      - standalone
+  tags:
+  - infra
+- id: infra-render-sleep
+  input: 'Our API on Render''s free tier takes ~50 s to answer the first request after
+    a quiet period, then it''s fast. Why,
+
+    and what are the two real fixes? Brief.'
+  vars:
+    must_include:
+    - - spin down
+      - spins down
+      - sleep
+      - idle
+      - inactivity
+    - - paid
+      - instance type
+      - always-on
+      - always on
+      - upgrade
+  tags:
+  - infra
+- id: summary-call-prep
+  input: 'I''m joining the client call in 2 minutes. What do I need to know? Exactly
+    3 bullets, under 60 words total.
+
+
+    Status notes: Sprint 14 ended Friday. Course builder shipped to staging; client
+    QA found that SSO login fails for
+
+    instructors with two roles — fix in review, ETA Wednesday. Launch is still March
+    14 but depends on that fix.
+
+    The client asked for bulk CSV enrollment; estimated 5 days, unscheduled. Hosting
+    bill up 18% after the video feature.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: bullet_count
+        value: 3
+      - type: max_words
+        value: 60
+      - type: contains
+        value: SSO
+      - type: contains
+        value: March 14
+  tags:
+  - summary
+- id: summary-assessment-stakeholder
+  input: 'Explain this code assessment to a non-technical operations manager in under
+    100 words, ending with a recommendation.
+
+
+    Findings: no automated tests for refunds; secrets hard-coded in two config files;
+    manual deployment (~2 hours);
+
+    error logs not centralised; core transfer logic well structured and matches the
+    bank''s spec.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: max_words
+        value: 100
+      - type: contains
+        value: recommend
+      - type: not_contains
+        value: '```'
+  tags:
+  - summary
+- id: summary-pr-average
+  input: 'How many PRs do I average a month? Answer with the number and one short
+    clause, nothing else.
+
+    Merged PRs: Jun 9, Jul 14, Aug 11, Sep 16, Oct 10.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: '12'
+      - type: max_words
+        value: 20
+  tags:
+  - summary
+- id: summary-what-branch
+  input: 'What branch am I on?
+
+
+    $ git status
+
+    On branch feat/quiet-reading-screens
+
+    Your branch is ahead of ''origin/feat/quiet-reading-screens'' by 2 commits.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: contains
+        value: feat/quiet-reading-screens
+      - type: max_words
+        value: 20
+  tags:
+  - summary
+- id: summary-client-email
+  input: 'Turn these notes into a 3-bullet update for a client email, plain language,
+    under 70 words, no technical terms like
+
+    "API", "deploy" or "migration".
+
+
+    Notes: migrated the API to the new region (latency down 40%); deploy pipeline
+    now runs tests automatically; the
+
+    reporting export bug (dates in UTC) is fixed; next week: bulk enrollment.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: bullet_count
+        value: 3
+      - type: max_words
+        value: 70
+      - type: not_contains
+        value: API
+      - type: not_contains
+        value: deploy
+      - type: not_contains
+        value: migrat
+  tags:
+  - summary
+- id: summary-release-line
+  input: 'One-line release note for non-technical users, under 20 words: we added
+    multi-day event support (events now show a
+
+    start and end date) and refactored the sync module.'
+  scorers:
+  - type: instructions
+    params:
+      checks:
+      - type: max_words
+        value: 20
+      - type: not_contains
+        value: refactor
+      - type: not_contains
+        value: sync module
+      - type: contains
+        value: multi-day
+  tags:
+  - summary
+- id: pr-search-avatar
+  input: "As tech lead, list exactly the 2 most important problems in this PR, most\
+    \ severe first. Categories: security,\ncorrectness, concurrency, error_handling,\
+    \ performance. Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"\
+    category\": \"<category>\", \"issue\": \"<short>\"}]}\n\n 1 | @router.get(\"/users/search\"\
+    )\n 2 | def search(q: str, db = Depends(get_db)):\n 3 |     rows = db.execute(f\"\
+    SELECT id, email FROM users WHERE name LIKE '%{q}%'\")\n 4 |     return [dict(r)\
+    \ for r in rows]\n 5 |\n 6 | @router.post(\"/users/{user_id}/avatar\")\n 7 | def\
+    \ upload_avatar(user_id: int, file: UploadFile):\n 8 |     path = f\"/srv/avatars/{file.filename}\"\
+    \n 9 |     with open(path, \"wb\") as f:\n10 |         f.write(file.file.read())\n\
+    11 |     return {\"ok\": True}"
+  expected:
+  - line: 3
+    category: security
+  - line: 8
+    category: security
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: pr-charge-all
+  input: 'As tech lead, list exactly the 3 most important problems in this PR, most
+    severe first. Categories: security,
+
+    correctness, concurrency, error_handling, performance. Reply with JSON only:
+
+    {"findings": [{"line": <number>, "category": "<category>", "issue": "<short>"}]}
+
+
+    1 | export async function chargeAll(orders: Order[]) {
+
+    2 |   let charged = 0;
+
+    3 |   orders.forEach(async (o) => {
+
+    4 |     await stripe.charges.create({ amount: o.total * 100, currency: ''usd''
+    });
+
+    5 |     charged++;
+
+    6 |   });
+
+    7 |   logger.info(`charged ${charged} orders`, { key: process.env.STRIPE_SECRET_KEY
+    });
+
+    8 |   return charged;
+
+    9 | }'
+  expected:
+  - line: 3
+    category: correctness
+  - line: 4
+    category: correctness
+  - line: 7
+    category: security
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: pr-page-counter-config
+  input: "As tech lead, list exactly the 3 most important problems in this PR, most\
+    \ severe first. Categories: security,\ncorrectness, concurrency, error_handling,\
+    \ performance. Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"\
+    category\": \"<category>\", \"issue\": \"<short>\"}]}\n\n 1 | PAGE_SIZE = 20\n\
+    \ 2 | view_counts = {}\n 3 |\n 4 | def get_page(items, page):\n 5 |     start\
+    \ = page * PAGE_SIZE + 1\n 6 |     return items[start:start + PAGE_SIZE]\n 7 |\n\
+    \ 8 | async def record_view(post_id):\n 9 |     current = view_counts.get(post_id,\
+    \ 0)\n10 |     await asyncio.sleep(0)  # yield to other tasks\n11 |     view_counts[post_id]\
+    \ = current + 1\n12 |\n13 | def load_config(path):\n14 |     try:\n15 |      \
+    \   return json.load(open(path))\n16 |     except Exception:\n17 |         return\
+    \ {}"
+  expected:
+  - line: 5
+    category: correctness
+  - line: 9
+    category: concurrency
+  - line: 16
+    category: error_handling
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 2
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: pr-use-orders
+  input: "As tech lead, is this ready to merge? List exactly the 3 most important\
+    \ problems, most severe first. Categories:\nsecurity, correctness, concurrency,\
+    \ error_handling, performance. Reply with JSON only:\n{\"findings\": [{\"line\"\
+    : <number>, \"category\": \"<category>\", \"issue\": \"<short>\"}]}\n\n 1 | export\
+    \ function useOrders(userId) {\n 2 |   const [orders, setOrders] = useState([]);\n\
+    \ 3 |   useEffect(() => {\n 4 |     fetch(`/api/orders?user=${userId}`)\n 5 |\
+    \       .then(r => r.json())\n 6 |       .then(setOrders);\n 7 |   }, []);\n 8\
+    \ |   return orders;\n 9 | }\n10 |\n11 | export function OrderTotal({ orders })\
+    \ {\n12 |   const total = orders.reduce((s, o) => s + o.amount);\n13 |   return\
+    \ <span>{total.toFixed(2)}</span>;\n14 | }"
+  expected:
+  - line: 5
+    category: error_handling
+  - line: 7
+    category: correctness
+  - line: 12
+    category: correctness
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: pr-admin-guard
+  input: "As tech lead, list exactly the 4 most important problems in this PR, most\
+    \ severe first. Categories: security,\ncorrectness, concurrency, error_handling,\
+    \ performance. Reply with JSON only:\n{\"findings\": [{\"line\": <number>, \"\
+    category\": \"<category>\", \"issue\": \"<short>\"}]}\n\n 1 | app.use((req, res,\
+    \ next) => {\n 2 |   if (req.path.startsWith('/admin')) {\n 3 |     const user\
+    \ = jwt.decode(req.headers.authorization?.split(' ')[1]);\n 4 |     if (!user?.isAdmin)\
+    \ return res.status(403).end();\n 5 |   }\n 6 |   next();\n 7 | });\n 8 |\n 9\
+    \ | app.post('/admin/users/:id/delete', async (req, res) => {\n10 |   db.users.delete(req.params.id);\n\
+    11 |   res.json({ ok: true });\n12 | });\n13 |\n14 | app.use((err, req, res, next)\
+    \ => res.status(500).json({ error: err.stack }));"
+  expected:
+  - line: 2
+    category: security
+  - line: 3
+    category: security
+  - line: 10
+    category: correctness
+  - line: 14
+    category: security
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 1
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: pr-migration-rollout
+  input: 'As tech lead, list exactly the 3 most important problems with shipping this
+    migration during a rolling deploy
+
+    (old and new app versions run side by side for ~10 minutes; `orders` has 40M rows).
+    Categories: security,
+
+    correctness, concurrency, error_handling, performance. Reply with JSON only:
+
+    {"findings": [{"line": <number>, "category": "<category>", "issue": "<short>"}]}
+
+
+    1 | ALTER TABLE orders ADD COLUMN channel text NOT NULL;
+
+    2 | ALTER TABLE orders DROP COLUMN legacy_status;
+
+    3 | CREATE INDEX orders_channel_idx ON orders (channel);'
+  expected:
+  - line: 1
+    category: correctness
+  - line: 2
+    category: correctness
+  - line: 3
+    category: performance
+  scorers:
+  - type: review_findings
+    params:
+      line_tolerance: 0
+      free_extras: 0
+      fp_penalty: 0.15
+  tags:
+  - pr-review
+- id: data-statement-totals
+  input: 'From this bank statement text, return JSON only: {"opening_balance": number,
+    "closing_balance": number,
+
+    "transaction_count": number, "total_debits": number} (debits as a positive number).
+
+
+    ACCOUNT SUMMARY  Period 10/01/2026 - 10/31/2026
+
+    Beginning Balance                      $2,450.10
+
+    10/03  PAYROLL DEPOSIT ACME CO        +1,800.00
+
+    10/07  CARD 4412 GROCERY MART           -132.45
+
+    10/15  ACH UTILITY POWER CO             -96.20
+
+    10/22  CARD 4412 FUEL STOP               -54.35
+
+    10/30  MONTHLY SERVICE FEE               -12.00
+
+    Ending Balance                         $3,955.10'
+  expected:
+    opening_balance: 2450.1
+    closing_balance: 3955.1
+    transaction_count: 5
+    total_debits: 295.0
+  scorers:
+  - type: json_schema
+    params:
+      schema:
+        type: object
+        required:
+        - opening_balance
+        - closing_balance
+        - transaction_count
+        - total_debits
+  tags:
+  - data-parsing
+- id: data-event-extract
+  input: 'Extract this event as JSON only: {"title": string, "start": "YYYY-MM-DDTHH:MM"
+    (local time), "venue": string}.
+
+
+    🚀 Orlando Devs presents: Intro to Rust!! Join us Thursday Nov 12th, doors at 6pm,
+    talk starts 6:30pm sharp @ the
+
+    Canvs coworking space (downtown, 2nd floor). Pizza 🍕 provided. RSVP on Meetup.'
+  scorers:
+  - type: contains
+    params:
+      values:
+      - - Intro to Rust
+      - - 2026-11-12T18:30
+        - 11-12T18:30
+      - - Canvs
+  tags:
+  - data-parsing
