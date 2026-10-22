@@ -15,9 +15,17 @@ export const STATUS: Record<string, { label: string; tone: Tone }> = {
 };
 export const statusInfo = (status: string) => STATUS[status] ?? { label: status, tone: "neutral" as Tone };
 
-/** One chip for verdicts (tone + text) and statuses (pass `status`). */
-export default function VerdictChip({ tone, status, children }: { tone?: Tone; status?: string; children?: ReactNode }) {
+/** Overall verdicts against the baseline, as shown to people. */
+export const VERDICT: Record<string, { label: string; tone: Tone }> = {
+  better: { label: "Better", tone: "better" }, worse: { label: "Worse", tone: "worse" }, mixed: { label: "Mixed", tone: "warning" },
+  equivalent: { label: "Equivalent", tone: "neutral" }, inconclusive: { label: "Inconclusive", tone: "neutral" },
+  insufficient_data: { label: "Not enough data", tone: "neutral" }, incomplete: { label: "Incomplete", tone: "warning" },
+};
+
+/** One chip for verdicts (pass `verdict`, or a `tone` with text) and statuses (pass `status`). */
+export default function VerdictChip({ tone, status, verdict, children }: { tone?: Tone; status?: string; verdict?: string; children?: ReactNode }) {
   const info = status ? statusInfo(status) : null;
-  const t = tone ?? info?.tone ?? "neutral";
-  return <span className={`chip ${CLASS[t]}`} data-tone={t}>{children ?? info?.label}</span>;
+  const v = verdict ? VERDICT[verdict] : null;
+  const t = tone ?? v?.tone ?? info?.tone ?? "neutral";
+  return <span className={`chip ${CLASS[t]}`} data-tone={t} data-verdict={verdict}>{children ?? v?.label ?? info?.label}</span>;
 }

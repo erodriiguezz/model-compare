@@ -7,7 +7,7 @@ const FAKE = 'sk-test-000000000000a1b2';
 const VIEWPORTS = [{ name: '1280', width: 1280, height: 800 }, { name: '390', width: 390, height: 844 }];
 const shot = async (page: Page, name: string) => { mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true }); };
 const matrix = (page: Page) => page.getByRole('region', { name: 'Verdict matrix' });
-const suggestions = (page: Page) => page.getByRole('region', { name: 'Suggestions' });
+const recommendation = (page: Page) => page.getByRole('region', { name: 'Recommendation' });
 
 test.afterEach(async ({ request }) => {
   await request.delete('/api/settings/keys/gemini');
@@ -39,7 +39,7 @@ test('[AC-9.5] Settings key (masked) -> Models lists that provider -> select moc
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   await expect(matrix(page)).toBeVisible({ timeout: 30_000 });
-  await expect(suggestions(page)).toBeVisible();
+  await expect(recommendation(page)).toBeVisible();
 });
 
 test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -> save -> run on two mock models -> Compare', async ({ page, request }) => {
@@ -68,7 +68,7 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   await expect(matrix(page)).toBeVisible({ timeout: 30_000 });
-  await expect(suggestions(page)).toBeVisible();
+  await expect(recommendation(page)).toBeVisible();
   await expect(page.getByText('qa-e2e-drafted').first()).toBeVisible();
 });
 

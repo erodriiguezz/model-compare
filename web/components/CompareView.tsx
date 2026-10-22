@@ -23,7 +23,7 @@ export default function CompareView() {
   return (
     <main className="page">
       <h1>Compare</h1>
-      <p className="muted lede">Run benchmarks and compare models side by side.</p>
+      {!job && <p className="muted lede">Run benchmarks and compare models side by side.</p>}
       <SectionTabs active="/compare/" />
       {job ? <JobView key={job} id={job} /> : (
         <>

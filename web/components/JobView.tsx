@@ -97,10 +97,18 @@ export default function JobView({ id }: { id: string }) {
         <div className="between">
           <div>
             <h2 id="job-h">Comparison {job.id} <Chip text={job.status} />{!active && job.status !== "done" && <span className="muted"> (partial results)</span>}</h2>
-            <p className="muted small">Started {fmtTime(job.started_at)} · baseline {job.baseline ?? "none"}</p>
+            {(active || showProgress) && <p className="muted small">Started {fmtTime(job.started_at)} · baseline {job.baseline ?? "none"}</p>}
           </div>
+          {!active && (
+            <p className="muted summary-line" data-job-summary>
+              {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
+              <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
+            </p>
+          )}
           {active && <button type="button" className="btn secondary destructive-text" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
         </div>
+        {(active || showProgress) && (
+          <>
         <dl className="stats">
           {stat("Progress", `${percent}%`, true)}
           {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
@@ -110,11 +118,7 @@ export default function JobView({ id }: { id: string }) {
         <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
           <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
         </div>
-        {!active && (
-          <p className="muted" data-job-summary>
-            {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}
-            <button type="button" className="link-btn" aria-expanded={showProgress} onClick={() => setShowProgress((v) => !v)}>{showProgress ? "Hide progress" : "Show progress"}</button>
-          </p>
+          </>
         )}
         {state.retrying && <p className="muted" role="status">Reconnecting…</p>}
         {job.error && <p role="alert" className="danger">{job.error}</p>}
