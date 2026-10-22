@@ -54,7 +54,7 @@ test('[AC-6.2] two checked models open /compare preselected and a run starts wit
   await expect(page.getByRole('checkbox', { name: /^mock-a\b/ })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /^mock-b\b/ })).toBeChecked();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
-  await expect(page.getByTestId('estimate')).toContainText(/Estimate: 30 calls/);
+  await expect(page.getByTestId('est-calls')).toHaveText('30');
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
   await page.getByText('Details', { exact: true }).click({ timeout: 30_000 }); // per-benchmark tables sit under Details since M7
@@ -191,7 +191,7 @@ test('[AC-6.2] an unpriced model forces the cost confirmation (nothing runs)', a
   await page.route('**/api/runs/estimate', (route) => route.fulfill({ json: { usd: 0, judge_usd: 0, total_calls: 15, cached_calls: 0, minutes: 1, unpriced: ['openai/gpt-4o-mini'] } }));
   let started = false;
   await page.route('**/api/runs', (route) => { if (route.request().method() === 'POST') started = true; return route.fulfill({ json: [] }); });
-  await page.goto('/compare/?targets=openai%2Fgpt-4o-mini');
+  await page.goto('/compare/?targets=openai%2Fgpt-4o-mini%2Cmock-a'); // two models: Run needs a verdict pair
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   const confirm = page.getByRole('group', { name: 'Confirm cost' });

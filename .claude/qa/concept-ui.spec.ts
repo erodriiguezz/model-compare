@@ -117,3 +117,114 @@ test('[AC-34.1] screenshots of /compare/ at 1280 and 390', async ({ page }) => {
     await shot(page, `compare-${width}`);
   }
 });
+
+const BENCHES = [
+  { name: 'std-reasoning-math', dimension: 'reasoning', capability: 'Reasoning', cases: 15, needs_judge: false },
+  { name: 'std-coding-basic', dimension: 'coding', capability: 'Coding', cases: 20, needs_judge: false },
+  { name: 'std-extract-json', dimension: 'structured_output', capability: 'Structured output', cases: 10, needs_judge: false },
+];
+const PROFILES = { coding_assistant: { weights: { coding: 5, reasoning: 3 } }, data_extraction: { weights: { structured_output: 5 } } };
+
+async function mockChoose(page: Page, extraTargets: object[] = []) {
+  await page.route('**/api/benchmarks', (route) => route.fulfill({ json: BENCHES }));
+  await page.route('**/api/profiles', (route) => route.fulfill({ json: PROFILES }));
+  await page.route('**/api/targets/status', async (route) => {
+    const res = await route.fetch();
+    await route.fulfill({ response: res, json: [...(await res.json()), ...extraTargets] });
+  });
+  await page.route('**/api/runs/estimate', async (route) => {
+    const b = route.request().postDataJSON();
+    const calls = b.benchmarks.length * 10 * b.targets.length;
+    await route.fulfill({ json: { usd: 0, total_calls: calls, cached_calls: Math.floor(calls / 4), minutes: 2 } });
+  });
+}
+const card = (page: Page, id: string) => page.getByRole('group', { name: id, exact: true });
+
+test('[AC-34.2] a missing-key model card is disabled and links to Settings; Make baseline moves the baseline marker', async ({ page }) => {
+  await mockChoose(page, [{ name: 'paid-x', model: 'openai/gpt-x', kind: 'litellm', keys_ok: false, missing_keys: ['OPENAI_API_KEY'] }]);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/compare/');
+  await expect(card(page, 'paid-x').getByRole('checkbox')).toBeDisabled();
+  await expect(card(page, 'paid-x')).toContainText('no key (OPENAI_API_KEY)');
+  await expect(card(page, 'paid-x').getByRole('link', { name: 'Add key in Settings' })).toHaveAttribute('href', '/settings/');
+  await card(page, 'mock-a').getByRole('checkbox').check();
+  await card(page, 'mock-b').getByRole('checkbox').check();
+  await expect(card(page, 'mock-a').getByText('Baseline', { exact: true })).toBeVisible();
+  await expect(card(page, 'mock-b').getByText('Baseline', { exact: true })).toHaveCount(0);
+  await card(page, 'mock-b').getByRole('button', { name: 'Make baseline' }).click();
+  await expect(card(page, 'mock-b').getByText('Baseline', { exact: true })).toBeVisible();
+  await expect(card(page, 'mock-a').getByText('Baseline', { exact: true })).toHaveCount(0);
+  await expect(card(page, 'mock-a').getByRole('button', { name: 'Make baseline' })).toBeVisible();
+});
+
+test('[AC-34.3] a preset changes the toggled dimensions and the estimate; Start is disabled with one model and says why', async ({ page }) => {
+  await mockChoose(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/compare/');
+  const run = page.getByRole('button', { name: 'Run comparison' });
+  await card(page, 'mock-a').getByRole('checkbox').check();
+  await page.getByRole('button', { name: 'Coding assistant' }).click();
+  await expect(page.getByRole('checkbox', { name: /^std-coding-basic\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-extract-json\b/ })).not.toBeChecked();
+  await expect(page.getByText('Pick at least two models to get a verdict.')).toBeVisible();
+  await expect(run).toBeDisabled();
+  await card(page, 'mock-b').getByRole('checkbox').check();
+  await expect(page.getByTestId('est-calls')).toHaveText('40');
+  await expect(page.getByTestId('est-cached')).toContainText('10');
+  await expect(page.getByTestId('est-time')).toHaveText('~2 min');
+  await expect(run).toBeEnabled();
+  await expect(page.getByText('Pick at least two models to get a verdict.')).toHaveCount(0);
+  await shot(page, 'choose-1280');
+  await page.getByRole('button', { name: 'Data extraction' }).click();
+  await expect(page.getByRole('checkbox', { name: /^std-extract-json\b/ })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /^std-coding-basic\b/ })).not.toBeChecked();
+  await expect(page.getByTestId('est-calls')).toHaveText('20');
+  await page.getByRole('checkbox', { name: /^std-coding-basic\b/ }).check();
+  await expect(page.getByTestId('est-calls')).toHaveText('40');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await shot(page, 'choose-390');
+});
+
+const runJob = (over: object = {}) => ({
+  id: 'j-run', targets: ['mock-a', 'mock-b'], baseline: 'mock-a', status: 'running', error: null, started_at: new Date(Date.now() - 60_000).toISOString().slice(0, 19),
+  benchmarks: ['std-reasoning-math', 'std-coding-basic', 'std-extract-json'], total_calls: 60, done_calls: 25, run_ids: [],
+  runs: [
+    { run_id: 1, status: 'done', cost_usd: 0.42, target: 'mock-a', benchmark: 'std-reasoning-math', passed: 8, n_results: 10, n_errors: 0, first_error: null },
+    { run_id: 2, status: 'done', cost_usd: 0, target: 'mock-b', benchmark: 'std-reasoning-math', passed: 0, n_results: 10, n_errors: 2, first_error: 'provider unavailable' },
+  ],
+  live: [{ target: 'mock-a', benchmark: 'std-coding-basic', done: 5, total: 10, passed: 4, errors: 0 }], ...over,
+});
+
+test('[AC-34.4] a running job shows percent, calls, spend, time left, per-model progress and grid cell states; Cancel ends it', async ({ page }) => {
+  let cancelled = false;
+  await page.route('**/api/jobs/j-run', (route) => route.fulfill({ json: runJob(cancelled ? { status: 'cancelled' } : {}) }));
+  await page.route('**/api/jobs/j-run/cancel', (route) => { cancelled = true; return route.fulfill({ json: { ok: true } }); });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/compare/?job=j-run');
+  const head = page.getByRole('region', { name: /Comparison/ });
+  await expect(head.getByText('42%', { exact: true })).toBeVisible();
+  await expect(head).toContainText('25 of 60');
+  await expect(head).toContainText('$0.420');
+  await expect(head.getByText('Time left').locator('xpath=following-sibling::dd')).toHaveText(/^~\d+ (s|min)$/);
+  await expect(page.getByRole('progressbar', { name: 'Progress' })).toHaveAttribute('aria-valuenow', '25');
+  const models = page.getByRole('region', { name: 'By model' });
+  await expect(models).toContainText('mock-a');
+  await expect(models).toContainText('15 / 30');
+  await expect(models).toContainText('10 / 30');
+  await expect(models).toContainText('2 errors');
+  const grid = page.getByRole('region', { name: 'By benchmark' });
+  const row = (name: string) => grid.getByRole('row', { name: new RegExp(`^${name}`) });
+  await expect(row('std-reasoning-math').locator('td[data-state="done"]')).toContainText('80%');
+  await expect(row('std-reasoning-math').locator('td[data-state="error"]')).toContainText('2 errors');
+  await expect(row('std-coding-basic').locator('td[data-state="running"]')).toContainText('Running 5/10');
+  await expect(row('std-coding-basic').locator('td[data-state="queued"]')).toContainText('Queued');
+  await shot(page, 'run-1280');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await shot(page, 'run-390');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(head.locator('[data-verdict="cancelled"]')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+});
