@@ -20,42 +20,56 @@ export default function ProjectsView() {
   }, [attempt]);
   const retry = useCallback(() => { setState({ status: "loading" }); setAttempt((n) => n + 1); }, []);
 
+  const [query, setQuery] = useState("");
+  const ready = state.status === "ready";
+  const all = ready ? state.rows : [];
+  const q = query.trim().toLowerCase();
+  const shown = all.filter((p) => !q || `${p.name} ${p.dimension ?? ""}`.toLowerCase().includes(q));
+  const broken = all.filter((p) => !p.valid).length;
+
   return (
     <main className="page">
-      <div className="between">
-        <h1>Projects</h1>
-        {state.status === "ready" && state.rows.length > 0 && <Link href="/projects/edit/?new=1" prefetch={false} className="btn">New project</Link>}
+      <div className="page-head">
+        <div>
+          <h1>Projects</h1>
+          <p className="muted lede">Your own benchmarks: cases, scorers and a system prompt, ready to run on any model. They sit next to the standard deck when you compare.</p>
+        </div>
+        {all.length > 0 && <Link href="/projects/edit/?new=1" prefetch={false} className="btn">New project</Link>}
       </div>
-      <p className="muted lede">Your own benchmarks: cases, scorers and a system prompt, ready to run on any model.</p>
       {state.status === "loading" && <Loading label="Loading projects" />}
       {state.status === "error" && <ErrorState message={`Could not load projects (${state.message}).`} onRetry={retry} />}
-      {state.status === "ready" && !state.rows.length && (
-        <Empty title="No projects yet">
-          <Link href="/projects/edit/?new=1" prefetch={false} className="btn">Create your first project</Link>
+      {ready && !all.length && (
+        <Empty title="No projects yet" action={<Link href="/projects/edit/?new=1" prefetch={false} className="btn">Create your first project</Link>}>
+          A project is a set of your own cases and scorers. Create one, or let a model draft the first cases.
         </Empty>
       )}
-      {state.status === "ready" && state.rows.length > 0 && (
-        <div className="card">
-          <div className="table-wrap" tabIndex={0}><table>
-            <thead><tr><th>Name</th><th className="hide-sm">Dimension</th><th className="num">Cases</th><th className="hide-sm">Last run</th></tr></thead>
-            <tbody>{state.rows.map((p) => {
-              const last = state.runs.find((r) => r.benchmark_name === p.name);
-              const lastText = last ? `${last.started_at ? `${fmtTime(last.started_at)} · ` : ""}${last.target_name}` : "Never run";
-              return (
-                <tr key={p.slug}>
-                  <td className="name-cell">
-                    <Link href={`/projects/edit/?slug=${p.slug}`} prefetch={false}>{p.name}</Link>
-                    <div className="show-sm muted small">{p.dimension ?? "—"} · {lastText}</div>
-                    {!p.valid && <> <span className="chip bad">invalid</span><div className="danger small">{p.error}</div></>}
-                  </td>
-                  <td className="hide-sm">{p.dimension ?? "—"}</td>
-                  <td className="num">{p.n_cases}</td>
-                  <td className="hide-sm">{last ? lastText : <span className="muted">Never run</span>}</td>
-                </tr>
-              );
-            })}</tbody>
-          </table></div>
-        </div>
+      {all.length > 0 && (
+        <>
+          <div className="toolbar">
+            <label className="search">
+              <span className="sr-only">Search projects</span>
+              <input type="search" placeholder="Search projects" value={query} onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            <span className="muted small proj-count">{all.length} {all.length === 1 ? "project" : "projects"}{broken > 0 && ` · ${broken} need${broken === 1 ? "s" : ""} fixing`}</span>
+          </div>
+          {!shown.length && <p className="muted state">No projects match.</p>}
+          <div className="proj-grid">{shown.map((p) => {
+            const last = ready ? state.runs.find((r) => r.benchmark_name === p.name) : undefined;
+            return (
+              <article key={p.slug} className="card proj-card" data-valid={p.valid} aria-labelledby={`p-${p.slug}`}>
+                <div className="between">
+                  <h2 id={`p-${p.slug}`}><Link href={`/projects/edit/?slug=${p.slug}`} prefetch={false} className="row-link">{p.name}</Link></h2>
+                  {p.valid ? <span className="tag">{p.dimension ?? "—"}</span> : <span className="chip bad">invalid</span>}
+                </div>
+                {!p.valid && <p className="proj-error small">{p.error}</p>}
+                <div className="proj-foot small">
+                  <b>{p.n_cases} {p.n_cases === 1 ? "case" : "cases"}</b>
+                  <span className="muted">{last ? `${last.started_at ? `${fmtTime(last.started_at)} · ` : ""}${last.target_name}` : "Never run"}</span>
+                </div>
+              </article>
+            );
+          })}</div>
+        </>
       )}
     </main>
   );

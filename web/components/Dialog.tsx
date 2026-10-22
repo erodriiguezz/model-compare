@@ -8,10 +8,11 @@ export default function Dialog({ open, title, onClose, onSubmit, children }: { o
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   const quiet = useRef(false); // a close we asked for is not a user dismissal
+  const from = useRef<HTMLElement | null>(null); // what had focus before the dialog opened
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) { from.current = document.activeElement as HTMLElement | null; d.showModal(); }
     if (!open && d.open) { quiet.current = true; d.close(); }
   }, [open]);
   // Tab wraps inside the dialog instead of leaving the page for the browser's own controls.
@@ -22,7 +23,7 @@ export default function Dialog({ open, title, onClose, onSubmit, children }: { o
     if (items.length && document.activeElement === edge) { e.preventDefault(); other.focus(); }
   };
   return (
-    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={() => (quiet.current ? (quiet.current = false) : onClose())} onKeyDown={wrap}>
+    <dialog ref={ref} className="dialog" aria-labelledby={id} onClose={() => { from.current?.focus(); if (quiet.current) quiet.current = false; else onClose(); }} onKeyDown={wrap}>
       {open && <form className="form" onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }}><h2 id={id}>{title}</h2>{children}</form>}
     </dialog>
   );

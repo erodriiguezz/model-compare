@@ -33,17 +33,17 @@ test('[AC-9.1] the list shows name, dimension, case count and last run; a broken
     await r.fulfill({ json: [...rows, { slug: 'broken', name: 'broken', dimension: null, n_cases: 0, valid: false, error: 'ValidationError: cases is required' }] });
   });
   await page.goto('/projects/');
-  const row = page.getByRole('row', { name: /qa-nine-list/ });
+  const row = page.getByRole('article', { name: /qa-nine-list/ });
   await expect(row).toContainText('knowledge');
-  await expect(row.getByRole('cell').nth(2)).toHaveText('3');
-  await expect(row.getByRole('cell').nth(3)).toContainText('mock-b'); // newest run wins
-  const broken = page.getByRole('row', { name: /broken/ });
+  await expect(row).toContainText('3 cases');
+  await expect(row).toContainText('mock-b'); // newest run wins
+  const broken = page.getByRole('article', { name: /broken/ });
   await expect(broken).toContainText('ValidationError: cases is required');
-  await expect(broken.locator('.chip')).toHaveText('invalid');
+  await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
   await shot(page, 'projects-list');
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(row.locator('.show-sm')).toBeVisible(); // narrow screens keep dimension and last run under the name
-  await expect(row.locator('.show-sm')).toContainText('mock-b');
+  await expect(row).toContainText('knowledge'); // narrow screens keep dimension and last run on the card
+  await expect(row).toContainText('mock-b');
   await shot(page, 'projects-list-390');
 });
 

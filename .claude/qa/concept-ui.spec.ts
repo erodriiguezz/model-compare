@@ -547,3 +547,165 @@ test('[AC-34.11] every evidence row shows n, change, CI, p, McNemar p, W/T/L and
   const json = await request.get(await page.getByRole('link', { name: 'JSON' }).getAttribute('href') as string);
   expect((await json.json()).baseline).toBe('qa-base');
 });
+
+// Projects (milestone 5). Every project a test creates is deleted again.
+const projects: string[] = [];
+test.afterEach(async ({ request }) => { for (const slug of projects.splice(0)) await request.delete(`/api/projects/${slug}`); });
+async function makeProject(request: import('@playwright/test').APIRequestContext, name: string, n = 3) {
+  const res = await request.post('/api/projects', { data: { name, dimension: 'knowledge', description: 'QA project', scorers: [{ type: 'contains' }], cases: Array.from({ length: n }, (_, i) => ({ id: `c${i + 1}`, input: `Question ${i + 1}?`, expected: `Answer ${i + 1}` })) } });
+  expect(res.status()).toBe(201);
+  const slug = (await res.json()).slug as string;
+  projects.push(slug);
+  return slug;
+}
+const SIZES = [{ width: 1280, height: 800 }, { width: 390, height: 844 }];
+
+test('[AC-34.13] the list shows a card per project and flags an invalid one with its error', async ({ page, request }) => {
+  await makeProject(request, 'qa-p5-card');
+  await page.route('**/api/projects', async (route) => {
+    const rows = await (await route.fetch()).json();
+    await route.fulfill({ json: [...rows, { slug: 'qa-p5-broken', name: 'qa-p5-broken', dimension: null, n_cases: 0, valid: false, error: 'Case refund_07: expected is not valid JSON.' }] });
+  });
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    await page.goto('/projects/');
+    const card = page.getByRole('article', { name: 'qa-p5-card' });
+    await expect(card).toContainText('3 cases');
+    await expect(card).toContainText('knowledge');
+    await expect(card).toContainText('Never run');
+    const broken = page.getByRole('article', { name: 'qa-p5-broken' });
+    await expect(broken).toContainText('Case refund_07: expected is not valid JSON.');
+    await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
+    await expect(page.getByText(/need fixing/)).toContainText('1 needs fixing');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shot(page, `projects-list-${size.width}`);
+  }
+  await page.getByRole('searchbox', { name: 'Search projects' }).fill('broken');
+  await expect(page.getByRole('article')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'qa-p5-broken' })).toBeVisible();
+});
+
+test('[AC-34.13] in the editor Run is disabled until save and says why; an inline edit marks it unsaved and Save clears that', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-edit');
+  await page.goto('/projects/edit/?new=1');
+  const run = page.getByRole('button', { name: 'Run on selected models' });
+  await expect(run).toBeDisabled();
+  await expect(run).toHaveAccessibleDescription('Save the project to run it.');
+
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    await page.goto(`/projects/edit/?slug=${slug}`);
+    await expect(run).toBeEnabled();
+    await expect(page.getByText('Unsaved changes')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Edit case 1' }).click();
+    await page.getByLabel('Case 1 expected').fill(`Answer, edited at ${size.width}`);
+    await expect(page.getByText('Unsaved changes')).toBeVisible();
+    await expect(run).toBeDisabled();
+    await expect(run).toHaveAccessibleDescription('Save your changes to run them.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await shot(page, `project-editor-${size.width}`);
+    await page.getByRole('button', { name: 'Save project' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+    await expect(page.getByText('Unsaved changes')).toHaveCount(0);
+    await expect(run).toBeEnabled();
+  }
+  const checks = page.getByRole('complementary', { name: 'Project actions' });
+  await expect(checks).toContainText('3 cases, ids unique');
+  await expect(checks).toContainText('Every case has a scorer');
+  await expect(page.getByRole('heading', { name: 'Scorers' })).toBeVisible();
+});
+
+test('[AC-34.13] the checks list names a duplicate id and Fix it opens that case', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-checks', 2);
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  await page.getByRole('button', { name: 'Edit case 2' }).click();
+  await page.getByLabel('Case 2 id').fill('c1');
+  await page.getByRole('button', { name: 'Edit case 2' }).click(); // fold it again
+  const side = page.getByRole('complementary', { name: 'Project actions' });
+  await expect(side).toContainText('Case 1: duplicate id.');
+  await side.getByRole('button', { name: 'Fix it' }).click();
+  await expect(page.getByLabel('Case 1 id')).toBeVisible();
+});
+
+test('[AC-34.13] a project with hundreds of cases draws a page of rows, shows all on request and still edits inline', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-large', 300);
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  const table = page.getByRole('table', { name: 'Cases' });
+  await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(25);
+  await page.getByRole('button', { name: 'Show all 300 cases' }).click();
+  await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(300);
+  await page.getByRole('button', { name: 'Edit case 300' }).click();
+  await page.getByLabel('Case 300 input').fill('Edited last case');
+  await expect(page.getByText('Unsaved changes')).toBeVisible();
+  await page.getByRole('button', { name: 'Save project' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  expect((await (await request.get(`/api/projects/${slug}`)).json()).cases[299].input).toBe('Edited last case');
+});
+
+test('[AC-34.13] the draft dialog opens, keeps focus inside, closes on Escape and gives focus back', async ({ page }) => {
+  for (const size of SIZES) {
+    await page.setViewportSize(size);
+    await page.goto('/projects/edit/?new=1');
+    const trigger = page.getByRole('button', { name: 'Draft with AI' });
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Draft with AI' });
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true); // focus moved in
+    await shot(page, `project-draft-dialog-${size.width}`);
+    for (let i = 0; i < 12; i++) { // more tabs than the dialog has controls
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
+    }
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press('Shift+Tab');
+      expect(await page.evaluate(() => !!document.activeElement?.closest('dialog'))).toBe(true);
+    }
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  }
+});
+
+test('[AC-34.13] Delete asks to confirm; Cancel keeps the project and Confirm removes it', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-delete');
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  await page.getByRole('button', { name: 'Delete project' }).click();
+  await expect(page.getByText(/This removes its file and cannot be undone/)).toBeVisible();
+  await shot(page, 'project-delete-confirm');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('button', { name: 'Confirm delete' })).toHaveCount(0);
+  expect((await request.get(`/api/projects/${slug}`)).status()).toBe(200);
+  await page.getByRole('button', { name: 'Delete project' }).click();
+  await page.getByRole('button', { name: 'Confirm delete' }).click();
+  await expect(page).toHaveURL(/\/projects\/$/);
+  expect((await request.get(`/api/projects/${slug}`)).status()).toBe(404);
+});
+
+test('[AC-34.15] a failed Projects list shows error with retry, Retry refetches, and the empty list offers a next step', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/projects', (route) => (calls++ === 0 ? route.fulfill({ status: 500, body: 'boom' }) : route.fulfill({ json: [] })));
+  await page.goto('/projects/');
+  const error = page.locator('[data-state="error"]');
+  await expect(error).toContainText('Could not load projects');
+  await error.getByRole('button', { name: 'Try again' }).click();
+  expect(calls).toBeGreaterThan(1);
+  await expect(page.getByRole('heading', { name: 'No projects yet' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Create your first project' })).toHaveAttribute('href', /new=1/);
+  await shot(page, 'projects-empty');
+});
+
+test('[AC-34.15] the editor shows loading, then error with retry that refetches, and a missing project links back', async ({ page, request }) => {
+  const slug = await makeProject(request, 'qa-p5-states');
+  let calls = 0;
+  await page.route('**/api/scorers', (route) => (calls++ === 0 ? route.fulfill({ status: 500, body: 'boom' }) : route.continue()));
+  await page.goto(`/projects/edit/?slug=${slug}`);
+  await expect(page.locator('[data-state="error"]')).toContainText('Could not load the project');
+  await shot(page, 'project-editor-error');
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('qa-p5-states');
+  expect(calls).toBeGreaterThan(1);
+  await page.goto('/projects/edit/?slug=qa-p5-nope');
+  const back = page.getByRole('link', { name: 'Back to projects' });
+  await expect(back).toBeVisible();
+  expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+});

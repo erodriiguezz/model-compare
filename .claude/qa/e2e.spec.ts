@@ -76,7 +76,7 @@ test('[AC-9.6] Projects -> describe and paste examples -> Draft -> edit a case -
 const JOB = 'qa-every-verdict';
 const EMPTY_JOB = { id: JOB, targets: [], baseline: null, status: 'done', error: null, started_at: '2026-01-01T00:00:00', benchmarks: [], total_calls: 0, done_calls: 0, run_ids: [], runs: [], live: [] };
 const PAGES = [
-  { name: 'projects', url: '/projects/', api: '**/api/projects', loading: /Loading projects/, empty: { body: [], text: 'No projects yet' }, error: 'Could not load projects', ready: (p: Page) => expect(p.getByRole('row', { name: /qa-nine-shot/ })).toBeVisible() },
+  { name: 'projects', url: '/projects/', api: '**/api/projects', loading: /Loading projects/, empty: { body: [], text: 'No projects yet' }, error: 'Could not load projects', ready: (p: Page) => expect(p.getByRole('article', { name: /qa-nine-shot/ })).toBeVisible() },
   { name: 'editor', url: '/projects/edit/?new=1', api: '**/api/scorers', loading: /Loading project/, empty: null, error: 'Could not load the project', ready: (p: Page) => expect(p.getByText('No cases yet')).toBeVisible() },
   { name: 'settings', url: '/settings/', api: '**/api/settings/keys', loading: /Loading keys/, empty: { body: [{ provider: 'openai', var: 'OPENAI_API_KEY', set: false, masked: null, source: null }], text: 'No keys yet' }, error: 'Provider keys could not be loaded', ready: (p: Page) => expect(p.locator('.key-list')).toBeVisible() },
   { name: 'history', url: '/history/', api: '**/api/jobs', loading: /Loading history/, empty: { body: [], text: 'No comparisons yet', also: ['**/api/runs', []] as const }, error: 'Could not load history', ready: (p: Page) => expect(p.getByRole('region', { name: 'Comparisons' })).toBeVisible() },
