@@ -287,6 +287,7 @@ textarea { resize: vertical; }
 .scorer[data-on="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .scorer .check { align-items: flex-start; padding: 0; }
 .scorer .check > span { display: flex; flex-direction: column; min-width: 0; }
+.scorer .check .muted { margin-left: 0; text-align: left; }
 .scorer .note { margin: 0; }
 .params-row { margin-top: var(--space-3); }
 table.cases td { vertical-align: middle; }
@@ -447,7 +448,7 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .proj-card:hover { border-color: var(--border-strong); }
 .proj-card[data-valid="false"] { border-color: var(--worse-fg); }
 .proj-card h2 { font-size: var(--text-md); overflow-wrap: anywhere; }
-.page .proj-card a.row-link { display: inline-block; min-height: var(--tap); color: var(--ink); }
+.page .proj-card a.row-link:not(.btn) { display: inline-block; min-height: var(--tap); color: var(--ink); }
 .proj-card a.row-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-lg); }
 .proj-error { padding: var(--space-2) var(--space-3); border-radius: var(--radius); background: var(--worse-bg); color: var(--worse-fg); overflow-wrap: anywhere; }
 .proj-foot { display: flex; justify-content: space-between; gap: var(--space-3); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--row-line); }
@@ -465,8 +466,10 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .proj-cases table.list th, .proj-cases table.list td { padding: var(--space-2) var(--space-4); }
 .proj-open td { background: var(--subtle); }
 @media (max-width: 640px) {
-  .proj-cols { flex-direction: column; align-items: stretch; }
+  .proj-cols { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
   .proj-side { display: contents; }
   .proj-actions { position: sticky; bottom: 0; z-index: 5; flex-direction: row; flex-wrap: wrap; align-items: center; }
   .proj-actions .btn { flex: 1 1 auto; }
+  .proj-cases .num { display: none; }
+  .proj-cases table.list th, .proj-cases table.list td { padding: var(--space-2); }
 }

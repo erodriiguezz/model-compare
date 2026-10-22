@@ -576,7 +576,7 @@ test('[AC-34.13] the list shows a card per project and flags an invalid one with
     const broken = page.getByRole('article', { name: 'qa-p5-broken' });
     await expect(broken).toContainText('Case refund_07: expected is not valid JSON.');
     await expect(broken.getByText('invalid', { exact: true })).toBeVisible();
-    await expect(page.getByText(/need fixing/)).toContainText('1 needs fixing');
+    await expect(page.getByText(/needs? fixing/)).toContainText('1 needs fixing');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await shot(page, `projects-list-${size.width}`);
   }

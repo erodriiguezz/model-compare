@@ -108,7 +108,7 @@ test('[AC-9.2] create a project with cases and a scorer, edit and delete cases, 
   expect((await (await request.get('/api/projects/qa-nine-new')).json()).cases[0].expected).toBe('Paris, France');
 
   await page.goto('/projects/');
-  await expect(page.getByRole('row', { name: /qa-nine-new/ })).toContainText('reasoning');
+  await expect(page.getByRole('article', { name: /qa-nine-new/ })).toContainText('reasoning');
 
   await page.getByRole('link', { name: 'qa-nine-new' }).click();
   await page.getByRole('button', { name: 'Delete project' }).click();
