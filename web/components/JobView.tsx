@@ -101,15 +101,19 @@ export default function JobView({ id }: { id: string }) {
           </div>
           {active && <button type="button" className="btn secondary destructive-text" onClick={cancel} disabled={stopping}>{stopping ? "Stopping…" : "Cancel"}</button>}
         </div>
-        <dl className="stats">
-          {stat("Progress", `${percent}%`, true)}
-          {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
-          {stat("Spent (finished runs)", usd(spent))}
-          {stat("Time left", active ? timeLeft(job) : "—")}
-        </dl>
-        <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
-          <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
-        </div>
+        {(active || showProgress) && (
+          <>
+          <dl className="stats">
+            {stat("Progress", `${percent}%`, true)}
+            {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
+            {stat("Spent (finished runs)", usd(spent))}
+            {stat("Time left", active ? timeLeft(job) : "—")}
+          </dl>
+          <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
+            <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
+          </div>
+          </>
+        )}
         {!active && (
           <p className="muted" data-job-summary>
             {job.status} · {job.done_calls}/{job.total_calls} calls · {job.targets.length} model{job.targets.length === 1 ? "" : "s"} · {capabilities} capabilit{capabilities === 1 ? "y" : "ies"}{" "}

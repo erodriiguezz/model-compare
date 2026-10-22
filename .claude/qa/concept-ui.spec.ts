@@ -259,6 +259,7 @@ test('[AC-34.5] the report opens with the recommendation, an overall-change row 
   await expect(rec).toBeVisible();
   const metricsTop = (await page.getByRole('region', { name: 'Key metrics' }).boundingBox())!.y;
   expect((await rec.boundingBox())!.y).toBeLessThan(metricsTop);
+  expect((await rec.boundingBox())!.y).toBeLessThan(300);
   await expect(rec).toContainText('Switch to qa-better.');
   const rows = rec.getByRole('list', { name: 'Overall change' }).locator('li[data-candidate]');
   await expect(rows).toHaveCount(4);
@@ -297,22 +298,25 @@ test('[AC-34.6] key metrics lists 9 metrics per model and tints the best value i
   const rows = table.locator('tbody tr');
   await expect(rows).toHaveCount(9);
   const labels = await rows.locator('th').evaluateAll((els) => els.map((e) => e.firstElementChild?.textContent));
-  expect(labels).toEqual(['Overall pass rate', 'Verdict vs baseline', 'Regressions', 'Consistency', 'Cost per 1,000 tasks', 'Cost of this run', 'Median latency (p50)', 'Slow tail (p95)', 'Error rate']);
+  expect(labels).toEqual(['Overall pass rate', 'Verdict vs baseline', 'Regressions', 'Consistency', 'Cost per 1,000 tasks', 'Cost of this run', 'Median latency (p50)', 'Slowest benchmark p95', 'Error rate']);
   const heads = await table.locator('thead th').allTextContents();
   const best = async (label: string) => {
     const row = rows.filter({ has: page.locator('th', { hasText: label }) });
     return row.locator('td').evaluateAll((tds) => tds.map((td) => td.querySelector('[data-best]') !== null));
   };
   const col = (name: string) => heads.findIndex((h) => h.includes(name)) - 1;
-  for (const [label, winner] of [['Overall pass rate', 'qa-better'], ['Cost per 1,000 tasks', 'qa-worse'], ['Cost of this run', 'qa-worse']]) {
+  for (const [label, winner] of [['Overall pass rate', 'qa-better'], ['Cost per 1,000 tasks', 'qa-worse']]) {
     const cells = await best(label);
     expect(cells.filter(Boolean)).toHaveLength(1);
     expect(cells[col(winner)]).toBe(true);
   }
+  expect((await best('Cost of this run')).some(Boolean)).toBe(false); // actual spend is not a quality to rank
   expect((await best('Median latency')).some(Boolean)).toBe(false); // every model ties: no best
   expect(await best('Consistency')).toEqual([false, false, false, false, false]);
   await expect(rows.nth(3).locator('td').first()).toHaveText('—');
   await expect(rows.nth(2).locator('td').first()).toHaveText('—'); // the baseline has no regressions to count
+  await expect(rows.nth(2).locator('td').nth(col('qa-tie'))).toHaveText('0'); // a clean candidate shows 0 and wins the row
+  expect((await best('Regressions'))[col('qa-tie')]).toBe(true);
   await expect(rows.nth(2).locator('td').nth(col('qa-worse'))).toHaveText('26');
   await expect(rows.nth(1).locator('td').nth(col('qa-better'))).toContainText('Better');
 });
@@ -341,3 +345,18 @@ for (const width of [1280, 390]) {
     await shot(page, `report-top-${width}`);
   });
 }
+
+test('[AC-34.5] the headline is the biggest switch whatever order the engine lists the suggestions in', async ({ page, request }) => {
+  const report = await (await request.get('/api/jobs/qa-every-verdict/report')).json();
+  report.suggestions.reverse(); // stay and tie now come before the switch
+  await page.route('**/api/jobs/qa-every-verdict/report', (route) => route.fulfill({ json: report }));
+  await page.goto(REPORT);
+  await expect(recommendation(page).locator('.rec-title')).toHaveText('Switch to qa-better.');
+});
+
+test('[AC-34.5] the overall-change rows are on the first screen at 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(REPORT);
+  const box = (await recommendation(page).locator('li[data-candidate]').first().boundingBox())!;
+  expect(box.y + box.height).toBeLessThan(844);
+});

@@ -14,6 +14,14 @@ const STEPS = [5, 10, 20, 25, 50, 100];
 const sign = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}`;
 const humanize = (id: string) => id.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
+/** The headline: the switch with the biggest overall gain, else a trade-off, else a tie, and a stay only when every decision is a stay. */
+export function pickLead(suggestions: Suggestion[], decisions: Decision[]): Suggestion | undefined {
+  const gain = (s: Suggestion) => decisions.find((d) => d.candidate === s.target)?.overall_delta_points ?? -Infinity;
+  const switches = suggestions.filter((s) => s.kind === "switch").sort((a, b) => gain(b) - gain(a));
+  const verdicts = suggestions.filter((s) => s.kind in HEADLINE);
+  return switches[0] ?? verdicts.find((s) => s.kind === "tradeoff") ?? verdicts.find((s) => s.kind === "tie") ?? (verdicts.every((s) => s.kind === "stay") ? verdicts[0] : undefined);
+}
+
 /** Axis for the overall-change chart: whole-point ticks that include zero and every interval. */
 function axis(decisions: Decision[]) {
   const vals = decisions.flatMap((d) => (UNSCORED.has(d.overall_verdict) || d.overall_delta_points == null ? [] : [d.overall_delta_points, ...(d.overall_range_points ?? [])]));
@@ -26,24 +34,26 @@ function axis(decisions: Decision[]) {
 }
 
 /** Recommendation first: the decision in one sentence, each candidate's overall change against zero, the best model per use case, then caveats and next steps. */
-export default function DecisionPanel({ baseline, decisions, suggestions, profiles, warnings, markers }: {
-  baseline: string; decisions: Decision[]; suggestions: Suggestion[]; profiles: Profile[]; warnings: string[]; markers: Record<string, Marker>;
+export default function DecisionPanel({ jobId, baseline, decisions, suggestions, profiles, warnings, markers }: {
+  jobId: string; baseline: string; decisions: Decision[]; suggestions: Suggestion[]; profiles: Profile[]; warnings: string[]; markers: Record<string, Marker>;
 }) {
-  const lead = suggestions.find((s) => s.kind in HEADLINE);
+  const lead = pickLead(suggestions, decisions);
   const needsFix = suggestions.some((s) => s.kind === "fix_errors");
   const title = lead ? HEADLINE[lead.kind](lead.target) : needsFix ? "Fix errors before deciding." : decisions.length ? "No decision yet." : "Scorecard only.";
   const rest = suggestions.filter((s) => s !== lead);
   const { at, ticks } = axis(decisions);
   const caveats = [...warnings, ...Object.entries(markers).filter(([, m]) => m.incomplete).map(([t]) => `${t} is incomplete: too many errors to trust its numbers, so it is not ranked.`)];
-  const picks = profiles.flatMap((p) => (p.ranking[0] ? [{ id: p.profile, note: p.description, pick: p.ranking[0].target }] : []));
+  const picks = decisions.length === 0 ? [] : profiles.flatMap((p) => { const top = p.ranking.find((r) => !markers[r.target]?.incomplete); return top ? [{ id: p.profile, note: p.description, pick: top.target }] : []; });
+  const anyScored = decisions.some((d) => !UNSCORED.has(d.overall_verdict) && d.overall_delta_points != null);
   return (
     <section className="card decision" aria-labelledby="rec-h" id="decision">
       <div className="decision-main">
         <div>
-          <h2 id="rec-h" className="eyebrow">Recommendation</h2>
+          <div className="between"><h2 id="rec-h" className="eyebrow">Recommendation</h2>
+            <span className="links"><a href={`/api/jobs/${jobId}/report.html`} target="_blank" rel="noopener">Open report</a><a href={`/api/jobs/${jobId}/report`} target="_blank" rel="noopener">JSON</a></span></div>
           <p className="rec-title">{title}</p>
           {lead && <p className="rec-text">{lead.text}</p>}
-          {!lead && decisions.length === 0 && <p className="rec-text muted">A single model has no baseline to beat, so there is nothing to recommend.</p>}
+          {!lead && decisions.length === 0 && <p className="rec-text muted">One model gives a scorecard; add a second for a verdict.</p>}
         </div>
         {decisions.length > 0 && (
           <div>
@@ -69,9 +79,9 @@ export default function DecisionPanel({ baseline, decisions, suggestions, profil
                   </li>
                 );
               })}
-              <li className="forest-axis" aria-hidden="true">
+              {anyScored && <li className="forest-axis" aria-hidden="true">
                 <span /><span className="forest-plot">{ticks.map((t) => <span key={t} style={{ left: `${at(t)}%` }}>{t > 0 ? `+${t}` : t}</span>)}</span><span />
-              </li>
+              </li>}
             </ul>
           </div>
         )}

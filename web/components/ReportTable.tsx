@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { getJSON } from "@/lib/api";
 import { ErrorState, Loading } from "./States";
 import DecisionPanel from "./DecisionPanel";
-import KeyMetrics, { aggregateLatency } from "./KeyMetrics";
+import KeyMetrics, { slowestP95 } from "./KeyMetrics";
 import QualityScatter from "./QualityScatter";
 import SectionTabs from "./SectionTabs";
 import BarList from "./ui/BarList";
@@ -37,7 +37,7 @@ type Report = {
   dimensions: Record<string, Dimension>;
   summary?: { decisions: Decision[]; markers: Record<string, Marker> };
   suggestions?: Suggestion[];
-  flagged?: Record<string, { items: FlaggedItem[]; counts?: Record<string, number> }>;
+  flagged?: Record<string, { items: FlaggedItem[] }>;
   profiles?: Profile[];
   total_cost_usd?: Record<string, number>;
 };
@@ -63,19 +63,12 @@ export function ReportTable({ jobId, children }: { jobId: string; children?: Rea
   const vendors = Object.fromEntries(Object.values(r.dimensions).flatMap((d) => Object.entries(d.targets).map(([t, v]) => [t, v.vendor])));
   return (
     <>
-      <section className="card" aria-labelledby="report-h">
-        <div className="between">
-          <h2 id="report-h">Report · baseline {r.baseline}</h2>
-          <span className="links"><a href={`/api/jobs/${jobId}/report.html`} target="_blank" rel="noopener">Open report</a><a href={`/api/jobs/${jobId}/report`} target="_blank" rel="noopener">JSON</a></span>
-        </div>
-        {r.headline.length === 0 && <p className="muted">One model gives a scorecard; add a second for a verdict.</p>}
-      </section>
-      <DecisionPanel baseline={r.baseline} decisions={r.summary?.decisions ?? []} suggestions={r.suggestions ?? []} profiles={r.profiles ?? []} warnings={r.warnings} markers={r.summary?.markers ?? {}} />
+      <DecisionPanel jobId={jobId} baseline={r.baseline} decisions={r.summary?.decisions ?? []} suggestions={r.suggestions ?? []} profiles={r.profiles ?? []} warnings={r.warnings} markers={r.summary?.markers ?? {}} />
       {r.summary && (
         <>
           <div className="report-tabs"><SectionTabs active="" tabs={TABS} label="Report sections" crumb="" /></div>
-          <KeyMetrics baseline={r.baseline} markers={r.summary.markers} decisions={r.summary.decisions} costs={r.total_cost_usd ?? {}} latency={aggregateLatency(r.benchmarks)}
-            regressions={Object.fromEntries(Object.keys(r.summary.markers).map((m) => [m, r.flagged?.[m]?.counts?.regression ?? null]))} />
+          <KeyMetrics baseline={r.baseline} markers={r.summary.markers} decisions={r.summary.decisions} costs={r.total_cost_usd ?? {}} slowestP95={slowestP95(r.benchmarks)}
+            />
           <section id="quality" className="report-section" aria-labelledby="quality-h">
             <h2 id="quality-h" className="sec">Quality</h2>
             <div className="split">
