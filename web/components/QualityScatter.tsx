@@ -30,15 +30,16 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
   // Models at (nearly) the same spot would print their names on top of each other: each gets its own line,
   // frontier names stacked upward and the rest downward.
   const maxX = Math.max(...points.map((p) => p.x));
-  const near = (a: (typeof points)[number], b: (typeof points)[number]) => Math.abs(a.x - b.x) <= 0.08 * maxX && Math.abs(a.quality - b.quality) < 8;
-  const placed = points.map((p, i) => ({ ...p, slot: points.slice(0, i).filter((q) => onFront.has(q.name) === onFront.has(p.name) && near(p, q)).length }));
+  const near = (a: (typeof points)[number], b: (typeof points)[number]) => Math.abs(a.x - b.x) <= 0.08 * maxX && Math.abs(a.quality - b.quality) < 14;
+  const byQuality = [...points].sort((a, b) => b.quality - a.quality);
+  const placed = byQuality.map((p, i) => ({ ...p, slot: byQuality.slice(0, i).filter((q) => onFront.has(q.name) === onFront.has(p.name) && near(p, q)).length }));
   const slotOf = new Map(placed.map((p) => [p.name, p.slot]));
   const withSlot = (list: typeof points) => list.map((p) => ({ ...p, slot: slotOf.get(p.name) ?? 0 }));
   const labelAt = (dir: 1 | -1, fill: string, weight: number, size: number, data: { label: string; slot: number }[]) =>
     function Label({ x, y, index }: LabelProps) {
       const d = data[index ?? 0];
       if (d == null || x == null || y == null) return null;
-      return <text x={Number(x)} y={Number(y) + dir * (14 + d.slot * (size + 3))} textAnchor="middle" fill={fill} fontSize={size} fontWeight={weight}>{d.label}</text>;
+      return <text x={Number(x)} y={Number(y) + dir * (18 + d.slot * (size + 5))} textAnchor="middle" fill={fill} fontSize={size} fontWeight={weight}>{d.label}</text>;
     };
   const incomplete = points.filter((p) => p.incomplete);
   const rest = points.filter((p) => !onFront.has(p.name) && !p.incomplete);
