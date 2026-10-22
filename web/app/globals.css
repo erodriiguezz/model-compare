@@ -262,9 +262,7 @@ html { scroll-padding-bottom: var(--bar-h); }
 .suggestions .chip { justify-self: start; }
 @media (max-width: 480px) { .suggestions li { grid-template-columns: 1fr; gap: var(--space-1); } }
 .suggestions li > div > * + * { margin-top: 0; }
-.regressions { margin: var(--space-3) 0; padding-left: var(--space-4); }
 .details > summary { cursor: pointer; font-weight: 600; padding: var(--space-2) 0; min-height: var(--tap); }
-.details-body { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-2); }
 .card .legend { margin-top: var(--space-3); }
 .legend .chip + .muted { margin-left: var(--space-1); }
 .card p a { text-decoration: underline; text-underline-offset: 2px; }
@@ -418,3 +416,20 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .spend { list-style: none; margin: 0; padding: 0; }
 .spend li { justify-content: space-between; padding: var(--space-2) 0; border-bottom: 1px solid var(--row-line); }
 .report-section p a { text-decoration: underline; }
+.reg-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.reg-filter .pill { display: inline-flex; align-items: center; gap: var(--space-2); }
+.reg { border-bottom: 1px solid var(--row-line); }
+.reg > summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-4); min-height: var(--hit); cursor: pointer; list-style: none; }
+.reg > summary::before { content: "›"; color: var(--text-muted); transition: transform 0.1s; }
+.reg[open] > summary::before { transform: rotate(90deg); }
+.reg-id { flex: 1 1 var(--col-min); min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.tag { font-size: var(--text-xs); color: var(--text-soft); background: var(--hover); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2); }
+.reg-body { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
+.reg-body > p { margin: 0; }
+.reg-pair { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.reg-side { flex: 1 1 var(--col-min); min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.reg-side .between { padding: var(--space-2) var(--space-3); background: var(--subtle); border-bottom: 1px solid var(--border); }
+.reg-side pre { margin: 0; padding: var(--space-3); background: none; }
+.card.table-card > p { margin: 0; }
+.metrics tr.group th { background: var(--subtle); color: var(--text); white-space: normal; }
+.metrics tbody:not(:first-of-type) tr.group th { border-top: 1px solid var(--border-strong); }

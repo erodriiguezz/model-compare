@@ -7,6 +7,7 @@ const JOB = '/compare/?job=qa-every-verdict';
 const SHOTS = join(process.env.PWD ?? process.cwd(), '.claude', 'artifacts', 'screenshots', '7');
 const caps = (page: Page) => page.getByRole('region', { name: 'Capabilities' });
 const cards = (page: Page) => caps(page).getByRole('article');
+const evidence = (page: Page) => page.getByRole('region', { name: 'Evidence' });
 const color = (page: Page, v: string) => page.evaluate((n) => { const e = document.createElement('i'); e.style.color = `var(${n})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; }, v);
 const noPageScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
@@ -135,16 +136,14 @@ test('[AC-7.4] the recommendation panel lists errors first, then decisions, then
   expect(kinds.map(rank)).toEqual([...kinds.map(rank)].sort());
 });
 
-test('[AC-7.5] regressions list the cases that got worse and details stay collapsed', async ({ page }) => {
+test('[AC-7.5] regressions list the cases that got worse, collapsed, and the evidence is already open', async ({ page }) => {
   await page.goto(JOB);
   const reg = page.getByRole('region', { name: 'Regressions' });
-  await expect(reg).toContainText('qa-worse');
+  await expect(reg.getByRole('button', { name: /qa-worse/ })).toHaveAttribute('aria-pressed', 'true');
   await reg.getByRole('button', { name: /Show all/ }).click();
-  await expect(reg).toContainText('qa-worse · qa-reasoning');
-  const details = page.locator('details', { has: page.getByText('Details', { exact: true }) });
-  await expect(details).not.toHaveAttribute('open', '');
-  await details.getByText('Details', { exact: true }).click();
-  await expect(page.getByRole('region', { name: 'qa-reasoning' })).toBeVisible();
+  await expect(reg.locator('summary', { hasText: 'qa-reasoning' }).first()).toBeVisible();
+  await expect(reg.locator('details.reg[open]')).toHaveCount(0);
+  await expect(evidence(page).getByRole('rowgroup', { name: 'qa-reasoning' })).toBeVisible();
 });
 
 test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and no broken charts', async ({ page }) => {
@@ -160,13 +159,12 @@ test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and 
 test('every call errored on a benchmark: the report renders "No paired cases" and never NaN', async ({ page }) => {
   await page.goto('/compare/?job=qa-all-errors');
   await expect(page.getByRole('region', { name: 'Recommendation' })).toContainText('Fix errors');
-  await page.getByText('Details', { exact: true }).click();
   await expect(page.getByText('2 capabilities')).toBeVisible();
   const tools = cards(page).filter({ has: page.getByRole('heading', { name: /tool/i }) });
   await expect(tools).toBeVisible();
   await expect(tools.locator('.chip', { hasText: /^Incomplete/ })).toBeVisible();
   await expect(tools).toContainText('No scored cases');
-  const bench = page.getByRole('region', { name: 'qa-allerr-tools' });
+  const bench = evidence(page).getByRole('rowgroup', { name: 'qa-allerr-tools' });
   await expect(bench).toContainText('No paired cases');
   await expect(bench).toContainText('Incomplete');
   await expect(page.locator('.recharts-wrapper').first()).toBeVisible();

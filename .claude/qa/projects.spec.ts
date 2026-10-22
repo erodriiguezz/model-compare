@@ -403,8 +403,7 @@ test('[AC-9.4] Run on selected models opens Compare with the project and models 
   await expect(page.getByRole('checkbox', { name: /^std-reasoning-math\b/ })).not.toBeChecked();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
-  await page.getByText('Details', { exact: true }).click({ timeout: 30_000 });
-  await expect(page.getByText('qa-nine-run').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Evidence' }).getByRole('rowgroup', { name: 'qa-nine-run' })).toBeVisible({ timeout: 30_000 });
 });
 
 test('[AC-9.3] Enter inside the Draft dialog never saves the project behind it', async ({ page, request }) => {
