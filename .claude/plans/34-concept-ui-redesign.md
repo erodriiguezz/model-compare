@@ -66,7 +66,7 @@ touches_api: false
 - Accepted: e2e specs that use class selectors (`.chip`, `.key-mask`) are rewritten to role and label selectors.
 - Accepted: light theme only, with every colour a token so dark mode can come later.
 
-**Security:** None. Settings keeps today's behaviour, where only the masked key reaches the page. AC-34.14 re-checks that the full key never appears in the DOM.
+**Security:** None. Settings keeps today's behaviour, where only the masked key reaches the page. The Settings criterion (34.14) re-checks that the full key never appears in the DOM.
 
 **Acceptance criteria**
 - **Shell** (AC-34.1) — Every page shows the new top bar with Compare, Models, Projects and Settings, uses the new tokens, and has no horizontal page scroll at 390 px.
