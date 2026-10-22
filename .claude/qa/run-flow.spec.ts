@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const pick = async (page: Page, models: string[]) => {
   for (const m of models) await page.getByRole('checkbox', { name: new RegExp(`^${m}\\b`) }).check();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
 };
 

@@ -8,7 +8,7 @@ import { Chip, ReportTable } from "./ReportTable";
 import { Empty, ErrorState, Loading } from "./States";
 
 const POLL_MS = 1000;
-const GLYPH = { done: "✓", running: "•", queued: "–", error: "!" };
+const GLYPH = { done: "✓", running: "•", queued: "–", warn: "!", error: "!" };
 type Cell = { state: keyof typeof GLYPH; text: string; share: number };
 
 function timeLeft(job: Job) {
@@ -77,10 +77,16 @@ export default function JobView({ id }: { id: string }) {
   const per = job.targets.length ? job.total_calls / job.targets.length : 0;
   const spent = job.runs.reduce((n, r) => n + r.cost_usd, 0);
   const cell = (target: string, benchmark: string): Cell => {
-    const done = job.runs.find((r) => r.target === target && r.benchmark === benchmark);
-    if (done) return done.n_errors ? { state: "error", text: `${done.n_errors} error${done.n_errors === 1 ? "" : "s"}`, share: 1 } : { state: "done", text: pct(done.passed, done.n_results), share: 1 };
+    const r = job.runs.find((x) => x.target === target && x.benchmark === benchmark);
+    if (r) {
+      const bad = r.n_results > 0 && r.n_errors * 2 > r.n_results; // errors are the majority: the score means little
+      if (r.status === "budget_exceeded") return { state: "error", text: `Budget hit · ${pct(r.passed, r.n_results)}`, share: 1 };
+      if (r.status === "cancelled" || r.status === "failed") return { state: "error", text: r.status === "failed" ? "Failed" : "Cancelled", share: 1 };
+      if (bad) return { state: "error", text: `${r.n_errors} error${r.n_errors === 1 ? "" : "s"}`, share: 1 };
+      return r.n_errors ? { state: "warn", text: `${pct(r.passed, r.n_results)} · ${r.n_errors} error${r.n_errors === 1 ? "" : "s"}`, share: 1 } : { state: "done", text: pct(r.passed, r.n_results), share: 1 };
+    }
     const l = job.live.find((x) => x.target === target && x.benchmark === benchmark);
-    return l ? { state: "running", text: `Running ${l.done}/${l.total}`, share: l.total ? l.done / l.total : 0 } : { state: "queued", text: "Queued", share: 0 };
+    return l ? { state: l.errors ? "warn" : "running", text: `Running ${l.done}/${l.total}${l.errors ? ` · ${l.errors} errors` : ""}`, share: l.total ? l.done / l.total : 0 } : { state: "queued", text: "Queued", share: 0 };
   };
   const percent = job.total_calls ? Math.round((100 * job.done_calls) / job.total_calls) : 0;
   const stat = (label: string, value: ReactNode, big = false) => <div><dt className="small muted">{label}</dt><dd className={big ? "stat-big" : "stat"}>{value}</dd></div>;
@@ -98,7 +104,7 @@ export default function JobView({ id }: { id: string }) {
         <dl className="stats">
           {stat("Progress", `${percent}%`, true)}
           {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
-          {stat("Spent", usd(spent))}
+          {stat("Spent (finished runs)", usd(spent))}
           {stat("Time left", active ? timeLeft(job) : "—")}
         </dl>
         <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
@@ -117,7 +123,7 @@ export default function JobView({ id }: { id: string }) {
           <p className="danger">{pct(errs, done)} of calls are failing, so scores will be meaningless.{firstError && <> First error: <code>{firstError.slice(0, 200)}</code></>} Consider stopping.</p>
         )}
       </section>
-      {rows.length > 0 && (active || showProgress) && (
+      {names.length > 0 && (active || showProgress) && (
         <div className="run-cols">
           <section className="card" aria-labelledby="h-grid">
             <h2 id="h-grid">By benchmark</h2>
@@ -131,7 +137,7 @@ export default function JobView({ id }: { id: string }) {
                     return (
                       <td key={t} data-state={c.state}>
                         <span className="cell"><span className="cell-icon" aria-hidden="true">{GLYPH[c.state]}</span><span>{c.state === "done" && <span className="sr-only">Done </span>}{c.text}</span></span>
-                        {c.state === "running" && <div className="bar mini"><div style={{ width: `${100 * c.share}%`, background: vendorColor(t) }} /></div>}
+                        {c.state !== "queued" && c.share < 1 && <div className="bar mini"><div style={{ width: `${100 * c.share}%`, background: vendorColor(t) }} /></div>}
                       </td>
                     );
                   })}</tr>))}

@@ -336,8 +336,10 @@ table.cases td { vertical-align: middle; }
 .run-cols > :first-child { flex: 999 1 calc(var(--col-min) * 2); min-width: 0; }
 .run-cols > :last-child { flex: 1 1 var(--col-min); min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .bar.big { height: var(--space-3); border-radius: var(--radius-pill); }
+.bar.big > div { background: var(--ink); }
+.details { margin-top: var(--space-4); }
 .bar.mini { height: var(--space-1); margin-top: var(--space-2); }
-table.grid { min-width: calc(var(--col-min) * 2); }
+table.grid tbody th { overflow-wrap: anywhere; }
 table.grid th, table.grid td { padding: var(--space-3) var(--space-3) var(--space-3) 0; vertical-align: middle; }
 table.grid tbody th { color: var(--text); font-weight: 500; white-space: normal; }
 .cell { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
@@ -346,6 +348,8 @@ td[data-state="done"] .cell-icon { background: var(--better-bg); color: var(--be
 td[data-state="running"] .cell-icon { background: var(--hover); color: var(--accent); animation: pulse 1.4s infinite; }
 td[data-state="error"] .cell-icon { background: var(--worse-bg); color: var(--worse-fg); }
 td[data-state="error"] .cell > span:last-child { color: var(--worse-fg); font-weight: 600; }
+td[data-state="warn"] .cell-icon { background: var(--warning-bg); color: var(--warning); }
+td[data-state="warn"] .cell > span:last-child { color: var(--warning); font-weight: 600; }
 td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .model-prog > * + * { margin-top: var(--space-1); }
 @media (prefers-reduced-motion: reduce) { td[data-state="running"] .cell-icon { animation: none; } }

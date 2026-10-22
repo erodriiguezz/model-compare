@@ -62,7 +62,7 @@ export function ModelCard({ id, model, status, off, checked, baseline, onToggle,
   return (
     <div role="group" aria-label={id} className="tile" data-on={checked} data-off={off}>
       <label className="tile-label">
-        <input type="checkbox" checked={checked} disabled={off} onChange={onToggle} />
+        <input type="checkbox" checked={checked} disabled={off} onChange={onToggle} aria-describedby={baseline ? `baseline-${id}` : undefined} />
         <span className="tile-body">
           <span className="tile-name"><span className="dot" style={{ background: vendorColor(model || id) }} />{id}</span>
           <span className="mono muted small">{model}</span>
@@ -70,7 +70,7 @@ export function ModelCard({ id, model, status, off, checked, baseline, onToggle,
         </span>
       </label>
       {off && <Link href="/settings/" className="small">Add key in Settings</Link>}
-      {baseline && <span className="chip tile-flag">Baseline</span>}
+      {baseline && <span className="chip tile-flag" id={`baseline-${id}`}>Baseline</span>}
       {checked && !baseline && <button type="button" className="link-btn tile-flag" onClick={onBaseline}>Make baseline</button>}
     </div>
   );

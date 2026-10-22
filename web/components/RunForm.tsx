@@ -82,7 +82,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const body = { targets, benchmarks: benches, baseline: base || undefined, judge: needsJudge && judgeName ? judgeName : undefined,
     repeats: opts.repeats === "" ? undefined : Number(opts.repeats), budget_usd: opts.budget === "" ? undefined : Number(opts.budget), concurrency: Number(opts.concurrency) || 8, use_cache: opts.cache };
   const ready = targets.length >= 1 && benches.length > 0 && (!needsJudge || !!judgeName);
-  const none = targets.length === 0;
+  const reason = !targets.length ? "Pick a model to run a comparison." : !benches.length ? "Pick a benchmark to run a comparison."
+    : needsJudge && !judgeName ? (judgesLoading ? "Loading judges…" : "These benchmarks need a judge model that is not under test.") : "";
   const key = JSON.stringify(body);
   const est = estimate?.key === key && !("error" in estimate.value) ? estimate.value : null;
 
@@ -122,7 +123,12 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
 
   const presets = Object.entries(data.profiles).map(([id, p]) => ({ id, names: data.benches.filter((b) => b.dimension in p.weights).map((b) => b.name) })).filter((p) => p.names.length);
   const same = (names: string[]) => names.length === benches.length && names.every((n) => benches.includes(n));
-  const cases = data.benches.filter((b) => benches.includes(b.name)).reduce((n, b) => n + b.cases, 0);
+  const dims = [...new Set(data.benches.map((b) => b.dimension))].map((id) => {
+    const all = data.benches.filter((b) => b.dimension === id), on = all.filter((b) => benches.includes(b.name));
+    return { id, names: all.map((b) => b.name), cases: all.reduce((n, b) => n + b.cases, 0), on: on.length, picked: on.reduce((n, b) => n + b.cases, 0) };
+  });
+  const dimsOn = dims.filter((d) => d.on > 0);
+  const cases = dimsOn.reduce((n, d) => n + d.picked, 0);
   const stat = (label: string, id: string, value: string, big = false) => (
     <div><dt className="small muted">{label}</dt><dd className={big ? "stat-big" : "stat"} data-testid={id}>{value}</dd></div>
   );
@@ -153,21 +159,34 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
           )}
         </section>
         <section className="card" aria-labelledby="h-deck">
-          <div className="between"><h2 id="h-deck">2 · What to test</h2><span className="muted small">{cases} cases in {benches.length} benchmark{benches.length === 1 ? "" : "s"}</span></div>
-          <p className="muted">Start from a use case, then add or drop benchmarks.</p>
+          <div className="between"><h2 id="h-deck">2 · What to test</h2><span className="muted small">{cases} cases in {dimsOn.length} dimension{dimsOn.length === 1 ? "" : "s"}</span></div>
+          <p className="muted">Start from a use case, then add or drop dimensions.</p>
           <div className="toolbar" role="group" aria-label="Use cases">
             {presets.map((p) => <button key={p.id} type="button" className="pill" aria-pressed={same(p.names)} onClick={() => setBenches(p.names)}>{title(p.id)}</button>)}
             <button type="button" className="pill" aria-pressed={same(data.benches.map((b) => b.name))} onClick={() => setBenches(data.benches.map((b) => b.name))}>Everything</button>
           </div>
           <div className="tile-grid dims">
-            {data.benches.map((b) => (
-              <label key={b.name} className="tile tile-label" data-on={benches.includes(b.name)}>
-                <input type="checkbox" checked={benches.includes(b.name)} onChange={() => toggle(benches, setBenches, b.name)} />
-                <span className="tile-body"><span className="tile-name">{b.name}</span><span className="muted small">{b.capability}</span></span>
-                <span className="muted small num">{b.cases} cases</span>
+            {dims.map((d) => (
+              <label key={d.id} className="tile tile-label" data-on={d.on > 0}>
+                <input type="checkbox" checked={d.on === d.names.length} ref={(el) => { if (el) el.indeterminate = d.on > 0 && d.on < d.names.length; }}
+                  onChange={() => setBenches(d.on === d.names.length ? benches.filter((n) => !d.names.includes(n)) : [...new Set([...benches, ...d.names])])} />
+                <span className="tile-body"><span className="tile-name">{title(d.id)}</span></span>
+                <span className="muted small num">{d.cases} cases</span>
               </label>
             ))}
           </div>
+          <details className="details">
+            <summary>Choose individual benchmarks</summary>
+            <div className="tile-grid dims">
+              {data.benches.map((b) => (
+                <label key={b.name} className="tile tile-label" data-on={benches.includes(b.name)}>
+                  <input type="checkbox" checked={benches.includes(b.name)} onChange={() => toggle(benches, setBenches, b.name)} />
+                  <span className="tile-body"><span className="tile-name">{b.name}</span><span className="muted small">{b.capability}</span></span>
+                  <span className="muted small num">{b.cases} cases</span>
+                </label>
+              ))}
+            </div>
+          </details>
         </section>
         <section className="card" aria-labelledby="h-opt">
           <h2 id="h-opt">3 · Options</h2>
@@ -182,12 +201,13 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
                     </optgroup>
                   ))}
                 </select>
+                <small className="muted">Picked from a vendor you&apos;re not comparing.</small>
                 {judgeCatalog.status === "error" && <span className="muted">Model catalog unavailable; showing configured judges only.</span>}
               </label>
             )}
-            <label>Repeats<input type="number" min={1} max={10} placeholder="deck default" value={opts.repeats} onChange={(e) => setOpts({ ...opts, repeats: e.target.value })} /></label>
-            <label>Parallel calls per model<input type="number" min={1} max={64} value={opts.concurrency} onChange={(e) => setOpts({ ...opts, concurrency: e.target.value })} /></label>
-            <label>Budget per run (USD)<input type="number" min={0} step="0.01" placeholder="no cap" value={opts.budget} onChange={(e) => setOpts({ ...opts, budget: e.target.value })} /></label>
+            <label>Repeats<input type="number" min={1} max={10} placeholder="deck default" value={opts.repeats} onChange={(e) => setOpts({ ...opts, repeats: e.target.value })} /><small className="muted">More than 1 also measures consistency.</small></label>
+            <label>Parallel calls per model<input type="number" min={1} max={64} value={opts.concurrency} onChange={(e) => setOpts({ ...opts, concurrency: e.target.value })} /><small className="muted">Lower it if you hit rate limits.</small></label>
+            <label>Budget per run (USD)<input type="number" min={0} step="0.01" placeholder="no cap" value={opts.budget} onChange={(e) => setOpts({ ...opts, budget: e.target.value })} /><small className="muted">Stops a run that would go over.</small></label>
             <label className="check"><input type="checkbox" checked={opts.cache} onChange={(e) => setOpts({ ...opts, cache: e.target.checked })} />Reuse cached answers</label>
           </div>
         </section>
@@ -204,14 +224,14 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             {stat("API calls", "est-calls", est ? String(est.total_calls) : "—")}
             {stat("Already cached", "est-cached", est ? `${est.cached_calls} (${pct(est.cached_calls, est.total_calls)})` : "—")}
           </dl>
+          <p className="muted small" id="start-reason">{reason}</p>
           <p className="muted small">
-            {!ready && (needsJudge && !judgeName ? (judgesLoading ? "Loading judges…" : "These benchmarks need a judge model that is not under test.") : "Pick a model and a benchmark to see an estimate.")}
             {ready && estimate?.key !== key && "Estimating…"}
             {ready && estimate?.key === key && "error" in estimate.value && estimate.value.error}
-            {ready && targets.length === 1 && " one model gives a scorecard; select two for a verdict"}
+            {ready && targets.length === 1 && "Note: one model gives a scorecard; select two for a verdict."}
           </p>
         </div>
-        {none && <p className="notice" id="start-reason">Pick at least one model to run.</p>}
+        {dimsOn.some((d) => d.picked < 10) && <p className="notice">Under 10 cases per dimension can&apos;t produce a verdict. Add dimensions or repeats.</p>}
         {startError && <p role="alert" className="danger">{startError}</p>}
         {confirmKey === key && est ? (
           <div className="confirm" role="group" aria-label="Confirm cost">
@@ -220,8 +240,8 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
             <button type="submit" className="btn" disabled={starting}>{starting ? "Starting…" : "Confirm and run"}</button>
             <button type="button" className="btn secondary" onClick={() => setConfirmKey("")}>Back</button>
           </div>
-        ) : <button type="submit" className="btn start" disabled={!est || starting} aria-describedby={none ? "start-reason" : undefined}>Run comparison</button>}
-        <p className="muted small center">{opts.budget ? `Capped at $${opts.budget} per run. ` : ""}You can cancel at any time.</p>
+        ) : <button type="submit" className="btn start" disabled={!est || starting} aria-describedby={reason ? "start-reason" : undefined}>Run comparison</button>}
+        <p className="muted small center">{opts.budget ? `Within your $${opts.budget} budget per run. ` : ""}You can cancel at any time.</p>
       </aside>
     </form>
   );

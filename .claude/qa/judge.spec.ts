@@ -20,6 +20,7 @@ test('[AC-3.1] catalog models are offered as judges, a vendor not under test is 
   const bodies: Array<Record<string, unknown>> = [];
   await setup(page, bodies, ['anthropic/claude-x']);
   await page.goto('/compare/?targets=openai%2Fgpt-4o-mini%2Cmock-a');
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
   const judge = page.getByRole('combobox', { name: /^Judge/ });
   await expect(judge).toHaveValue('anthropic/claude-x');
@@ -42,6 +43,7 @@ test('[AC-3.1] when the catalog fails, Run stays disabled with a muted note', as
   await page.route('**/api/models', (route) => route.fulfill({ status: 500, json: { detail: 'down' } }));
   await page.goto('/compare/');
   await page.getByRole('checkbox', { name: /^mock-a\b/ }).check();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
   await expect(page.getByText('Model catalog unavailable')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run comparison' })).toBeDisabled();

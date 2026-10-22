@@ -34,6 +34,7 @@ test('[AC-9.5] Settings key (masked) -> Models lists that provider -> select moc
   await page.getByRole('checkbox', { name: /^mock-a(\s|$)/ }).check();
   await page.getByRole('checkbox', { name: /^mock-b(\s|$)/ }).check();
   await page.getByRole('link', { name: 'Compare selected' }).click();
+  await page.getByText('Choose individual benchmarks').click();
   await page.getByRole('checkbox', { name: /^std-reasoning-math\b/ }).check();
   await page.getByRole('button', { name: 'Run comparison' }).click();
   await expect(page).toHaveURL(/\/compare\/\?job=\w+/);
