@@ -248,3 +248,96 @@ test('[AC-34.4] a running job shows percent, calls, spend, time left, per-model 
   await expect(head.locator('[data-verdict="cancelled"]')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
+
+const REPORT = '/compare/?job=qa-every-verdict';
+const recommendation = (page: Page) => page.getByRole('region', { name: 'Recommendation' });
+
+test('[AC-34.5] the report opens with the recommendation, an overall-change row per candidate and the use-case picks', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(REPORT);
+  const rec = recommendation(page);
+  await expect(rec).toBeVisible();
+  const metricsTop = (await page.getByRole('region', { name: 'Key metrics' }).boundingBox())!.y;
+  expect((await rec.boundingBox())!.y).toBeLessThan(metricsTop);
+  await expect(rec).toContainText('Switch to qa-better.');
+  const rows = rec.getByRole('list', { name: 'Overall change' }).locator('li[data-candidate]');
+  await expect(rows).toHaveCount(4);
+  for (const [name, verdict] of [['qa-better', 'better'], ['qa-worse', 'worse'], ['qa-tie', 'equivalent'], ['qa-flaky', 'incomplete']]) {
+    const row = rows.filter({ hasText: name });
+    await expect(row.locator(`[data-verdict="${verdict}"]`)).toBeVisible();
+    await expect(row.locator('.forest-zero')).toBeAttached();
+  }
+  const better = rows.filter({ hasText: 'qa-better' });
+  await expect(better).toContainText(/\+20\.4 \[\+14\.1, \+26\.7\]/);
+  await expect(better.locator('.forest-ci')).toBeAttached();
+  await expect(rec.getByRole('heading', { name: 'Best by use case' })).toBeVisible();
+  await expect(rec.locator('.picks li')).not.toHaveCount(0);
+  await expect(rec.locator('.picks li').first()).toContainText('qa-better');
+  await expect(rec.getByRole('list', { name: 'Caveats' })).toContainText('qa-flaky');
+  await expect(page.getByRole('navigation', { name: 'Report sections' }).getByRole('link', { name: 'Key metrics' })).toBeVisible();
+});
+
+for (const job of ['qa-incomplete', 'qa-all-errors']) {
+  test(`[AC-34.5] ${job}: no broken chart and a clear caveat`, async ({ page }) => {
+    await page.goto(`/compare/?job=${job}`);
+    const rec = recommendation(page);
+    await expect(rec).toContainText('Fix errors before deciding.');
+    const row = rec.locator('li[data-candidate="qa-flaky"]');
+    await expect(row).toContainText('Not compared');
+    await expect(row.locator('[data-verdict="incomplete"]')).toBeVisible();
+    await expect(row.locator('.forest-ci, .forest-pt')).toHaveCount(0);
+    await expect(rec.getByRole('list', { name: 'Caveats' })).toContainText('not scored');
+    await expect(page.locator('body')).not.toContainText(/NaN/);
+  });
+}
+
+test('[AC-34.6] key metrics lists 9 metrics per model and tints the best value in each comparable row', async ({ page }) => {
+  await page.goto(REPORT);
+  const table = page.getByRole('region', { name: 'Key metrics' });
+  const rows = table.locator('tbody tr');
+  await expect(rows).toHaveCount(9);
+  const labels = await rows.locator('th').evaluateAll((els) => els.map((e) => e.firstElementChild?.textContent));
+  expect(labels).toEqual(['Overall pass rate', 'Verdict vs baseline', 'Regressions', 'Consistency', 'Cost per 1,000 tasks', 'Cost of this run', 'Median latency (p50)', 'Slow tail (p95)', 'Error rate']);
+  const heads = await table.locator('thead th').allTextContents();
+  const best = async (label: string) => {
+    const row = rows.filter({ has: page.locator('th', { hasText: label }) });
+    return row.locator('td').evaluateAll((tds) => tds.map((td) => td.querySelector('[data-best]') !== null));
+  };
+  const col = (name: string) => heads.findIndex((h) => h.includes(name)) - 1;
+  for (const [label, winner] of [['Overall pass rate', 'qa-better'], ['Cost per 1,000 tasks', 'qa-worse'], ['Cost of this run', 'qa-worse']]) {
+    const cells = await best(label);
+    expect(cells.filter(Boolean)).toHaveLength(1);
+    expect(cells[col(winner)]).toBe(true);
+  }
+  expect((await best('Median latency')).some(Boolean)).toBe(false); // every model ties: no best
+  expect(await best('Consistency')).toEqual([false, false, false, false, false]);
+  await expect(rows.nth(3).locator('td').first()).toHaveText('—');
+  await expect(rows.nth(2).locator('td').first()).toHaveText('—'); // the baseline has no regressions to count
+  await expect(rows.nth(2).locator('td').nth(col('qa-worse'))).toHaveText('26');
+  await expect(rows.nth(1).locator('td').nth(col('qa-better'))).toContainText('Better');
+});
+
+test('[AC-34.7] quality vs cost keeps the frontier line and its explanation next to sorted pass-rate bars', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(REPORT);
+  const quality = page.getByRole('region', { name: 'Quality', exact: true });
+  const scatter = quality.locator('[data-chart="cost-scatter"]');
+  await expect(scatter.locator('.sr-only tbody tr')).toHaveCount(5);
+  await expect(scatter.locator('.recharts-scatter-line')).toBeAttached();
+  await expect(quality).toContainText('The line joins the models no other model beats on both.');
+  const values = (await quality.getByRole('list', { name: 'Overall pass rate' }).locator('.value').allTextContents()).map(parseFloat);
+  expect(values).toHaveLength(5);
+  expect(values).toEqual([...values].sort((a, b) => b - a));
+  const sideBySide = await Promise.all([scatter.boundingBox(), quality.getByRole('list', { name: 'Overall pass rate' }).boundingBox()]);
+  expect(Math.abs(sideBySide[0]!.y - sideBySide[1]!.y)).toBeLessThan(sideBySide[0]!.height);
+});
+
+for (const width of [1280, 390]) {
+  test(`[AC-34.5] [AC-34.6] [AC-34.7] the report fits ${width}px and is captured`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(REPORT);
+    await expect(page.getByRole('region', { name: 'Quality', exact: true }).locator('.recharts-wrapper')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await shot(page, `report-top-${width}`);
+  });
+}

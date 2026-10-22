@@ -110,7 +110,7 @@ test('[AC-7.5] a finished job collapses its progress so the decision is the firs
   const summary = page.locator('[data-job-summary]');
   await expect(summary).toContainText(/done · \d+\/\d+ calls · 5 models · 6 capabilities/);
   await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
-  const top = (await page.getByRole('region', { name: 'Suggestions' }).boundingBox())!.y;
+  const top = (await page.getByRole('region', { name: 'Recommendation' }).boundingBox())!.y;
   expect(top).toBeLessThan(800);
   await page.getByRole('button', { name: 'Show progress' }).click();
   await expect(page.getByRole('region', { name: 'By benchmark' })).toBeVisible();
@@ -118,9 +118,9 @@ test('[AC-7.5] a finished job collapses its progress so the decision is the firs
   await expect(page.getByRole('region', { name: 'By benchmark' })).toHaveCount(0);
 });
 
-test('[AC-7.4] the suggestions panel lists errors first, then decisions, then data advice', async ({ page }) => {
+test('[AC-7.4] the recommendation panel lists errors first, then decisions, then data advice', async ({ page }) => {
   await page.goto(JOB);
-  const panel = page.getByRole('region', { name: 'Suggestions' });
+  const panel = page.getByRole('region', { name: 'Recommendation' });
   const items = panel.locator('ol > li');
   await expect(items.first()).toContainText('Fix errors');
   await expect(panel).toContainText(/cheaper is qa-tie \(saves \$[\d.]+ \/ 1k tasks/);
@@ -147,8 +147,8 @@ test('[AC-7.5] regressions list the cases that got worse and details stay collap
 
 test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and no broken charts', async ({ page }) => {
   await page.goto('/compare/?job=qa-incomplete');
-  await expect(page.getByRole('region', { name: 'Suggestions' }).locator('ol > li')).toHaveCount(1);
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors: qa-flaky');
+  await expect(page.getByRole('region', { name: 'Recommendation' }).locator('ol > li')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toContainText('Fix errors: qa-flaky');
   await expect(page.getByRole('region', { name: 'Verdict matrix' }).locator('td', { hasText: /^Incomplete/ })).toBeVisible();
   await expect(page.locator('[data-chart="ranked-bars"]')).toHaveCount(1);
   await expect(page.locator('.recharts-wrapper').first()).toBeVisible();
@@ -157,7 +157,7 @@ test('[AC-7.5] an incomplete-only report shows Fix errors, incomplete cells and 
 
 test('every call errored on a benchmark: the report renders "No paired cases" and never NaN', async ({ page }) => {
   await page.goto('/compare/?job=qa-all-errors');
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toContainText('Fix errors');
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toContainText('Fix errors');
   await page.getByText('Details', { exact: true }).click();
   await expect(page.getByText('2 capabilities')).toBeVisible();
   const matrix = page.getByRole('region', { name: 'Verdict matrix' });
@@ -190,7 +190,7 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
   const alert = page.locator('[data-state="error"]');
   await expect(alert).toContainText('Could not load the report');
   await alert.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
 });
 
 test('[AC-7.5] with no runs yet, Compare points to Models', async ({ page }) => {
@@ -208,16 +208,16 @@ for (const [name, width] of [['1280', 1280], ['390', 390]] as const) {
   test(`[AC-7.5] report screenshots at ${name}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(JOB);
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await expect(page.locator('[data-chart="cost-scatter"] .recharts-wrapper')).toBeVisible();
     expect(await noPageScroll(page)).toBe(true);
     mkdirSync(SHOTS, { recursive: true });
     await page.screenshot({ path: join(SHOTS, `compare-${name}.png`), fullPage: true });
     await page.goto('/compare/?job=qa-incomplete');
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `incomplete-${name}.png`), fullPage: true });
     await page.goto('/compare/?job=qa-all-errors');
-    await expect(page.getByRole('region', { name: 'Suggestions' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Recommendation' })).toBeVisible();
     await page.screenshot({ path: join(SHOTS, `all-errors-${name}.png`), fullPage: true });
     await page.route('**/api/runs?*', (route) => route.fulfill({ json: [] }));
     await page.goto('/compare/');
