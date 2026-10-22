@@ -109,15 +109,15 @@ export default function JobView({ id }: { id: string }) {
         </div>
         {(active || showProgress) && (
           <>
-            <dl className="stats">
-              {stat("Progress", `${percent}%`, true)}
-              {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
-              {stat("Spent (finished runs)", usd(spent))}
-              {stat("Time left", active ? timeLeft(job) : "—")}
-            </dl>
-            <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
-              <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
-            </div>
+        <dl className="stats">
+          {stat("Progress", `${percent}%`, true)}
+          {stat("Calls", <>{job.done_calls} <span className="muted">of {job.total_calls}</span></>)}
+          {stat("Spent (finished runs)", usd(spent))}
+          {stat("Time left", active ? timeLeft(job) : "—")}
+        </dl>
+        <div className="bar big" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={job.total_calls} aria-valuenow={job.done_calls}>
+          <div style={{ width: `${job.total_calls ? (100 * job.done_calls) / job.total_calls : 0}%` }} />
+        </div>
           </>
         )}
         {state.retrying && <p className="muted" role="status">Reconnecting…</p>}
