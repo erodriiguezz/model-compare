@@ -189,7 +189,7 @@ test('[AC-7.5] the report shows a loading state, then an error with retry', asyn
     if (calls === 1) return route.fulfill({ status: 500, json: { detail: 'boom' } });
     return route.continue();
   });
-  await openReport(page, JOB);
+  await page.goto(JOB);
   await expect(page.getByRole('status').filter({ hasText: 'Loading report' })).toBeVisible();
   release();
   const alert = page.locator('[data-state="error"]');

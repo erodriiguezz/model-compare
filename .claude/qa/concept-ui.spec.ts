@@ -638,7 +638,7 @@ test('[AC-34.13] a project with hundreds of cases draws a page of rows, shows al
   await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(25);
   await page.getByRole('button', { name: 'Show all 300 cases' }).click();
   await expect(table.getByRole('button', { name: /^Edit case \d+$/ })).toHaveCount(300);
-  await expect(page.getByRole('button', { name: 'Edit case 26' })).toBeFocused(); // focus does not fall to the page
+  await expect(page.getByRole('button', { name: 'Edit case 26', exact: true })).toBeFocused(); // focus does not fall to the page
   await page.getByRole('button', { name: 'Edit case 300' }).click();
   await page.getByLabel('Case 300 input').fill('Edited last case');
   await expect(page.getByText('Unsaved changes')).toBeVisible();
