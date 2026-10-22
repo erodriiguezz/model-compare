@@ -25,6 +25,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
   const [targets, setTargets] = useState<string[]>(() => (fromUrl ?? "").split(",").filter(Boolean));
   const [benches, setBenches] = useState<string[]>(benchesFromUrl);
   const [baseline, setBaseline] = useState("");
+  const [individual, setIndividual] = useState(benchesFromUrl.length > 0); // benchmarks named in the link are shown
   const [judge, setJudge] = useState("");
   const [opts, setOpts] = useState({ repeats: "", concurrency: "8", budget: "", cache: true });
   const [confirmKey, setConfirmKey] = useState("");
@@ -175,7 +176,7 @@ export default function RunForm({ onStart }: { onStart: (jobId: string) => void 
               </label>
             ))}
           </div>
-          <details className="details">
+          <details className="details" open={individual} onToggle={(e) => setIndividual(e.currentTarget.open)}>
             <summary>Choose individual benchmarks</summary>
             <div className="tile-grid dims">
               {data.benches.map((b) => (
