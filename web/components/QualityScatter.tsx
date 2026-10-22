@@ -1,6 +1,6 @@
 "use client";
 
-import { CartesianGrid, LabelList, ResponsiveContainer, Scatter, ScatterChart, XAxis, YAxis } from "recharts";
+import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, usePlotArea, XAxis, useXAxisScale, YAxis, useYAxisScale } from "recharts";
 import { paretoFront, useChartColors, type Marker } from "@/lib/report";
 
 const usd = (v: number) => `$${v >= 10 ? v.toFixed(0) : v.toFixed(2)}`;
@@ -8,7 +8,34 @@ const SPEC = {
   cost: { key: "cost_per_1k_tasks", fmt: usd, axis: "$ per 1k tasks", title: "Quality vs cost", chart: "cost-scatter", note: "Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both.", sr: "Overall pass rate and cost per model" },
   latency: { key: "latency_p50", fmt: (v: number) => `${v.toFixed(1)} s`, axis: "Median latency (s)", title: "Quality vs latency", chart: "latency-scatter", note: "Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both quality and speed.", sr: "Overall pass rate and median latency per model" },
 } as const;
-type LabelProps = { x?: number | string; y?: number | string; index?: number };
+type Pt = { name: string; x: number; quality: number; label: string };
+const LINE = 14, GAP = 14, CHAR = 6.6;
+
+/**
+ * One label per cluster of neighbouring models, so names never pile up: the names sit as lines beside the
+ * cluster's rightmost dot (leftmost when the right edge is too close), best model first, kept inside the plot area.
+ */
+function ClusterLabels({ clusters, front, fill, accent }: { clusters: Pt[][]; front: Set<string>; fill: string; accent: string }) {
+  const area = usePlotArea(), sx = useXAxisScale(), sy = useYAxisScale();
+  if (!area || !sx || !sy) return null;
+  return (
+    <g className="scatter-labels" fontSize={12}>
+      {clusters.map((c) => {
+        const px = c.map((p) => Number(sx(p.x))), py = c.map((p) => Number(sy(p.quality)));
+        const h = c.length * LINE, wide = Math.max(...c.map((p) => p.label.length)) * CHAR;
+        const right = Math.max(...px) + GAP + wide <= area.x + area.width;
+        const x = right ? Math.max(...px) + GAP : Math.min(...px) - GAP;
+        const mid = (Math.min(...py) + Math.max(...py)) / 2;
+        const top = Math.min(Math.max(mid - h / 2, area.y), area.y + area.height - h);
+        return (
+          <text key={c.map((p) => p.name).join("|")} x={x} y={top} textAnchor={right ? "start" : "end"} fill={fill}>
+            {c.map((p, i) => <tspan key={p.name} x={x} dy={i === 0 ? LINE - 3 : LINE} fontWeight={front.has(p.name) ? 600 : 400} fill={front.has(p.name) ? accent : fill}>{p.label}</tspan>)}
+          </text>
+        );
+      })}
+    </g>
+  );
+}
 type Shape = { cx?: number; cy?: number; payload?: { vendor: string } };
 
 /**
@@ -27,23 +54,17 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
   if (points.length < 2) return null;
   const front = paretoFront(points);
   const onFront = new Set(front.map((p) => p.name));
-  // Models at (nearly) the same spot would print their names on top of each other: each gets its own line,
-  // frontier names stacked upward and the rest downward.
+  // Models that sit close together (a chain of near neighbours) share one label.
   const maxX = Math.max(...points.map((p) => p.x));
-  const near = (a: (typeof points)[number], b: (typeof points)[number]) => Math.abs(a.x - b.x) <= 0.08 * maxX && Math.abs(a.quality - b.quality) < 14;
-  const byQuality = [...points].sort((a, b) => b.quality - a.quality);
-  const placed = byQuality.map((p, i) => ({ ...p, slot: byQuality.slice(0, i).filter((q) => onFront.has(q.name) === onFront.has(p.name) && near(p, q)).length }));
-  const slotOf = new Map(placed.map((p) => [p.name, p.slot]));
-  const withSlot = (list: typeof points) => list.map((p) => ({ ...p, slot: slotOf.get(p.name) ?? 0 }));
-  const labelAt = (dir: 1 | -1, fill: string, weight: number, size: number, data: { label: string; slot: number }[]) =>
-    function Label({ x, y, index }: LabelProps) {
-      const d = data[index ?? 0];
-      if (d == null || x == null || y == null) return null;
-      return <text x={Number(x)} y={Number(y) + dir * (18 + d.slot * (size + 5))} textAnchor="middle" fill={fill} fontSize={size} fontWeight={weight}>{d.label}</text>;
-    };
+  const near = (a: Pt, b: Pt) => Math.abs(a.x - b.x) <= 0.08 * maxX && Math.abs(a.quality - b.quality) < 14;
+  const clusters: Pt[][] = [];
+  for (const p of [...points].sort((a, b) => b.quality - a.quality)) {
+    const hits = clusters.filter((c) => c.some((q) => near(p, q)));
+    const merged = [p, ...hits.flat()].sort((a, b) => b.quality - a.quality);
+    clusters.splice(0, clusters.length, ...clusters.filter((c) => !hits.includes(c)), merged);
+  }
   const incomplete = points.filter((p) => p.incomplete);
   const rest = points.filter((p) => !onFront.has(p.name) && !p.incomplete);
-  const restData = withSlot(rest), incompleteData = withSlot(incomplete), frontData = withSlot(front);
   const fmt = (p: (typeof points)[number]) => `${p.name} ${Math.round(p.quality)}% at ${fmtX(p.x)}`;
   const summary = `Overall pass rate against ${spec.axis}. On the Pareto front: ${front.map(fmt).join(", ")}. Others: ${rest.map(fmt).join(", ") || "none"}.${incomplete.length ? ` Incomplete, too many errors to rank: ${incomplete.map(fmt).join(", ")} (incomplete).` : ""}`;
   const vendorList = [...new Set(points.map((p) => p.vendor))];
@@ -61,18 +82,16 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
                   label={{ value: spec.axis, position: "insideBottom", offset: -16, fill: colors.muted, fontSize: 12 }} />
                 <YAxis type="number" dataKey="quality" name="Overall pass rate" domain={[0, 100]} unit="%" width={64} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
                   label={{ value: "Overall pass rate", angle: -90, position: "insideLeft", offset: 4, fill: colors.muted, fontSize: 12 }} />
-                <Scatter data={restData} isAnimationActive={false} shape={(p: Shape) => (
+                <Scatter data={rest} isAnimationActive={false} shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={5} fill={colors.provider(p.payload?.vendor ?? "")} fillOpacity={0.35} />)}>
-                  <LabelList dataKey="label" content={labelAt(1, colors.muted, 400, 11, restData)} />
                 </Scatter>
-                <Scatter data={incompleteData} isAnimationActive={false} shape={(p: Shape) => (
+                <Scatter data={incomplete} isAnimationActive={false} shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={5} fill={colors.surface} stroke={colors.muted} strokeWidth={2} strokeDasharray="3 2" />)}>
-                  <LabelList dataKey="label" content={labelAt(1, colors.muted, 400, 11, incompleteData)} />
                 </Scatter>
-                <Scatter data={frontData} isAnimationActive={false} line={{ stroke: colors.accent, strokeWidth: 2 }} lineType="joint" shape={(p: Shape) => (
+                <Scatter data={front} isAnimationActive={false} line={{ stroke: colors.accent, strokeWidth: 2 }} lineType="joint" shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={8} fill={colors.provider(p.payload?.vendor ?? "")} stroke={colors.text} strokeWidth={2} />)}>
-                  <LabelList dataKey="label" content={labelAt(-1, colors.text, 600, 12, frontData)} />
                 </Scatter>
+                <ClusterLabels clusters={clusters} front={onFront} fill={colors.muted} accent={colors.text} />
               </ScatterChart>
             </ResponsiveContainer>
           )}

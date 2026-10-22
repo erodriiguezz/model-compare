@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fmtTime, getJSON, usd, type Job, type RunRow } from "@/lib/api";
+import { fmtTime, getJSON, type Job, type RunRow } from "@/lib/api";
 import { vendorColor } from "@/lib/vendor";
 import JobView from "./JobView";
 import SectionTabs from "./SectionTabs";

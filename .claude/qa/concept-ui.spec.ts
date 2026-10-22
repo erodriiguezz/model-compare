@@ -798,6 +798,21 @@ test.describe('settings keys', () => {
     await clean(KEY, KEY2);
   });
 
+  test('[AC-34.14] the typed key is never in the page, not while the form is open and not after a rejected save', async ({ page }) => {
+    await page.goto('/settings/');
+    const row = keyRow(page);
+    await row.getByRole('button', { name: 'Add' }).click();
+    await row.getByLabel('Together AI API key').fill(KEY);
+    await expect(row.getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(await page.content()).not.toContain(KEY);
+    await page.route('**/api/settings/keys/togetherai', (route) => (route.request().method() === 'PUT' ? route.fulfill({ status: 422, json: { detail: 'Key rejected.' } }) : route.continue()));
+    await row.getByRole('button', { name: 'Save' }).click();
+    await expect(row.getByRole('status')).toContainText('Key rejected.');
+    await expect(row.getByLabel('Together AI API key')).toBeVisible();
+    expect(await page.content()).not.toContain(KEY);
+    await expect(row.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
   test('[AC-34.14] a key from the environment is labelled, explained and has no Remove', async ({ page }) => {
     await page.route('**/api/settings/keys', (route) => route.fulfill({
       json: [{ provider: 'togetherai', var: 'TOGETHERAI_API_KEY', set: true, masked: 'sk-…e5f6', source: 'environment' }],
@@ -839,29 +854,51 @@ test('[AC-34.15] Settings shows loading, and the empty state when no key is set'
   await expect(page.locator('.key-row')).toHaveCount(6);
 });
 
-test('[AC-34.9] scatter labels do not overlap when every model has the same latency', async ({ page, request }) => {
+const labelBoxes = (chart: Locator) => chart.locator('.scatter-labels tspan').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent ?? '', x: r.x, y: r.y, w: r.width, h: r.height }; }));
+const hit = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+async function scatterWith(page: Page, request: import('@playwright/test').APIRequestContext, tweak: (m: Record<string, { latency_p50: number; task_success: number }>) => void) {
   const report = await loadReport(request);
-  for (const m of Object.values(report.summary.markers) as { latency_p50: number }[]) m.latency_p50 = 0.4;
+  tweak(report.summary.markers);
   await mockReport(page, report);
   await page.setViewportSize({ width: 1280, height: 900 });
   await openReport(page, REPORT);
   const chart = speed(page).locator('[data-chart="latency-scatter"]');
-  await expect(chart.locator('.recharts-wrapper')).toBeVisible();
-  const names = await chart.locator('.sr-only tbody tr td:first-child').allTextContents();
-  const boxes = await chart.locator('svg text').evaluateAll((els, models) => els
-    .filter((e) => models.some((m) => (e.textContent ?? '').startsWith(m)))
-    .map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, x: r.x, y: r.y, w: r.width, h: r.height }; }), names);
-  expect(boxes.length).toBeGreaterThan(1);
-  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
-    const a = boxes[i], b = boxes[j];
-    const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-    expect(overlap, `${a.t} overlaps ${b.t}`).toBe(false);
+  await expect(chart.locator('.scatter-labels tspan').first()).toBeVisible();
+  return chart;
+}
+async function checkLabels(chart: Locator) {
+  const labels = await labelBoxes(chart);
+  expect(labels.length).toBeGreaterThan(1);
+  for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) expect(hit(labels[i], labels[j]), `${labels[i].t} overlaps ${labels[j].t}`).toBe(false);
+  const dots = await chart.locator('.recharts-scatter circle').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }));
+  expect(dots.length).toBeGreaterThan(1);
+  for (const l of labels) for (const d of dots) expect(hit(l, d), `${l.t} covers a dot`).toBe(false);
+  const g = (await chart.locator('.recharts-cartesian-grid').first().boundingBox())!;
+  for (const l of labels) {
+    expect(l.x, l.t).toBeGreaterThanOrEqual(g.x - 1); expect(l.x + l.w, l.t).toBeLessThanOrEqual(g.x + g.width + 1);
+    expect(l.y, l.t).toBeGreaterThanOrEqual(g.y - 1); expect(l.y + l.h, l.t).toBeLessThanOrEqual(g.y + g.height + 1);
   }
+  return labels;
+}
+
+test('[AC-34.9] scatter labels do not overlap or cover dots when every model has the same latency', async ({ page, request }) => {
+  const chart = await scatterWith(page, request, (m) => { for (const k of Object.keys(m)) m[k].latency_p50 = 0.4; });
+  await checkLabels(chart);
   await chart.screenshot({ path: join(SHOTS, 'latency-scatter.png') });
 });
 
+test('[AC-34.9] scatter labels stay inside the plot for models near 100% and near 0%', async ({ page, request }) => {
+  const chart = await scatterWith(page, request, (m) => {
+    for (const k of Object.keys(m)) m[k].latency_p50 = 0.4;
+    m['qa-better'].task_success = 0.99; m['qa-worse'].task_success = 0.01;
+  });
+  await checkLabels(chart);
+  await chart.screenshot({ path: join(SHOTS, 'latency-scatter-extremes.png') });
+});
+
 // AC-34.16 accessibility: axe-core (a dependency of the web app's tooling) is injected and the run fails on serious or critical violations.
-const AXE = [join(process.cwd(), 'web', 'node_modules', 'axe-core', 'axe.min.js'), join(process.env.HOME ?? '', '.claude', 'skills', 'design', 'node_modules', 'axe-core', 'axe.min.js')].find(existsSync);
+const ROOT = process.env.PWD ?? process.cwd();
+const AXE = [join(ROOT, 'web', 'node_modules', 'axe-core', 'axe.min.js'), join(process.env.HOME ?? '', '.claude', 'skills', 'design', 'node_modules', 'axe-core', 'axe.min.js')].find(existsSync);
 for (const width of [1280, 390]) {
   for (const route of ['/compare/', REPORT, '/history/', '/models/', '/projects/', '/settings/']) {
     test(`[AC-34.16] ${route} has no serious accessibility violations and no horizontal scroll at ${width}px`, async ({ page }) => {

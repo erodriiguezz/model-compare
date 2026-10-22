@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import KeyRow from "@/components/KeyRow";
-import { Empty, ErrorState, Loading } from "@/components/States";
+import { Empty, ErrorState } from "@/components/States";
 import { getJSON, type KeyStatus } from "@/lib/api";
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; rows: KeyStatus[] };
@@ -26,7 +26,7 @@ export default function Page() {
   return (
     <main className="page">
       <h1>Settings</h1>
-      <p className="muted lede">Provider API keys, kept on this machine.</p>
+      <p className="muted lede">Provider keys decide which models you can run.</p>
       <div className="set-layout">
         <section className="card set-main" aria-labelledby="set-keys-h">
           <div className="set-head">
@@ -36,7 +36,14 @@ export default function Page() {
             </div>
             {state.status === "ready" && <span className="muted">{state.rows.filter((r) => r.set).length} of {state.rows.length} set</span>}
           </div>
-          {state.status === "loading" && <Loading label="Loading keys" />}
+          {state.status === "loading" && (
+            <div role="status" aria-label="Loading keys…" aria-busy="true">
+              <p className="muted set-loading">Loading keys…</p>
+              <ul className="key-list" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => <li key={i} className="key-row skeleton-row"><div className="skeleton short" /><div className="skeleton" /></li>)}
+              </ul>
+            </div>
+          )}
           {state.status === "error" && <ErrorState message={state.message} onRetry={retry}>Check that <code>modelcompare serve</code> is running.</ErrorState>}
           {state.status === "ready" && (
             <>
@@ -49,8 +56,9 @@ export default function Page() {
         </section>
         <aside className="card set-side" aria-labelledby="set-where-h">
           <h2 id="set-where-h">Where keys live</h2>
-          <p>In the engine env file on this machine, the same file the CLI reads. A key set in the server environment takes precedence and is only read.</p>
-          <p className="muted">The page never shows a full key. It is sent to the server once, when saved, and from there only to its provider.</p>
+          <p>In the engine env file on this machine, the same file the CLI reads. The page never shows a full key and only sends it to its provider.</p>
+          <p className="muted">A key set in the server environment is used when the server starts. This page can replace it until a restart, but can&apos;t remove it.</p>
+          <p className="muted">The server only answers requests from this machine.</p>
         </aside>
       </div>
     </main>

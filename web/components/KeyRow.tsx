@@ -15,7 +15,8 @@ const TOKEN: Record<string, string> = { openai: "openai", anthropic: "anthropic"
 /** One provider key: masked status plus add/replace, test and remove. The full value lives only in the input while typing. */
 export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (next: KeyStatus) => void }) {
   const [mode, setMode] = useState<Mode>("idle");
-  const [value, setValue] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const [hasValue, setHasValue] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const actionRef = useRef<HTMLButtonElement>(null);
@@ -36,9 +37,11 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
     setBusy(false);
   }
 
+  // The input is uncontrolled so the key never becomes a `value` attribute in the DOM; it is cleared whatever the outcome.
+  const clearInput = () => { if (input.current) input.current.value = ""; setHasValue(false); };
   const save = () => run(async () => {
-    onChange(await putJSON<KeyStatus>(base, { value }));
-    setValue("");
+    const value = input.current?.value ?? "";
+    try { onChange(await putJSON<KeyStatus>(base, { value })); } finally { clearInput(); }
     toIdle();
     setNote({ ok: true, text: "Saved." });
   });
@@ -60,9 +63,9 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
     <li className="key-row" data-provider={row.provider}>
       <div className="key-head">
         <div className="key-ident">
-          <span className={`set-badge${row.set ? " on" : ""}`} style={{ "--set-color": `var(--provider-${TOKEN[row.provider] ?? "other"})` } as CSSProperties} aria-hidden="true">{name[0]}</span>
+          <span className={`set-badge${row.set ? " on" : ""}${row.set && (row.provider === "openai" || row.provider === "anthropic") ? " dark" : ""}`} style={{ "--set-color": `var(--provider-${TOKEN[row.provider] ?? "other"})` } as CSSProperties} aria-hidden="true">{name[0]}</span>
           <div>
-            <h2>{name}</h2>
+            <h3>{name}</h3>
             <code className="muted">{row.var}</code>
           </div>
         </div>
@@ -83,10 +86,10 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
         <form className="key-form" onSubmit={(e) => { e.preventDefault(); save(); }}>
           <label>
             <span className="sr-only">{name} API key</span>
-            <input type="password" autoFocus autoComplete="new-password" spellCheck={false} placeholder={`Paste ${name} key`} value={value} onChange={(e) => setValue(e.target.value)} />
+            <input type="password" autoFocus autoComplete="new-password" spellCheck={false} placeholder={`Paste ${name} key`} ref={input} onChange={(e) => setHasValue(e.target.value.trim() !== "")} />
           </label>
-          <button type="submit" className="btn" disabled={busy || !value.trim()}>Save</button>
-          <button type="button" className="btn secondary" disabled={busy} onClick={() => { setValue(""); toIdle(); }}>Cancel</button>
+          <button type="submit" className="btn" disabled={busy || !hasValue}>Save</button>
+          <button type="button" className="btn secondary" disabled={busy} onClick={() => { clearInput(); toIdle(); }}>Cancel</button>
         </form>
       )}
       {mode === "confirm" && (
