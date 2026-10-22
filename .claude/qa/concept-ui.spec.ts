@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SHOTS = join(process.env.PWD ?? process.cwd(), '.claude', 'artifacts', 'screenshots', '34');
@@ -753,3 +753,129 @@ test('[AC-34.15] the editor shows loading, then error with retry that refetches,
   await expect(back).toBeVisible();
   expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(24);
 });
+
+// ---- Milestone 6: Settings, scatter labels, and the whole-app accessibility pass ----
+const KEY = 'sk-test-000000000000e5f6';
+const KEY2 = 'sk-test-000000000000g7h8';
+const keyRow = (page: Page) => page.locator('[data-provider="togetherai"]');
+// togetherai belongs to this spec only (settings.spec owns groq, e2e gemini, models openai). It is removed even when a step fails.
+test.describe('settings keys', () => {
+  test.afterEach(async ({ request }) => { await request.delete('/api/settings/keys/togetherai'); });
+
+  test('[AC-34.14] a provider row shows status, masked key and inline Replace, Test and Remove; the full key never reaches the page', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/settings/');
+    const row = keyRow(page);
+    await expect(row.locator('.chip')).toHaveText('not set');
+    await expect(row.getByRole('button', { name: 'Test' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Where keys live' })).toBeVisible();
+    const clean = async (...keys: string[]) => { const html = await page.content(); for (const k of keys) expect(html).not.toContain(k); };
+
+    await row.getByRole('button', { name: 'Add' }).click();
+    await row.getByLabel('Together AI API key').fill(KEY);
+    await row.getByRole('button', { name: 'Save' }).click();
+    await expect(row.locator('.chip')).toHaveText('set');
+    await expect(row.locator('.key-mask')).toHaveText('sk-…e5f6');
+    for (const name of ['Replace', 'Test', 'Remove']) await expect(row.getByRole('button', { name })).toBeVisible();
+    await clean(KEY);
+    await shot(page, 'settings-1280');
+
+    await page.route('**/api/settings/keys/togetherai/test', (route) => route.fulfill({ json: { ok: true, message: 'Key accepted.' } }));
+    await row.getByRole('button', { name: 'Test' }).click();
+    await expect(row.getByRole('status')).toHaveText('Key accepted.');
+    await clean(KEY);
+
+    await row.getByRole('button', { name: 'Replace' }).click();
+    await row.getByLabel('Together AI API key').fill(KEY2);
+    await row.getByRole('button', { name: 'Save' }).click();
+    await expect(row.locator('.key-mask')).toHaveText('sk-…g7h8');
+    await clean(KEY, KEY2);
+
+    await row.getByRole('button', { name: 'Remove' }).click();
+    await row.getByRole('button', { name: 'Remove key' }).click();
+    await expect(row.locator('.chip')).toHaveText('not set');
+    await expect(row.locator('.key-mask')).toHaveText('—');
+    await clean(KEY, KEY2);
+  });
+
+  test('[AC-34.14] a key from the environment is labelled, explained and has no Remove', async ({ page }) => {
+    await page.route('**/api/settings/keys', (route) => route.fulfill({
+      json: [{ provider: 'togetherai', var: 'TOGETHERAI_API_KEY', set: true, masked: 'sk-…e5f6', source: 'environment' }],
+    }));
+    await page.goto('/settings/');
+    await expect(keyRow(page).locator('.chip')).toHaveText('from environment');
+    await expect(keyRow(page).getByText('Set in the server environment')).toBeVisible();
+    await expect(keyRow(page).getByRole('button', { name: 'Replace' })).toBeVisible();
+    await expect(keyRow(page).getByRole('button', { name: 'Remove' })).toHaveCount(0);
+  });
+
+  test('[AC-34.14] settings fits 390px and is captured', async ({ page, request }) => {
+    await request.put('/api/settings/keys/togetherai', { data: { value: KEY } });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/settings/');
+    await expect(keyRow(page).locator('.key-mask')).toHaveText('sk-…e5f6');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await shot(page, 'settings-390');
+  });
+});
+
+test('[AC-34.15] a failed Settings load shows error with retry, and Retry refetches', async ({ page }) => {
+  let calls = 0;
+  await page.route('**/api/settings/keys', (route) => (calls++ === 0 ? route.fulfill({ status: 500, body: 'boom' }) : route.continue()));
+  await page.goto('/settings/');
+  const error = page.locator('[data-state="error"]');
+  await expect(error).toContainText('could not be loaded');
+  await error.getByRole('button', { name: 'Try again' }).click();
+  await expect(keyRow(page)).toBeVisible();
+  expect(calls).toBeGreaterThan(1);
+});
+
+test('[AC-34.15] Settings shows loading, and the empty state when no key is set', async ({ page }) => {
+  const none = ['openai', 'anthropic', 'gemini', 'togetherai', 'groq', 'openrouter'].map((p) => ({ provider: p, var: `${p.toUpperCase()}_API_KEY`, set: false, masked: null, source: null }));
+  await page.route('**/api/settings/keys', async (route) => { await new Promise((r) => setTimeout(r, 400)); await route.fulfill({ json: none }); });
+  await page.goto('/settings/');
+  await expect(page.getByText('Loading keys')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'No keys yet' })).toBeVisible();
+  await expect(page.locator('.key-row')).toHaveCount(6);
+});
+
+test('[AC-34.9] scatter labels do not overlap when every model has the same latency', async ({ page, request }) => {
+  const report = await loadReport(request);
+  for (const m of Object.values(report.summary.markers) as { latency_p50: number }[]) m.latency_p50 = 0.4;
+  await mockReport(page, report);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await openReport(page, REPORT);
+  const chart = speed(page).locator('[data-chart="latency-scatter"]');
+  await expect(chart.locator('.recharts-wrapper')).toBeVisible();
+  const boxes = (await chart.locator('svg text').evaluateAll((els) => els
+    .filter((e) => e.closest('.recharts-scatter'))
+    .map((e) => { const r = e.getBoundingClientRect(); return { t: e.textContent, x: r.x, y: r.y, w: r.width, h: r.height }; })));
+  expect(boxes.length).toBeGreaterThan(1);
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], b = boxes[j];
+    const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    expect(overlap, `${a.t} overlaps ${b.t}`).toBe(false);
+  }
+  await chart.screenshot({ path: join(SHOTS, 'latency-scatter.png') });
+});
+
+// AC-34.16 accessibility: axe-core (a dependency of the web app's tooling) is injected and the run fails on serious or critical violations.
+const AXE = [join(process.cwd(), 'web', 'node_modules', 'axe-core', 'axe.min.js'), join(process.env.HOME ?? '', '.claude', 'skills', 'design', 'node_modules', 'axe-core', 'axe.min.js')].find(existsSync);
+for (const width of [1280, 390]) {
+  for (const route of ['/compare/', REPORT, '/history/', '/models/', '/projects/', '/settings/']) {
+    test(`[AC-34.16] ${route} has no serious accessibility violations and no horizontal scroll at ${width}px`, async ({ page }) => {
+      expect(AXE, 'axe-core must be installed').toBeTruthy();
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(route);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      await page.addScriptTag({ path: AXE! });
+      const bad = await page.evaluate(async () => {
+        const r = await (window as unknown as { axe: { run: (c: Document) => Promise<{ violations: { id: string; impact: string; nodes: { target: unknown }[] }[] }> } }).axe.run(document);
+        return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => String(n.target)).join(' | ')}`);
+      });
+      expect(bad).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+  }
+}

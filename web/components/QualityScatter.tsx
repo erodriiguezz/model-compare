@@ -8,6 +8,7 @@ const SPEC = {
   cost: { key: "cost_per_1k_tasks", fmt: usd, axis: "$ per 1k tasks", title: "Quality vs cost", chart: "cost-scatter", note: "Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both.", sr: "Overall pass rate and cost per model" },
   latency: { key: "latency_p50", fmt: (v: number) => `${v.toFixed(1)} s`, axis: "Median latency (s)", title: "Quality vs latency", chart: "latency-scatter", note: "Quality is the overall pass rate across every case a model ran. The line joins the models no other model beats on both quality and speed.", sr: "Overall pass rate and median latency per model" },
 } as const;
+type LabelProps = { x?: number | string; y?: number | string; index?: number };
 type Shape = { cx?: number; cy?: number; payload?: { vendor: string } };
 
 /**
@@ -26,8 +27,26 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
   if (points.length < 2) return null;
   const front = paretoFront(points);
   const onFront = new Set(front.map((p) => p.name));
+  // Models at (nearly) the same spot would print their names on top of each other: each gets its own line,
+  // frontier names stacked upward and the rest downward.
+  const seen = new Map<string, number>();
+  const placed = points.map((p) => {
+    const key = `${onFront.has(p.name)}|${p.x.toFixed(2)}|${Math.round(p.quality)}`;
+    const slot = seen.get(key) ?? 0;
+    seen.set(key, slot + 1);
+    return { ...p, slot };
+  });
+  const slotOf = new Map(placed.map((p) => [p.name, p.slot]));
+  const withSlot = (list: typeof points) => list.map((p) => ({ ...p, slot: slotOf.get(p.name) ?? 0 }));
+  const labelAt = (dir: 1 | -1, fill: string, weight: number, size: number, data: { label: string; slot: number }[]) =>
+    function Label({ x, y, index }: LabelProps) {
+      const d = data[index ?? 0];
+      if (d == null || x == null || y == null) return null;
+      return <text x={Number(x)} y={Number(y) + dir * (14 + d.slot * (size + 3))} textAnchor="middle" fill={fill} fontSize={size} fontWeight={weight}>{d.label}</text>;
+    };
   const incomplete = points.filter((p) => p.incomplete);
   const rest = points.filter((p) => !onFront.has(p.name) && !p.incomplete);
+  const restData = withSlot(rest), incompleteData = withSlot(incomplete), frontData = withSlot(front);
   const fmt = (p: (typeof points)[number]) => `${p.name} ${Math.round(p.quality)}% at ${fmtX(p.x)}`;
   const summary = `Overall pass rate against ${spec.axis}. On the Pareto front: ${front.map(fmt).join(", ")}. Others: ${rest.map(fmt).join(", ") || "none"}.${incomplete.length ? ` Incomplete, too many errors to rank: ${incomplete.map(fmt).join(", ")} (incomplete).` : ""}`;
   const vendorList = [...new Set(points.map((p) => p.vendor))];
@@ -45,17 +64,17 @@ export default function QualityScatter({ markers, vendors, x = "cost" }: { marke
                   label={{ value: spec.axis, position: "insideBottom", offset: -16, fill: colors.muted, fontSize: 12 }} />
                 <YAxis type="number" dataKey="quality" name="Overall pass rate" domain={[0, 100]} unit="%" width={64} tick={{ fill: colors.muted, fontSize: 12 }} stroke={colors.border}
                   label={{ value: "Overall pass rate", angle: -90, position: "insideLeft", offset: 4, fill: colors.muted, fontSize: 12 }} />
-                <Scatter data={rest} isAnimationActive={false} shape={(p: Shape) => (
+                <Scatter data={restData} isAnimationActive={false} shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={5} fill={colors.provider(p.payload?.vendor ?? "")} fillOpacity={0.35} />)}>
-                  <LabelList dataKey="label" position="bottom" fill={colors.muted} fontSize={11} offset={10} />
+                  <LabelList dataKey="label" content={labelAt(1, colors.muted, 400, 11, restData)} />
                 </Scatter>
-                <Scatter data={incomplete} isAnimationActive={false} shape={(p: Shape) => (
+                <Scatter data={incompleteData} isAnimationActive={false} shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={5} fill={colors.surface} stroke={colors.muted} strokeWidth={2} strokeDasharray="3 2" />)}>
-                  <LabelList dataKey="label" position="bottom" fill={colors.muted} fontSize={11} offset={10} />
+                  <LabelList dataKey="label" content={labelAt(1, colors.muted, 400, 11, incompleteData)} />
                 </Scatter>
-                <Scatter data={front} isAnimationActive={false} line={{ stroke: colors.accent, strokeWidth: 2 }} lineType="joint" shape={(p: Shape) => (
+                <Scatter data={frontData} isAnimationActive={false} line={{ stroke: colors.accent, strokeWidth: 2 }} lineType="joint" shape={(p: Shape) => (
                   <circle cx={p.cx} cy={p.cy} r={8} fill={colors.provider(p.payload?.vendor ?? "")} stroke={colors.text} strokeWidth={2} />)}>
-                  <LabelList dataKey="label" position="top" fill={colors.text} fontSize={12} fontWeight={600} offset={12} />
+                  <LabelList dataKey="label" content={labelAt(-1, colors.text, 600, 12, frontData)} />
                 </Scatter>
               </ScatterChart>
             </ResponsiveContainer>

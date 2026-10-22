@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { deleteJSON, postJSON, putJSON, type KeyStatus } from "@/lib/api";
 
 type Mode = "idle" | "edit" | "confirm";
@@ -9,6 +9,8 @@ type Note = { ok: boolean; text: string } | null;
 const LABELS: Record<string, string> = {
   openai: "OpenAI", anthropic: "Anthropic", gemini: "Google Gemini", togetherai: "Together AI", groq: "Groq", openrouter: "OpenRouter",
 };
+
+const TOKEN: Record<string, string> = { openai: "openai", anthropic: "anthropic", gemini: "google" };
 
 /** One provider key: masked status plus add/replace, test and remove. The full value lives only in the input while typing. */
 export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (next: KeyStatus) => void }) {
@@ -55,11 +57,14 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
     : <span className="chip ok">set</span>;
 
   return (
-    <li className="card key-row" data-provider={row.provider}>
+    <li className="key-row" data-provider={row.provider}>
       <div className="key-head">
-        <div>
-          <h2>{name}</h2>
-          <code className="muted">{row.var}</code>
+        <div className="key-ident">
+          <span className={`set-badge${row.set ? " on" : ""}`} style={{ "--set-color": `var(--provider-${TOKEN[row.provider] ?? "other"})` } as CSSProperties} aria-hidden="true">{name[0]}</span>
+          <div>
+            <h2>{name}</h2>
+            <code className="muted">{row.var}</code>
+          </div>
         </div>
         {chip}
         <code className="key-mask" aria-label={`${name} key`}>{row.masked ?? "—"}</code>
@@ -72,7 +77,7 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
         )}
       </div>
       {row.source === "environment" && (
-        <p className="muted">Set in the server environment, not the env file. Replacing it here writes the file; removing it needs a change outside this page.</p>
+        <p className="muted key-note">Set in the server environment, not the env file. Replacing it here writes the file; removing it needs a change outside this page.</p>
       )}
       {mode === "edit" && (
         <form className="key-form" onSubmit={(e) => { e.preventDefault(); save(); }}>
@@ -86,7 +91,7 @@ export default function KeyRow({ row, onChange }: { row: KeyStatus; onChange: (n
       )}
       {mode === "confirm" && (
         <div className="confirm" role="group" aria-label={`Remove ${name} key`}>
-          <p>Remove the {name} key from the env file?</p>
+          <p>Remove the {name} key from the env file? Models from {name} stop running.</p>
           <button type="button" className="btn destructive" disabled={busy} onClick={remove}>Remove key</button>
           <button type="button" className="btn secondary" disabled={busy} onClick={toIdle}>Cancel</button>
         </div>
