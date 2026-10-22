@@ -282,20 +282,26 @@ textarea { resize: vertical; }
 .btn.destructive-text { color: var(--danger); }
 .back { display: block; width: fit-content; min-height: var(--tap); line-height: var(--tap); }
 .card p a.btn { text-decoration: none; }
-.scorer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-6); }
-.scorer .check { align-items: center; }
-.scorer p { margin: 0 0 0 calc(var(--tap) + var(--space-2)); }
+.scorer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--col-min)), 1fr)); gap: var(--space-2); margin-top: var(--space-3); }
+.scorer { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.scorer[data-on="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.scorer .check { align-items: flex-start; padding: 0; }
+.scorer .check > span { display: flex; flex-direction: column; min-width: 0; }
+.scorer .check .muted { margin-left: 0; text-align: left; }
+.scorer .note { margin: 0; }
 .params-row { margin-top: var(--space-3); }
 table.cases td { vertical-align: middle; }
 .preview { display: block; max-width: var(--col-min); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 640px) { .scorer-grid { grid-template-columns: 1fr; } .preview { max-width: var(--field-w); } }
+@media (max-width: 640px) { .preview { max-width: var(--field-w); } }
 
 /* Dialogs */
-.dialog { width: min(100% - 2 * var(--gutter), var(--col-min) * 2); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+.dialog { width: min(100% - 2 * var(--gutter), var(--col-min) * 2 + var(--space-6)); padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); }
 .dialog::backdrop { background: var(--text); opacity: 0.4; }
 .dialog .form > * + * { margin-top: 0; }
 .dialog label { display: flex; flex-direction: column; gap: var(--space-1); font-weight: 500; }
 .dialog label.check { flex-direction: row; font-weight: 400; }
+.dialog .bar-actions { justify-content: flex-end; }
+.proj-2col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 
 /* Choose and Run */
 .choose { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
@@ -433,3 +439,44 @@ td[data-state="queued"] .cell > span:last-child { color: var(--text-muted); }
 .card.table-card > p { margin: 0; }
 .metrics tr.group th { background: var(--subtle); color: var(--text); white-space: normal; }
 .metrics tbody:not(:first-of-type) tr.group th { border-top: 1px solid var(--border-strong); }
+
+/* Projects list and editor */
+.proj-count { align-self: center; }
+.proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--col-min) + var(--space-8))), 1fr)); gap: var(--space-3); }
+.proj-card { position: relative; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.proj-card > * { margin-top: 0; }
+.proj-card:hover { border-color: var(--border-strong); }
+.proj-card[data-valid="false"] { border-color: var(--worse-fg); }
+.proj-card h2 { font-size: var(--text-md); overflow-wrap: anywhere; }
+.page .proj-card a.row-link:not(.btn) { display: inline-block; min-height: var(--tap); color: var(--ink); }
+.proj-card a.row-link::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius-lg); }
+.proj-error { padding: var(--space-2) var(--space-3); border-radius: var(--radius); background: var(--worse-bg); color: var(--worse-fg); overflow-wrap: anywhere; }
+.proj-foot { display: flex; justify-content: space-between; gap: var(--space-3); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--row-line); }
+.proj-cols { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+.proj-main { flex: 999 1 calc(var(--col-min) * 2 + var(--space-6)); min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.proj-side { flex: 1 1 var(--col-min); min-width: 0; align-self: stretch; display: flex; flex-direction: column; gap: var(--space-4); }
+.proj-main > *, .proj-side > *, .proj-actions > * { margin-top: 0; }
+.proj-actions { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); background: var(--surface); }
+.proj-bar, .proj-state { display: flex; flex-direction: column; gap: var(--space-3); }
+.proj-state { align-items: flex-start; gap: var(--space-2); }
+.proj-state:has(:empty:only-child) { display: none; }
+.proj-checks { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-sm); }
+.proj-checks li { display: flex; gap: var(--space-2); }
+.proj-checks li[data-ok="true"] > span:first-child { color: var(--better-fg); font-weight: 700; }
+.proj-checks li[data-ok="false"] { color: var(--warning); }
+.proj-cases-head { padding: var(--space-4) var(--space-6) var(--space-3); }
+.proj-cases table.list { min-width: 0; }
+.proj-cases table.list th, .proj-cases table.list td { padding: var(--space-2) var(--space-4); }
+.proj-open td { background: var(--subtle); }
+@media (max-width: 640px) {
+  .proj-cols { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+  .proj-side, .proj-actions { display: contents; }
+  .proj-main { order: 0; }
+  .proj-state { order: -1; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .proj-bar { order: 1; position: sticky; bottom: 0; z-index: 5; flex-direction: row; align-items: center; height: var(--bar-h); padding: 0 var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  .proj-bar .btn { flex: 1 1 auto; padding: 0 var(--space-3); white-space: nowrap; }
+  .proj-side > .card { order: 2; }
+  html:has(.proj-actions) { scroll-padding-bottom: calc(var(--bar-h) + var(--space-4)); }
+  .proj-cases .num { display: none; }
+  .proj-cases table.list th, .proj-cases table.list td { padding: var(--space-2); }
+}
