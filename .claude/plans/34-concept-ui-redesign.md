@@ -71,7 +71,7 @@ touches_api: false
 **Acceptance criteria**
 - **Shell** (AC-34.1) — Every page shows the new top bar with Compare, Models, Projects and Settings, uses the new tokens, and has no horizontal page scroll at 390 px.
 - **Choose** (AC-34.2) — Model cards show key status, a model with a missing key can't be picked, and one selected model is marked baseline.
-- **Choose deck and estimate** (AC-34.3) — Use-case presets from `/profiles` and dimension toggles with case counts update a sticky estimate (cost, time, calls, cached). Start is disabled with fewer than two models and says why.
+- **Choose deck and estimate** (AC-34.3) — Use-case presets from `/profiles` and dimension toggles with case counts update a sticky estimate (cost, time, calls, cached). Start is disabled with no models and says why; one model still runs as a scorecard and says two are needed for a verdict (amended 2026-10-22, see Grill 5).
 - **Run** (AC-34.4) — A running job shows overall percent, calls, spend and time left; progress per model; and a benchmark × model grid with done, running, queued and error states. Cancel still works.
 - **Decision** (AC-34.5) — A finished report opens with the recommendation sentence and each candidate's overall change, with its 95% CI, drawn against zero and labelled with its verdict. The best model per use case and the caveats follow.
 - **Key metrics** (AC-34.6) — One table lists pass rate, verdict, regressions, consistency, cost per 1k, run cost, p50, p95 and error rate per model, with the best value per row highlighted.
@@ -103,6 +103,7 @@ touches_api: false
 | 2 | Which navigation? | "Whatever can be wired into the current page." Keep the current routes and nav. Choose, Run and Report live at `/compare/` and `/compare/?job=`, with History a Compare sub-tab. |
 | 3 | Models, Projects, Settings? | "Keep and redesign projects and settings." Concept boards were added for Projects list, Project editor and Settings. Models gets tokens only. |
 | 4 | Dark mode? | Light only. |
+| 5 | (During p2) AC-34.3 disabled Start below two models, but AC-34.16 keeps the one-model scorecard journey. Which wins? | "Keep scorecard" (Ernesto, 2026-10-22). Start is disabled only with zero models. |
 
 ## 3. Design & architecture
 ### Approach
@@ -149,7 +150,7 @@ none
 ### Tests to add
 - `.claude/qa/concept-ui.spec.ts` [AC-34.1] nav items and active state on every route; no horizontal scroll at 390 px
 - [AC-34.2] a missing-key model card is disabled; "Make baseline" moves the baseline marker
-- [AC-34.3] a preset changes the toggled dimensions and the estimate; Start is disabled with one model and shows the reason
+- [AC-34.3] a preset changes the toggled dimensions and the estimate; one model shows the scorecard note and still runs; zero models disables Start with the reason
 - [AC-34.4] a mock job shows percent, per-model progress and grid cell states; Cancel ends it
 - [AC-34.5] the finished mock report shows the recommendation, an overall-change row per candidate with a verdict, and use-case rows
 - [AC-34.6] the key metrics table has 9 rows and exactly one highlighted cell per comparable row
