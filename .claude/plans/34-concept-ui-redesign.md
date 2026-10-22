@@ -212,6 +212,13 @@ none
 - 300 counted lines · reviewer: Request changes (1 High: the 390 action bar covered focused fields), fixed with every Medium and Low item; the report-load race got a 15 s spec wait, and server caching is suggested as a follow-up
 - Review doc: `docs/reviews/34-p5.md`
 
+### p6 — Settings and the final pass (`3656219`)
+- verify pass (lint 0 warnings) · API smoke pass · browser 222/222 · UI audit 0 serious, 9 minor · AC coverage pass for AC-34.1–.16 · diff coverage not measured
+- AC-34.14 → `concept-ui.spec.ts:765`, `:801`, `:816`, `:827` ✔ · AC-34.15 (Settings) → `:837`, `:848` ✔ · AC-34.16 → `:904` (axe on six routes at 1280 and 390) plus the full suite ✔
+- Also in p6, outside its plan row: the AC-34.9 scatter-label fix carried from p4 (`:884`, `:890`)
+- 152 counted lines · reviewer: Request changes (non-blocking). Fixed: the full key in the DOM while typing (an existing bug, AC-34.14), stacked scatter labels, the env-key copy, the `.tile-flag` regression, the axe path, and axe-core pinned as a devDependency
+- Review doc: `docs/reviews/34-p6.md`
+
 ## 6. Retro
 
 ## 7. Hand-off

@@ -1,8 +1,8 @@
 {
   "issue": 34,
   "title": "Concept UI redesign — Compare, Projects and Settings",
-  "branch": "feat/concept-ui-redesign-p5-projects",
-  "commit": "64e23cd7b0a38541b0a573e07853361d470d34d8",
+  "branch": "feat/concept-ui-redesign-p6-settings",
+  "commit": "3656219847f99b71aad435833682cdd590da40c1",
   "plan": ".claude/plans/34-concept-ui-redesign.md",
   "size": "L",
   "touchesApi": false,
@@ -12,9 +12,9 @@
     "at": "2026-10-21"
   },
   "tests": {
-    "commit": "64e23cd7b0a38541b0a573e07853361d470d34d8",
-    "at": "2026-10-22T15:38:33.291Z",
-    "passed": false,
+    "commit": "3656219847f99b71aad435833682cdd590da40c1",
+    "at": "2026-10-22T16:17:34.099Z",
+    "passed": true,
     "steps": {
       "verify": "pass",
       "app": "pass",
@@ -22,10 +22,10 @@
       "browser": "pass",
       "screenshots": "pass",
       "ui": "pass",
-      "ac": "fail",
+      "ac": "pass",
       "diffcov": "warn"
     },
-    "acceptanceCriteria": "fail",
+    "acceptanceCriteria": "pass",
     "criteria": [
       {
         "id": "AC-34.1",
@@ -61,7 +61,7 @@
       },
       {
         "id": "AC-34.9",
-        "tests": 3
+        "tests": 5
       },
       {
         "id": "AC-34.10",
@@ -81,15 +81,15 @@
       },
       {
         "id": "AC-34.14",
-        "tests": 0
-      },
-      {
-        "id": "AC-34.15",
         "tests": 4
       },
       {
+        "id": "AC-34.15",
+        "tests": 6
+      },
+      {
         "id": "AC-34.16",
-        "tests": 0
+        "tests": 2
       }
     ],
     "diffCoverage": "not-measured",
@@ -98,14 +98,14 @@
     "target": "local"
   },
   "review": {
-    "local": "p5: High (390 bar) fixed; Mediums fixed",
+    "local": "p6: key-in-DOM, scatter labels and copy fixed",
     "document": null
   },
   "cost": {
     "estTokens": 1500000,
-    "actualTokens": 71489548,
-    "toolCalls": 107,
+    "actualTokens": 79715158,
+    "toolCalls": 92,
     "handoff": false
   },
-  "writtenAt": "2026-10-22T15:39:44.702Z"
+  "writtenAt": "2026-10-22T16:18:44.583Z"
 }
